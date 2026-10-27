@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tartlet.dev/schema/fixture-1.json",
+  "type": "object",
+  "required": ["id", "kinds", "phase", "source", "span", "expected", "interpretation", "expectationSource"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[MXTQZ]-\\d{2}" },
+    "kinds": { "type": "array", "items": { "enum": ["P", "E", "L", "D", "X", "R", "V", "S", "A"] } },
+    "phase": { "type": "integer" },
+    "source": { "type": "string" },
+    "seed": { "type": "string" },
+    "span": { "$ref": "#/$defs/span" },
+    "onsetsOnly": { "type": "boolean" },
+    "expected": { "type": "array", "items": {
+      "type": "object", "required": ["whole", "part", "value"],
+      "properties": { "whole": { "oneOf": [{ "$ref": "#/$defs/span" }, { "type": "null" }] }, "part": { "$ref": "#/$defs/span" }, "value": {} }
+    } },
+    "interpretation": { "type": "string" },
+    "oracle": { "type": "string" },
+    "expectationSource": { "enum": ["documented", "oracle-spec", "musical-reasoning"] }
+  },
+  "$defs": {
+    "rational": { "type": "array", "prefixItems": [{ "type": ["integer", "string"] }, { "type": ["integer", "string"] }], "minItems": 2, "maxItems": 2 },
+    "span": { "type": "array", "prefixItems": [{ "$ref": "#/$defs/rational" }, { "$ref": "#/$defs/rational" }], "minItems": 2, "maxItems": 2 }
+  }
+}

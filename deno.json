@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "@tartlet/time": "./packages/time/src/index.ts",
+    "@tartlet/mini": "./packages/mini/src/index.ts",
+    "@tartlet/syntax": "./packages/syntax/src/index.ts",
+    "@tartlet/ir": "./packages/ir/src/index.ts",
+    "@tartlet/registry": "./packages/registry/src/index.ts",
+    "@tartlet/random": "./packages/random/src/index.ts",
+    "@tartlet/check": "./packages/check/src/index.ts",
+    "@tartlet/core": "./packages/core/src/index.ts"
+  }
+}

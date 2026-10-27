@@ -1,0 +1,5 @@
+node_modules
+dist
+corpus/adapters.local.mjs
+test-results
+playwright-report

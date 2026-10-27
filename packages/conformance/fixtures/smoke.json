@@ -1,0 +1,15 @@
+{
+  "id": "M-01-smoke",
+  "kinds": ["E"],
+  "phase": 0,
+  "source": "s(\"a b c d\")",
+  "span": [[0, 1], [1, 1]],
+  "expected": [
+    { "whole": [[0, 1], [1, 4]], "part": [[0, 1], [1, 4]], "value": { "s": "a" } },
+    { "whole": [[1, 4], [1, 2]], "part": [[1, 4], [1, 2]], "value": { "s": "b" } },
+    { "whole": [[1, 2], [3, 4]], "part": [[1, 2], [3, 4]], "value": { "s": "c" } },
+    { "whole": [[3, 4], [1, 1]], "part": [[3, 4], [1, 1]], "value": { "s": "d" } }
+  ],
+  "interpretation": "Four equal steps fill the cycle (idea.md §7.2).",
+  "expectationSource": "documented"
+}

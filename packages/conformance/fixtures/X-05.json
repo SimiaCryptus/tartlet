@@ -1,0 +1,13 @@
+{
+  "id": "X-05",
+  "kinds": ["E"],
+  "phase": 1,
+  "source": "s(\"hh*2\").gain(\"<.5 1>\")",
+  "span": [[1, 1], [2, 1]],
+  "expected": [
+    { "whole": [[1, 1], [3, 2]], "part": [[1, 1], [3, 2]], "value": { "s": "hh", "gain": 1 } },
+    { "whole": [[3, 2], [2, 1]], "part": [[3, 2], [2, 1]], "value": { "s": "hh", "gain": 1 } }
+  ],
+  "interpretation": "Receiver structure (§8.6). Cycle 1 takes the second alternative.",
+  "expectationSource": "documented"
+}
