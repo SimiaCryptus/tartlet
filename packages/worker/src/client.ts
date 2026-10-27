@@ -1,6 +1,6 @@
-import type { TimeSpan } from "@tartlet/time";
-import { EvalCore } from "./core";
-import type { CheckRequest, Checked, Evaluator, QueryReply, RequestBody, Response } from "./protocol";
+import type { TimeSpan } from '@tartlet/time';
+import { EvalCore } from './core';
+import type { CheckRequest, Checked, Evaluator, QueryReply, RequestBody, Response } from './protocol';
 
 /** Same-thread evaluation. It is the fallback when workers are unavailable (plan.md R-3). */
 export class InlineEvaluator implements Evaluator {
@@ -53,12 +53,12 @@ export class WorkerEvaluator implements Evaluator {
 
   #spawn(): Worker {
     const w = this.factory();
-    w.addEventListener("message", (e: MessageEvent<Response>) => {
+    w.addEventListener('message', (e: MessageEvent<Response>) => {
       this.#onMessage(e.data);
     });
-    w.addEventListener("error", (e) => {
+    w.addEventListener('error', (e) => {
       e.preventDefault();
-      this.#restart(new Error("The Tartlet worker failed to start or crashed."));
+      this.#restart(new Error('The Tartlet worker failed to start or crashed.'));
     });
     return w;
   }
@@ -70,7 +70,7 @@ export class WorkerEvaluator implements Evaluator {
     clearTimeout(p.timer);
     this.#healthy = true;
     this.#failures = 0;
-    if (r.type === "error") p.reject(new Error(r.message));
+    if (r.type === 'error') p.reject(new Error(r.message));
     else p.resolve(r);
   }
 
@@ -88,15 +88,15 @@ export class WorkerEvaluator implements Evaluator {
       return;
     }
     this.#worker = this.#spawn();
-    if (this.#last) this.#send({ type: "check", ...this.#last }, this.timeouts.check).catch(() => undefined);
+    if (this.#last) this.#send({ type: 'check', ...this.#last }, this.timeouts.check).catch(() => undefined);
   }
 
   #send(body: RequestBody, timeout: number): Promise<Response> {
-    if (this.#broken || this.#disposed) return Promise.reject(new Error("The Tartlet worker is unavailable."));
+    if (this.#broken || this.#disposed) return Promise.reject(new Error('The Tartlet worker is unavailable.'));
     const id = ++this.#seq;
     return new Promise<Response>((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.#restart(new Error("The Tartlet worker exceeded its time budget and was restarted."));
+        this.#restart(new Error('The Tartlet worker exceeded its time budget and was restarted.'));
       }, timeout);
       this.#pending.set(id, { resolve, reject, timer });
       this.#worker.postMessage({ ...body, id });
@@ -105,14 +105,14 @@ export class WorkerEvaluator implements Evaluator {
 
   async check(req: CheckRequest): Promise<Checked> {
     this.#last = req;
-    const r = await this.#send({ type: "check", ...req }, this.timeouts.check);
-    if (r.type !== "checked") throw new Error("Unexpected worker reply.");
+    const r = await this.#send({ type: 'check', ...req }, this.timeouts.check);
+    if (r.type !== 'checked') throw new Error('Unexpected worker reply.');
     return { program: r.program, diagnostics: r.diagnostics };
   }
 
   async query(span: TimeSpan, provenance: boolean): Promise<QueryReply> {
-    const r = await this.#send({ type: "query", begin: span.begin, end: span.end, provenance }, this.timeouts.query);
-    if (r.type !== "events") throw new Error("Unexpected worker reply.");
+    const r = await this.#send({ type: 'query', begin: span.begin, end: span.end, provenance }, this.timeouts.query);
+    if (r.type !== 'events') throw new Error('Unexpected worker reply.');
     return { events: r.events, muted: r.muted };
   }
 
@@ -121,7 +121,7 @@ export class WorkerEvaluator implements Evaluator {
     this.#worker.terminate();
     for (const p of this.#pending.values()) {
       clearTimeout(p.timer);
-      p.reject(new Error("Evaluator disposed."));
+      p.reject(new Error('Evaluator disposed.'));
     }
     this.#pending.clear();
   }

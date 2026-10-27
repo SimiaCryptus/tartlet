@@ -1,2 +1,17 @@
-{ "name": "@tartlet/check", "version": "0.0.0", "type": "module", "license": "Apache-2.0", "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@tartlet/time": "workspace:*", "@tartlet/mini": "workspace:*", "@tartlet/syntax": "workspace:*", "@tartlet/ir": "workspace:*", "@tartlet/registry": "workspace:*", "@tartlet/random": "workspace:*" } }
+{
+  "name": "@tartlet/check",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@tartlet/time": "workspace:*",
+    "@tartlet/mini": "workspace:*",
+    "@tartlet/syntax": "workspace:*",
+    "@tartlet/ir": "workspace:*",
+    "@tartlet/registry": "workspace:*",
+    "@tartlet/random": "workspace:*"
+  }
+}

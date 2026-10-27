@@ -1,4 +1,21 @@
-{ "name": "@tartlet/cli", "version": "0.0.0", "private": true, "type": "module", "license": "Apache-2.0",
-  "exports": { ".": "./src/corpus.ts" },
-  "bin": { "tartlet": "./src/main.ts" },
-  "dependencies": { "@tartlet/time": "workspace:*", "@tartlet/ir": "workspace:*", "@tartlet/registry": "workspace:*", "@tartlet/check": "workspace:*", "@tartlet/core": "workspace:*" } }
+{
+  "name": "@tartlet/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/corpus.ts"
+  },
+  "bin": {
+    "tartlet": "./src/main.ts"
+  },
+  "dependencies": {
+    "@tartlet/time": "workspace:*",
+    "@tartlet/ir": "workspace:*",
+    "@tartlet/registry": "workspace:*",
+    "@tartlet/check": "workspace:*",
+    "@tartlet/core": "workspace:*",
+    "@tartlet/resources": "workspace:*"
+  }
+}

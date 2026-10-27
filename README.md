@@ -6,11 +6,11 @@ source without evaluating code. See `idea.md` for the design and `plan.md` for t
 Status: **T0 vertical spike.** The core path parses, checks, compiles and queries. The
 playground plays the `idea.md` §13.1 example.
 
-~~~sh
+```sh
 pnpm install
 pnpm test
 pnpm --filter playground dev
-~~~
+```
 
 **Nominative-use disclaimer.** "Strudel" is named only to describe language compatibility.
 Tartlet is not affiliated with or endorsed by the Strudel project. Tartlet contains no

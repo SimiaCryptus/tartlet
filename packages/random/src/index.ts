@@ -36,12 +36,12 @@ function fmix(h: number): number {
 }
 
 function hex(x: number): string {
-  return (x >>> 0).toString(16).padStart(8, "0");
+  return (x >>> 0).toString(16).padStart(8, '0');
 }
 
 /** root seed = hash(document id, blob index, user seed | "default") (idea.md §8.4). */
 export function rootSeed(documentId: string, blobIndex: string, seed?: string): string {
-  return hash64("tartlet-root", documentId, blobIndex, seed ?? "default");
+  return hash64('tartlet-root', documentId, blobIndex, seed ?? 'default');
 }
 
 /**

@@ -20,7 +20,7 @@ export const ZERO: Rational = { n: 0, d: 1 };
 export const ONE: Rational = { n: 1, d: 1 };
 
 function isSmall(r: Rational): r is Small {
-  return typeof r.n === "number";
+  return typeof r.n === 'number';
 }
 function safe(x: number): boolean {
   return x <= SAFE && x >= -SAFE;
@@ -46,7 +46,7 @@ function gcdB(a: bigint, b: bigint): bigint {
   return a;
 }
 function normN(n: number, d: number): Rational {
-  if (d === 0) throw new RangeError("Rational: zero denominator");
+  if (d === 0) throw new RangeError('Rational: zero denominator');
   if (n === 0) return ZERO;
   if (d < 0) {
     n = -n;
@@ -61,7 +61,7 @@ function normN(n: number, d: number): Rational {
   return { n: BigInt(n), d: BigInt(d) };
 }
 function normB(n: bigint, d: bigint): Rational {
-  if (d === 0n) throw new RangeError("Rational: zero denominator");
+  if (d === 0n) throw new RangeError('Rational: zero denominator');
   if (n === 0n) return ZERO;
   if (d < 0n) {
     n = -n;
@@ -80,17 +80,17 @@ function big(r: Rational): readonly [bigint, bigint] {
 }
 
 export function rat(n: number | bigint, d: number | bigint = 1): Rational {
-  if (typeof n === "number" && typeof d === "number") {
-    if (!Number.isInteger(n) || !Number.isInteger(d)) throw new RangeError("rat: integer components required");
+  if (typeof n === 'number' && typeof d === 'number') {
+    if (!Number.isInteger(n) || !Number.isInteger(d)) throw new RangeError('rat: integer components required');
     if (safe(n) && safe(d)) return normN(n, d);
   }
   return normB(BigInt(n), BigInt(d));
 }
 
 export function isRational(x: unknown): x is Rational {
-  if (typeof x !== "object" || x === null) return false;
+  if (typeof x !== 'object' || x === null) return false;
   const r = x as { n?: unknown; d?: unknown };
-  return (typeof r.n === "number" && typeof r.d === "number") || (typeof r.n === "bigint" && typeof r.d === "bigint");
+  return (typeof r.n === 'number' && typeof r.d === 'number') || (typeof r.n === 'bigint' && typeof r.d === 'bigint');
 }
 
 export function add(a: Rational, b: Rational): Rational {
@@ -131,7 +131,7 @@ export function mul(a: Rational, b: Rational): Rational {
 }
 
 export function div(a: Rational, b: Rational): Rational {
-  if (isZero(b)) throw new RangeError("Rational: division by zero");
+  if (isZero(b)) throw new RangeError('Rational: division by zero');
   if (isSmall(a) && isSmall(b)) {
     const x = a.n * b.d;
     const z = a.d * b.n;
@@ -190,7 +190,11 @@ export function toNumber(a: Rational): number {
 }
 
 export function toString(a: Rational): string {
-  return isSmall(a) ? (a.d === 1 ? `${String(a.n)}` : `${String(a.n)}/${String(a.d)}`) : `${a.n.toString()}/${a.d.toString()}`;
+  return isSmall(a)
+    ? a.d === 1
+      ? String(a.n)
+      : `${String(a.n)}/${String(a.d)}`
+    : `${a.n.toString()}/${a.d.toString()}`;
 }
 
 /**
@@ -198,7 +202,7 @@ export function toString(a: Rational): string {
  * Used only at float boundaries such as seek and scheduler windows.
  */
 export function fromFloat(x: number, maxDen = 1_000_000): Rational {
-  if (!Number.isFinite(x)) throw new RangeError("fromFloat: non-finite");
+  if (!Number.isFinite(x)) throw new RangeError('fromFloat: non-finite');
   if (Number.isInteger(x) && safe(x)) return normN(x, 1);
   let h0 = 0;
   let h1 = 1;
@@ -227,12 +231,12 @@ const DECIMAL = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/;
 export function parseDecimal(text: string): Rational | null {
   const m = DECIMAL.exec(text);
   if (!m) return null;
-  const intPart = m[2] ?? "";
-  const fracPart = m[3] ?? "";
-  if (intPart === "" && fracPart === "") return null;
-  const exp = Number(m[4] ?? "0") - fracPart.length;
+  const intPart = m[2] ?? '';
+  const fracPart = m[3] ?? '';
+  if (intPart === '' && fracPart === '') return null;
+  const exp = Number(m[4] ?? '0') - fracPart.length;
   if (Math.abs(exp) > 40) return null;
-  let n = BigInt(intPart + fracPart || "0");
-  if (m[1] === "-") n = -n;
+  let n = BigInt(intPart + fracPart || '0');
+  if (m[1] === '-') n = -n;
   return exp >= 0 ? normB(n * 10n ** BigInt(exp), 1n) : normB(n, 10n ** BigInt(-exp));
 }

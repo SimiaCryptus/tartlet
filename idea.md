@@ -159,28 +159,28 @@ Tartlet's value depends on its license being clean. The following rules are mand
 5. **AI implementation follows the provenance protocol.** AI agents may implement any module, including `@tartlet/mini`
    and `@tartlet/core`. No one can certify a model's training data, so the project does not rely on implementer
    ignorance. Instead it demonstrates that the code is dictated by the specification:
-    - **Limited inputs.** An agent works only from this specification, the oracle specifications, the registry, the
-      conformance tests, and Tartlet's own code.
-    - **Logged sessions.** Every session is recorded in the clean-room log: model and version, task, input documents,
-      and resulting commits.
-    - **Cross-model regeneration.** For `@tartlet/mini`, `@tartlet/core`, or any disputed module, maintainers may
-      regenerate the module with a structurally distinct model, preferably open-weights where available, and compare the
-      results. Convergent structure supports independent derivation. An outlier that resembles upstream expression is
-      discarded.
-    - **Human review.** Before merge, a reviewer checks for verbatim or near-verbatim upstream expression.
+   - **Limited inputs.** An agent works only from this specification, the oracle specifications, the registry, the
+     conformance tests, and Tartlet's own code.
+   - **Logged sessions.** Every session is recorded in the clean-room log: model and version, task, input documents,
+     and resulting commits.
+   - **Cross-model regeneration.** For `@tartlet/mini`, `@tartlet/core`, or any disputed module, maintainers may
+     regenerate the module with a structurally distinct model, preferably open-weights where available, and compare the
+     results. Convergent structure supports independent derivation. An outlier that resembles upstream expression is
+     discarded.
+   - **Human review.** Before merge, a reviewer checks for verbatim or near-verbatim upstream expression.
 6. **Naming and branding.** "Strudel-compatible" is used descriptively only. Tartlet does not use Strudel's marks,
    logos, or name in package identifiers. Public materials carry a nominative-use disclaimer: Strudel is named only to
    describe language compatibility, and Tartlet is not affiliated with or endorsed by the Strudel project.
 7. **Built-in sample assets** must be individually licensed in an Apache-compatible way, with provenance recorded in a
    manifest.
 8. **Legal review happens at two gates, starting in Week 1.**
-    - **Before any Phase 1 code is written,** IP counsel approves the `CLEAN_ROOM.md` protocol itself: the taint policy,
-      the oracle protocol, and the AI provenance protocol. A flawed process discovered in Week 11 cannot be repaired
-      retroactively.
-    - **Before 1.0,** counsel reviews the compatibility surface (including function names and signatures), the
-      corpus-collection process, and the clean-room process records.
-    - Maintainers record gate status in `CLEAN_ROOM.md`. Implementers, human or AI, do not need to verify it
-      independently. Task assignment implies that the applicable gate is cleared.
+   - **Before any Phase 1 code is written,** IP counsel approves the `CLEAN_ROOM.md` protocol itself: the taint policy,
+     the oracle protocol, and the AI provenance protocol. A flawed process discovered in Week 11 cannot be repaired
+     retroactively.
+   - **Before 1.0,** counsel reviews the compatibility surface (including function names and signatures), the
+     corpus-collection process, and the clean-room process records.
+   - Maintainers record gate status in `CLEAN_ROOM.md`. Implementers, human or AI, do not need to verify it
+     independently. Task assignment implies that the applicable gate is cleared.
 
 **The black-box behavioral oracle.** Strict clean-room rules create a real tension. Public prose underspecifies some of
 the lineage's pattern algebra, especially how `whole` and `part` spans intersect when patterns combine, as in patterned
@@ -222,17 +222,17 @@ transform vocabulary.
 
 ### 5.2 What we fix
 
-| # | Wart                                                                     | Tartlet repair                                                                                                                                       |
-|---|--------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | The composition is arbitrary JavaScript run through a transpiler         | A closed, Strudel-shaped expression language. It is parsed, never evaluated, which eliminates code injection structurally rather than by sandboxing. |
-| 2 | There is no stable intermediate form between source and running patterns | A typed, versioned, serializable Music IR                                                                                                            |
-| 3 | Musical time leaks into floating-point seconds                           | Exact rational time throughout. Conversion to seconds happens only at the output edge.                                                               |
-| 4 | Randomness depends on ambient state                                      | Explicit seeds derived from document identity and structure                                                                                          |
-| 5 | One error silences everything                                            | Local, typed diagnostics with subtree isolation and partial playback                                                                                 |
-| 6 | Web Audio is the privileged destination                                  | Output adapters over an output-agnostic event graph                                                                                                  |
-| 7 | Parameters are stringly-typed                                            | A function registry with signatures and capability checking                                                                                          |
-| 8 | Sample banks are global and remote                                       | A document-scoped resource resolver, backed by a local, versioned default kit                                                                        |
-| 9 | Events cannot be traced back to source                                   | Every event carries provenance: source range and IR node                                                                                             |
+| #   | Wart                                                                     | Tartlet repair                                                                                                                                       |
+| --- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | The composition is arbitrary JavaScript run through a transpiler         | A closed, Strudel-shaped expression language. It is parsed, never evaluated, which eliminates code injection structurally rather than by sandboxing. |
+| 2   | There is no stable intermediate form between source and running patterns | A typed, versioned, serializable Music IR                                                                                                            |
+| 3   | Musical time leaks into floating-point seconds                           | Exact rational time throughout. Conversion to seconds happens only at the output edge.                                                               |
+| 4   | Randomness depends on ambient state                                      | Explicit seeds derived from document identity and structure                                                                                          |
+| 5   | One error silences everything                                            | Local, typed diagnostics with subtree isolation and partial playback                                                                                 |
+| 6   | Web Audio is the privileged destination                                  | Output adapters over an output-agnostic event graph                                                                                                  |
+| 7   | Parameters are stringly-typed                                            | A function registry with signatures and capability checking                                                                                          |
+| 8   | Sample banks are global and remote                                       | A document-scoped resource resolver, backed by a local, versioned default kit                                                                        |
+| 9   | Events cannot be traced back to source                                   | Every event carries provenance: source range and IR node                                                                                             |
 
 ---
 
@@ -292,7 +292,7 @@ These rules are enforced by package boundaries and lint rules, not just by conve
 ### 6.3 Packages
 
 | Package                | Responsibility                                                                                           | Depends on                 |
-|------------------------|----------------------------------------------------------------------------------------------------------|----------------------------|
+| ---------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------- |
 | `@tartlet/time`        | Rational numbers (small-integer fast path), `TimeSpan`, span arithmetic                                  | —                          |
 | `@tartlet/mini`        | Mini-notation lexer, parser, and AST                                                                     | `time`                     |
 | `@tartlet/syntax`      | Expression-language lexer, parser, source-preserving syntax tree, sugar desugaring (formatter after 1.0) | `mini`                     |
@@ -323,7 +323,7 @@ Tartlet never advertises a vague "Strudel compatible" flag. Each construct in th
 publishes coverage per level.
 
 | Level  | Name                 | Contents                                                                    | Commitment                                             |
-|--------|----------------------|-----------------------------------------------------------------------------|--------------------------------------------------------|
+| ------ | -------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------ |
 | **L1** | Mini-notation        | The pattern-string grammar and its semantics                                | Complete and exact                                     |
 | **L2** | Core expressions     | Common constructors, transforms, controls, bindings, and restricted lambdas | Complete for the measured high-frequency set           |
 | **L3** | Extended             | Tonal helpers and less common transforms, chosen by corpus frequency        | Best effort, grows over time                           |
@@ -335,7 +335,7 @@ Mini-notation is parsed by a dedicated grammar inside string literals passed to 
 grammar is written from documented behavior:
 
 | Syntax               | Meaning                                                |
-|----------------------|--------------------------------------------------------|
+| -------------------- | ------------------------------------------------------ |
 | `a b c`              | Sequence: the cycle is divided equally among the steps |
 | `~`                  | Rest                                                   |
 | `[a b]`              | Subdivision: a group occupying one step                |
@@ -344,7 +344,7 @@ grammar is written from documented behavior:
 | `a*n`                | Speed up: repeat within the step                       |
 | `a/n`                | Slow down: stretch across cycles                       |
 | `a!n`, `a !`         | Replicate as separate steps                            |
-| `a@n`                | Elongate: give the step relative weight *n*            |
+| `a@n`                | Elongate: give the step relative weight _n_            |
 | `a?`, `a?0.3`        | Random drop, seeded                                    |
 | `a(k,n)`, `a(k,n,r)` | Euclidean rhythm, with optional rotation               |
 | `{a b, c d e}`       | Polymeter, aligned by steps                            |
@@ -353,7 +353,7 @@ grammar is written from documented behavior:
 | `a \| b`             | Random choice per cycle, seeded                        |
 | `.`                  | Group separator, as shorthand for bracketing           |
 
-The mini-notation AST keeps source offsets *relative to the enclosing string literal*. These are mapped back to document
+The mini-notation AST keeps source offsets _relative to the enclosing string literal_. These are mapped back to document
 coordinates for provenance.
 
 Multipliers and counts are bounded at check time: `*n`, `!n`, subdivision counts, and the Euclidean `n` are capped at
@@ -365,7 +365,7 @@ The expression language looks like JavaScript but is a separate grammar with a c
 
 **Accepted:**
 
-- **Literals:** numbers, strings (single-quoted, double-quoted, and backtick strings *without* interpolation), booleans,
+- **Literals:** numbers, strings (single-quoted, double-quoted, and backtick strings _without_ interpolation), booleans,
   arrays, plain objects.
 - **Calls:** `name(args…)`, where `name` resolves through the registry.
 - **Method chains:** `expr.name(args…)`, resolved through the registry by receiver kind.
@@ -381,15 +381,15 @@ The expression language looks like JavaScript but is a separate grammar with a c
   at check time into ordinary arguments.
 - **Arithmetic on numeric literals and bindings:** `+ - * /` and parentheses, constant-folded at check time.
 - **Top-level statements:**
-    - a bare expression, which is the output pattern;
-    - `$: expr` labelled outputs, where multiple outputs are stacked;
-    - `name: expr` named outputs;
-    - registered directives such as `setcps(n)`, `setcpm(n)`, and `samples(…)`.
+  - a bare expression, which is the output pattern;
+  - `$: expr` labelled outputs, where multiple outputs are stacked;
+  - `name: expr` named outputs;
+  - registered directives such as `setcps(n)`, `setcpm(n)`, and `samples(…)`.
 - **Comments:** `//` and `/* */`.
 
 The sugar forms exist because models learned Strudel in a REPL, and they emit harmless JavaScript habits from it.
 Rejecting those habits would spend the ≤1% rejection budget on code that means exactly what an accepted form means.
-Widening the *syntax* costs nothing in safety: evaluation stays fully closed and static, and every sugar form desugars
+Widening the _syntax_ costs nothing in safety: evaluation stays fully closed and static, and every sugar form desugars
 to a production that was already allowed.
 
 **Rejected, with diagnostic `E-LX-*`:**
@@ -439,15 +439,15 @@ All musical time is exact rational time:
 
 ```ts
 type Rational = { readonly n: bigint; readonly d: bigint }; // normalized, d > 0
-type Time = Rational;                                        // measured in cycles
+type Time = Rational; // measured in cycles
 
 interface TimeSpan {
-    readonly begin: Time;
-    readonly end: Time
+  readonly begin: Time;
+  readonly end: Time;
 } // half-open [begin, end)
 ```
 
-This bigint form is the *semantic* model, not a mandated runtime representation. Normalizing bigint pairs with a GCD on
+This bigint form is the _semantic_ model, not a mandated runtime representation. Normalizing bigint pairs with a GCD on
 every operation is a real CPU cost, and the allocation churn surfaces as garbage-collection jitter in the scheduler.
 Combined with uncapped multipliers and per-event provenance arrays, naive bigint rationals are also a denial-of-service
 vector. `@tartlet/time` therefore uses a **small-integer fast path**: numerator and denominator are plain JS numbers
@@ -472,10 +472,10 @@ falls inside the queried span. An event is an onset when `part.begin == whole.be
 
 ```ts
 interface Event<T> {
-    readonly whole: TimeSpan | null;   // null for continuous signals
-    readonly part: TimeSpan;
-    readonly value: T;
-    readonly provenance: Provenance[]; // all IR nodes that contributed; empty when collection is off
+  readonly whole: TimeSpan | null; // null for continuous signals
+  readonly part: TimeSpan;
+  readonly value: T;
+  readonly provenance: Provenance[]; // all IR nodes that contributed; empty when collection is off
 }
 ```
 
@@ -483,15 +483,15 @@ interface Event<T> {
 
 ```ts
 interface Pattern<T> {
-    query(state: QueryState): Event<T>[];
+  query(state: QueryState): Event<T>[];
 }
 
 interface QueryState {
-    readonly span: TimeSpan;
-    readonly seed: SeedPath;               // see §8.4
-    readonly controls: ReadonlyMap<string, unknown>; // external inputs, empty by default
-    readonly provenance: boolean;          // collect Provenance[]; off for headless audio ticks
-    readonly budget: QueryBudget;          // mutable; see §10.4
+  readonly span: TimeSpan;
+  readonly seed: SeedPath; // see §8.4
+  readonly controls: ReadonlyMap<string, unknown>; // external inputs, empty by default
+  readonly provenance: boolean; // collect Provenance[]; off for headless audio ticks
+  readonly budget: QueryBudget; // mutable; see §10.4
 }
 ```
 
@@ -566,102 +566,102 @@ addressed to IR nodes are realized as surgical splices of the source text (§9.7
 
 ```ts
 interface Program {
-    readonly irVersion: "tartlet/1";
-    readonly source?: SourceRef;          // hash and length of the originating text
-    readonly settings: Settings;
-    readonly bindings: Binding[];         // in declaration order
-    readonly outputs: Output[];           // combined with stack()
-    readonly resources: ResourceDecl[];   // from samples(...) directives and metadata
-    readonly diagnostics: Diagnostic[];   // carried along for tooling
+  readonly irVersion: 'tartlet/1';
+  readonly source?: SourceRef; // hash and length of the originating text
+  readonly settings: Settings;
+  readonly bindings: Binding[]; // in declaration order
+  readonly outputs: Output[]; // combined with stack()
+  readonly resources: ResourceDecl[]; // from samples(...) directives and metadata
+  readonly diagnostics: Diagnostic[]; // carried along for tooling
 }
 
 interface Settings {
-    readonly cps: Rational;               // default 1/2, clamped to [1/1000, 100]
-    readonly seed?: string;
-    readonly meta: Record<string, string>; // e.g. key, title, from // @ headers
+  readonly cps: Rational; // default 1/2, clamped to [1/1000, 100]
+  readonly seed?: string;
+  readonly meta: Record<string, string>; // e.g. key, title, from // @ headers
 }
 
 interface Binding {
-    readonly id: NodeId;
-    readonly name: string;
-    readonly expr: PatternNode
+  readonly id: NodeId;
+  readonly name: string;
+  readonly expr: PatternNode;
 }
 
 interface Output {
-    readonly id: NodeId;
-    readonly label?: string;              // "$" outputs get synthesized stable labels
-    readonly expr: PatternNode;
-    readonly status: "ok" | "muted-error" | "muted-user";
+  readonly id: NodeId;
+  readonly label?: string; // "$" outputs get synthesized stable labels
+  readonly expr: PatternNode;
+  readonly status: 'ok' | 'muted-error' | 'muted-user';
 }
 ```
 
 Synthesized labels are stable ids, not display names. The player derives human-readable names heuristically from
-content, such as *"Drums (bd, sd)"* or *"Sawtooth (pitched)"*, so a mixer never shows rows called `$1` and `$2`.
+content, such as _"Drums (bd, sd)"_ or _"Sawtooth (pitched)"_, so a mixer never shows rows called `$1` and `$2`.
 
 ### 9.2 Pattern nodes
 
 ```ts
 type PatternNode =
-    | MiniNode         // a compiled mini-notation string
-    | PureNode         // a constant value repeated every cycle
-    | SilenceNode
-    | RefNode          // a reference to a binding
-    | CombineNode      // stack / cat / seq / slowcat / fastcat / polymeter
-    | TransformNode    // a registered transform applied to a pattern
-    | ControlNode      // assigns a control parameter (s, note, gain, room…)
-    | SignalNode       // continuous sources: sine, saw, rand, perlin…
-    | ErrorNode;       // a placeholder for a failed subtree
+  | MiniNode // a compiled mini-notation string
+  | PureNode // a constant value repeated every cycle
+  | SilenceNode
+  | RefNode // a reference to a binding
+  | CombineNode // stack / cat / seq / slowcat / fastcat / polymeter
+  | TransformNode // a registered transform applied to a pattern
+  | ControlNode // assigns a control parameter (s, note, gain, room…)
+  | SignalNode // continuous sources: sine, saw, rand, perlin…
+  | ErrorNode; // a placeholder for a failed subtree
 
 interface NodeBase {
-    readonly id: NodeId;          // stable structural id
-    readonly kind: string;
-    readonly range: SourceRange;  // document coordinates
-    readonly type: PatternType;   // inferred by the checker
+  readonly id: NodeId; // stable structural id
+  readonly kind: string;
+  readonly range: SourceRange; // document coordinates
+  readonly type: PatternType; // inferred by the checker
 }
 
 interface MiniNode extends NodeBase {
-    readonly kind: "mini";
-    readonly text: string;
-    readonly ast: MiniAst;        // see §9.4
-    readonly valueKind: ValueKind; // how atoms are interpreted: note | sample | number | string
+  readonly kind: 'mini';
+  readonly text: string;
+  readonly ast: MiniAst; // see §9.4
+  readonly valueKind: ValueKind; // how atoms are interpreted: note | sample | number | string
 }
 
 interface CombineNode extends NodeBase {
-    readonly kind: "combine";
-    readonly op: "stack" | "slowcat" | "fastcat" | "polymeter" | "arrange";
-    readonly children: PatternNode[];
-    readonly weights?: Rational[]; // used by arrange / timecat
+  readonly kind: 'combine';
+  readonly op: 'stack' | 'slowcat' | 'fastcat' | 'polymeter' | 'arrange';
+  readonly children: PatternNode[];
+  readonly weights?: Rational[]; // used by arrange / timecat
 }
 
 interface TransformNode extends NodeBase {
-    readonly kind: "transform";
-    readonly fn: RegistryId;      // e.g. "fast", "every", "off"
-    readonly target: PatternNode;
-    readonly args: Arg[];
+  readonly kind: 'transform';
+  readonly fn: RegistryId; // e.g. "fast", "every", "off"
+  readonly target: PatternNode;
+  readonly args: Arg[];
 }
 
 interface ControlNode extends NodeBase {
-    readonly kind: "control";
-    readonly control: ControlId;  // e.g. "gain", "s", "note", "lpf"
-    readonly target: PatternNode | null; // null when used as a constructor, e.g. s("bd")
-    readonly value: Arg;          // a pattern or a constant
-    readonly structure?: "receiver" | "argument" | "both"; // §8.6; default "receiver"
+  readonly kind: 'control';
+  readonly control: ControlId; // e.g. "gain", "s", "note", "lpf"
+  readonly target: PatternNode | null; // null when used as a constructor, e.g. s("bd")
+  readonly value: Arg; // a pattern or a constant
+  readonly structure?: 'receiver' | 'argument' | 'both'; // §8.6; default "receiver"
 }
 
 interface ErrorNode extends NodeBase {
-    readonly kind: "error";
-    readonly diagnostic: DiagnosticId;
-    readonly recovered?: PatternNode; // best-effort partial subtree, if any
+  readonly kind: 'error';
+  readonly diagnostic: DiagnosticId;
+  readonly recovered?: PatternNode; // best-effort partial subtree, if any
 }
 
 type Arg =
-    | { kind: "pattern"; node: PatternNode }      // patternable arguments, e.g. fast("<1 2>")
-    | { kind: "const"; value: ConstValue }
-    | { kind: "function"; fn: FunctionValue };    // rev, or a lowered lambda
+  | { kind: 'pattern'; node: PatternNode } // patternable arguments, e.g. fast("<1 2>")
+  | { kind: 'const'; value: ConstValue }
+  | { kind: 'function'; fn: FunctionValue }; // rev, or a lowered lambda
 
 type FunctionValue =
-    | { kind: "ref"; fn: RegistryId; args: Arg[] }      // e.g. rev, or partially applied fast(2)
-    | { kind: "lambda"; param: string; body: PatternNode }; // body contains a RefNode to param
+  | { kind: 'ref'; fn: RegistryId; args: Arg[] } // e.g. rev, or partially applied fast(2)
+  | { kind: 'lambda'; param: string; body: PatternNode }; // body contains a RefNode to param
 ```
 
 Following the tradition, transform arguments are **patternable** wherever the registry allows it. `fast("<1 2 4>")` is
@@ -671,47 +671,44 @@ appropriately.
 ### 9.3 Values and types
 
 ```ts
-type ValueKind = "note" | "sample" | "number" | "string" | "bool" | "controls";
+type ValueKind = 'note' | 'sample' | 'number' | 'string' | 'bool' | 'controls';
 
 type PatternType =
-    | { kind: "pattern"; of: ValueKind }
-    | { kind: "signal"; of: "number" }
-    | { kind: "function" }
-    | { kind: "error" };
+  { kind: 'pattern'; of: ValueKind } | { kind: 'signal'; of: 'number' } | { kind: 'function' } | { kind: 'error' };
 
 // The value carried by output events after controls are merged
 interface Controls {
-    readonly s?: string;           // sound / instrument name
-    readonly n?: number;           // sample index or scale degree
-    readonly note?: Pitch;
-    readonly freq?: number;
-    readonly gain?: number;
-    readonly velocity?: number;
-    readonly pan?: number;
-    readonly speed?: number;
-    readonly cutoff?: number;
-    readonly resonance?: number;
-    readonly hcutoff?: number;
-    readonly attack?: number;
-    readonly decay?: number;
-    readonly sustain?: number;
-    readonly release?: number;
-    readonly room?: number;
-    readonly size?: number;
-    readonly delay?: number;
-    readonly delaytime?: number;
-    readonly delayfeedback?: number;
-    readonly shape?: number;
-    readonly crush?: number;
-    readonly vowel?: string;
-    readonly orbit?: number;
+  readonly s?: string; // sound / instrument name
+  readonly n?: number; // sample index or scale degree
+  readonly note?: Pitch;
+  readonly freq?: number;
+  readonly gain?: number;
+  readonly velocity?: number;
+  readonly pan?: number;
+  readonly speed?: number;
+  readonly cutoff?: number;
+  readonly resonance?: number;
+  readonly hcutoff?: number;
+  readonly attack?: number;
+  readonly decay?: number;
+  readonly sustain?: number;
+  readonly release?: number;
+  readonly room?: number;
+  readonly size?: number;
+  readonly delay?: number;
+  readonly delaytime?: number;
+  readonly delayfeedback?: number;
+  readonly shape?: number;
+  readonly crush?: number;
+  readonly vowel?: string;
+  readonly orbit?: number;
 
-    readonly [extension: `x-${string}`]: unknown;
+  readonly [extension: `x-${string}`]: unknown;
 }
 
 type Pitch =
-    | { kind: "midi"; value: number }                      // fractional values allowed
-    | { kind: "name"; letter: string; accidental: number; octave: number };
+  | { kind: 'midi'; value: number } // fractional values allowed
+  | { kind: 'name'; letter: string; accidental: number; octave: number };
 ```
 
 Aliases such as `sound`→`s`, `lpf`→`cutoff`, and `hpf`→`hcutoff` are resolved in the registry, as are compatibility
@@ -722,46 +719,46 @@ can show what was written.
 
 ```ts
 type MiniAst =
-    | { t: "seq"; steps: MiniStep[] }
-    | { t: "stack"; layers: MiniAst[] }                    // comma-separated
-    | { t: "alt"; items: MiniAst[] }                     // <...>
-    | { t: "poly"; layers: MiniAst[]; steps?: MiniAst }   // {...}%n
-    | { t: "choice"; items: MiniAst[] }                    // a | b
-    | { t: "atom"; text: string; index?: number; range: [number, number] }
-    | { t: "rest"; range: [number, number] };
+  | { t: 'seq'; steps: MiniStep[] }
+  | { t: 'stack'; layers: MiniAst[] } // comma-separated
+  | { t: 'alt'; items: MiniAst[] } // <...>
+  | { t: 'poly'; layers: MiniAst[]; steps?: MiniAst } // {...}%n
+  | { t: 'choice'; items: MiniAst[] } // a | b
+  | { t: 'atom'; text: string; index?: number; range: [number, number] }
+  | { t: 'rest'; range: [number, number] };
 
 interface MiniStep {
-    readonly body: MiniAst;
-    readonly weight: Rational;                          // @n
-    readonly replicate: number;                         // !n
-    readonly ops: MiniOp[];                             // applied in source order
+  readonly body: MiniAst;
+  readonly weight: Rational; // @n
+  readonly replicate: number; // !n
+  readonly ops: MiniOp[]; // applied in source order
 }
 
 type MiniOp =
-    | { op: "fast"; by: MiniAst }                       // *n, itself patternable
-    | { op: "slow"; by: MiniAst }                       // /n
-    | { op: "degrade"; amount?: number }                // ?
-    | { op: "euclid"; k: MiniAst; n: MiniAst; rot?: MiniAst };
+  | { op: 'fast'; by: MiniAst } // *n, itself patternable
+  | { op: 'slow'; by: MiniAst } // /n
+  | { op: 'degrade'; amount?: number } // ?
+  | { op: 'euclid'; k: MiniAst; n: MiniAst; rot?: MiniAst };
 ```
 
 ### 9.5 Provenance
 
 ```ts
 interface Provenance {
-    readonly node: NodeId;
-    readonly range: SourceRange;  // for mini atoms, the exact atom inside the string
-    readonly role: "origin" | "transform" | "control";
+  readonly node: NodeId;
+  readonly range: SourceRange; // for mini atoms, the exact atom inside the string
+  readonly role: 'origin' | 'transform' | 'control';
 }
 
 interface SourceRange {
-    readonly start: Offset;
-    readonly end: Offset
+  readonly start: Offset;
+  readonly end: Offset;
 }
 
 interface Offset {
-    readonly line: number;
-    readonly col: number;
-    readonly byte: number
+  readonly line: number;
+  readonly col: number;
+  readonly byte: number;
 }
 ```
 
@@ -773,27 +770,27 @@ possible.
 
 ```ts
 interface RegistryEntry {
-    readonly id: RegistryId;
-    readonly names: string[];                   // canonical name first, then aliases
-    readonly compatAliases?: string[];          // borrowed names, e.g. "reverb"; emit I-REG-ALIAS
-    readonly form: "constructor" | "method" | "both" | "directive" | "function-value";
-    readonly receiver?: ValueKind[];            // valid receiver kinds for methods
-    readonly params: ParamSpec[];
-    readonly returns: PatternType | "same-as-receiver";
-    readonly requires?: Capability[];           // e.g. "pitched", "audio-effect", "sample"
-    readonly level: "L1" | "L2" | "L3";
-    readonly deterministic: "pure" | "seeded";
-    readonly since: string;                     // Tartlet version
-    readonly description: string;               // original prose only (§4)
+  readonly id: RegistryId;
+  readonly names: string[]; // canonical name first, then aliases
+  readonly compatAliases?: string[]; // borrowed names, e.g. "reverb"; emit I-REG-ALIAS
+  readonly form: 'constructor' | 'method' | 'both' | 'directive' | 'function-value';
+  readonly receiver?: ValueKind[]; // valid receiver kinds for methods
+  readonly params: ParamSpec[];
+  readonly returns: PatternType | 'same-as-receiver';
+  readonly requires?: Capability[]; // e.g. "pitched", "audio-effect", "sample"
+  readonly level: 'L1' | 'L2' | 'L3';
+  readonly deterministic: 'pure' | 'seeded';
+  readonly since: string; // Tartlet version
+  readonly description: string; // original prose only (§4)
 }
 
 interface ParamSpec {
-    readonly name: string;
-    readonly type: ValueKind | "function" | "pattern-any";
-    readonly patternable: boolean;
-    readonly optional?: boolean;
-    readonly default?: ConstValue;
-    readonly range?: [number, number];          // used for warnings, never a hard error
+  readonly name: string;
+  readonly type: ValueKind | 'function' | 'pattern-any';
+  readonly patternable: boolean;
+  readonly optional?: boolean;
+  readonly default?: ConstValue;
+  readonly range?: [number, number]; // used for warnings, never a hard error
 }
 ```
 
@@ -806,8 +803,8 @@ There is one source of truth.
 - `irVersion` is bumped for breaking changes. `@tartlet/ir` ships forward migrations.
 - **Node ids are computed bottom-up along receiver chains.** An output or binding is anchored by its label, or by its
   slot when unlabelled. A constructor's id is `hash(anchor, constructor name)`. A method application's id is
-  `hash(receiver id, canonical fn name)`, and the subtree in its argument slot *i* is anchored at
-  `hash(receiver id, canonical fn name, i)`. Ids depend only on what lies *inside* a chain, never on what is appended
+  `hash(receiver id, canonical fn name)`, and the subtree in its argument slot _i_ is anchored at
+  `hash(receiver id, canonical fn name, i)`. Ids depend only on what lies _inside_ a chain, never on what is appended
   after it, so adding `.gain(.8)` to a chain leaves every earlier id and seed untouched. Ids are likewise stable under
   any edit outside the subtree.
 - The IR is canonical. Two sources that differ only in formatting or aliases lower to IR that is equal modulo `range`
@@ -828,21 +825,21 @@ There is one source of truth.
 
 ```ts
 interface Diagnostic {
-    readonly id: DiagnosticId;           // e.g. "E-LX-IMPORT", "W-REG-UNKNOWN", "I-RES-FALLBACK"
-    readonly severity: "error" | "warning" | "info";
-    readonly message: string;
-    readonly range: SourceRange;
-    readonly node?: NodeId;
-    readonly output?: string;            // label of the affected track, for UI and repair payloads
-    readonly effect: "none" | "subtree-muted" | "output-muted" | "program-rejected";
-    readonly fixes?: Fix[];              // machine-applicable text edits
-    readonly related?: { range: SourceRange; message: string }[];
+  readonly id: DiagnosticId; // e.g. "E-LX-IMPORT", "W-REG-UNKNOWN", "I-RES-FALLBACK"
+  readonly severity: 'error' | 'warning' | 'info';
+  readonly message: string;
+  readonly range: SourceRange;
+  readonly node?: NodeId;
+  readonly output?: string; // label of the affected track, for UI and repair payloads
+  readonly effect: 'none' | 'subtree-muted' | 'output-muted' | 'program-rejected';
+  readonly fixes?: Fix[]; // machine-applicable text edits
+  readonly related?: { range: SourceRange; message: string }[];
 }
 
 interface Fix {
-    readonly title: string;
-    readonly edits: { range: SourceRange; text: string }[];
-    readonly safe: boolean;              // deterministic and meaning-preserving; may be auto-applied
+  readonly title: string;
+  readonly edits: { range: SourceRange; text: string }[];
+  readonly safe: boolean; // deterministic and meaning-preserving; may be auto-applied
 }
 ```
 
@@ -853,10 +850,10 @@ interface Fix {
 2. **Unknown functions** in a method chain are first checked against the compatibility alias table. If an alias matches,
    the call executes as its canonical function with an `I-REG-ALIAS` note. Otherwise the chain is cut at that point, and
    the checker decides:
-    - If the unknown function is a *control* that is plausibly cosmetic, such as an unknown effect, the subtree keeps
-      playing without it and a **warning** is emitted.
-    - If the unknown function would change structure, such as an unknown transform, the subtree is replaced by an
-      `ErrorNode` and muted.
+   - If the unknown function is a _control_ that is plausibly cosmetic, such as an unknown effect, the subtree keeps
+     playing without it and a **warning** is emitted.
+   - If the unknown function would change structure, such as an unknown transform, the subtree is replaced by an
+     `ErrorNode` and muted.
 3. **Type and capability errors** mute the smallest enclosing output-contributing subtree.
 4. **Rejected constructs (LX)** in a binding mute every output that references the binding. Everything else continues.
 5. **Resource-limit violations** (§10.4) mute only the offending output, with `E-LIMIT-*`.
@@ -900,18 +897,19 @@ compilation. Runtime limits are enforced during every query through a mutable bu
 
 ```ts
 interface LimitsConfig {
-    readonly maxSourceBytes: number;      // 65_536
-    readonly maxNestingDepth: number;     // 32
-    readonly maxStepMultiplier: number;   // 1024: caps *n, !n, euclid n, subdivision counts
-    readonly cpsRange: [number, number];  // [0.001, 100]
-    readonly maxEvalSteps: number;        // per query window
-    readonly maxEventsPerWindow: number;  // 2_048
-    readonly maxDenominator: bigint;      // 10n ** 9n
+  readonly maxSourceBytes: number; // 65_536
+  readonly maxNestingDepth: number; // 32
+  readonly maxStepMultiplier: number; // 1024: caps *n, !n, euclid n, subdivision counts
+  readonly cpsRange: [number, number]; // [0.001, 100]
+  readonly maxEvalSteps: number; // per query window
+  readonly maxEventsPerWindow: number; // 2_048
+  readonly maxDenominator: bigint; // 10n ** 9n
 }
 
-interface QueryBudget {                 // mutable; one per output per query window
-    steps: number;
-    events: number;
+interface QueryBudget {
+  // mutable; one per output per query window
+  steps: number;
+  events: number;
 }
 ```
 
@@ -928,7 +926,7 @@ levels deep therefore cannot multiply work exponentially. Exhausting the budget 
 The checker does lightweight inference. It is not a full type system.
 
 | Capability     | Provided by                               | Required by                                            |
-|----------------|-------------------------------------------|--------------------------------------------------------|
+| -------------- | ----------------------------------------- | ------------------------------------------------------ |
 | `pitched`      | `note`, `n` combined with `scale`, `freq` | `scale`, `transpose`, `voicing`, MIDI note output      |
 | `sample`       | `s` resolved to a sample bank             | `speed`, `begin`, `end`, `chop`, `n`, used as an index |
 | `synth`        | `s` resolved to a built-in oscillator     | ADSR controls, `cutoff` (also valid for samples)       |
@@ -941,9 +939,9 @@ result is nonsense.
 
 ```ts
 interface ResourceResolver {
-    resolveSound(name: string, index: number): Promise<SoundResource | Unavailable>;
+  resolveSound(name: string, index: number): Promise<SoundResource | Unavailable>;
 
-    list(): Promise<SoundCatalog>; // used for autocompletion and validation before playback
+  list(): Promise<SoundCatalog>; // used for autocompletion and validation before playback
 }
 ```
 
@@ -993,11 +991,11 @@ it doesn't.
 
 ```ts
 interface OutputAdapter {
-    prepare(program: Program, resolver: ResourceResolver): Promise<PrepareReport>;
+  prepare(program: Program, resolver: ResourceResolver): Promise<PrepareReport>;
 
-    schedule(events: Event<Controls>[], clock: ClockMapping): void;
+  schedule(events: Event<Controls>[], clock: ClockMapping): void;
 
-    stop(atTime?: number): void;
+  stop(atTime?: number): void;
 }
 ```
 
@@ -1013,7 +1011,7 @@ Adapters and their phases:
 The analysis adapter is split into two tiers because one of them is needed long before the other. The **event-sanity
 check** is about fifty lines. It queries the compiled `Pattern<Controls>` over 4–8 cycles and asserts that
 `totalEvents > 0`, that `eventsPerCycle` stays under budget, and that no unmuted output is completely silent. It also
-extracts basic note density and pitch bounds. Its job is to catch *silent failures*: programs that pass `tartlet check`
+extracts basic note density and pitch bounds. Its job is to catch _silent failures_: programs that pass `tartlet check`
 with zero diagnostics but emit no audio events. It runs in every corpus pass and every repair loop from Phase 1, and its
 summaries double as accessible text descriptions for screen readers. **Deep analysis**, including key detection and
 harmonic summaries, is the musically interesting tier, and it can wait.
@@ -1042,7 +1040,7 @@ finished.
 ### 12.1 Test kinds
 
 | Kind                | Asserts                                                                                                                                                                        |
-|---------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **P (parse)**       | The source parses. Every node's byte range maps back to its exact source text, and comments survive. Formatter idempotence joins this kind once the formatter lands after 1.0. |
 | **E (events)**      | Querying a given span returns exactly the expected events: whole, part, and value in rational time. This is a golden test.                                                     |
 | **L (laws)**        | Property tests: purity, span splitting, containment, and fragment consistency, run over generated spans.                                                                       |
@@ -1061,7 +1059,7 @@ that informed it, if any.
 ### 12.2 L1: mini-notation
 
 | ID   | Construct               | Example                    | Key assertion                                        | Kinds   | Phase |
-|------|-------------------------|----------------------------|------------------------------------------------------|---------|-------|
+| ---- | ----------------------- | -------------------------- | ---------------------------------------------------- | ------- | ----- |
 | M-01 | Sequence                | `"a b c d"`                | 4 events of 1/4 each in cycle 0                      | P E L V | 0     |
 | M-02 | Rest                    | `"a ~ b ~"`                | 2 events at 0 and 1/2                                | P E     | 0     |
 | M-03 | Subdivision             | `"a [b c]"`                | b at 1/2–3/4, c at 3/4–1                             | P E V   | 0     |
@@ -1096,7 +1094,7 @@ that informed it, if any.
 ### 12.3 L2: expressions
 
 | ID   | Construct                   | Example                                             | Key assertion                                        | Kinds | Phase |
-|------|-----------------------------|-----------------------------------------------------|------------------------------------------------------|-------|-------|
+| ---- | --------------------------- | --------------------------------------------------- | ---------------------------------------------------- | ----- | ----- |
 | X-01 | `s` / `sound`               | `s("bd sd")`                                        | sample events; alias canonicalized                   | P E   | 0     |
 | X-02 | `note`                      | `note("c e g")`                                     | pitched events                                       | E     | 0     |
 | X-03 | `n` + `scale`               | `n("0 2 4").scale("C:minor")`                       | C, Eb, G                                             | E     | 2     |
@@ -1137,7 +1135,7 @@ that informed it, if any.
 ### 12.4 L3, diagnostics, and rejection (selection)
 
 | ID   | Construct / case            | Example                                                  | Expected                                                    | Kinds | Phase |
-|------|-----------------------------|----------------------------------------------------------|-------------------------------------------------------------|-------|-------|
+| ---- | --------------------------- | -------------------------------------------------------- | ----------------------------------------------------------- | ----- | ----- |
 | T-01 | Chord symbols               | `chord("<Dm7 Bbmaj7>").voicing()`                        | reasonable voicings, deterministic                          | E D   | 4     |
 | T-02 | `arp`                       | `.arp("up")`                                             | sequential notes                                            | E     | 4     |
 | T-03 | `chop` / `slice`            | `s("break").chop(8)`                                     | 8 segments with begin/end                                   | E     | 4     |
@@ -1154,7 +1152,7 @@ that informed it, if any.
 | Z-01 | Import                      | `import x from "y"`                                      | `E-LX-IMPORT`; program rejected only if nothing else exists | R X   | 1     |
 | Z-02 | Host access                 | `window.location`, `fetch("…")`                          | `E-LX-HOST`; nothing is evaluated                           | R     | 1     |
 | Z-03 | Computed member             | `note("c")["constructor"]`                               | `E-LX-MEMBER`                                               | R     | 1     |
-| Z-04 | Interpolation               | `` note(`c ${x}`) ``                                     | `E-LX-INTERP`                                               | R     | 1     |
+| Z-04 | Interpolation               | ``note(`c ${x}`)``                                       | `E-LX-INTERP`                                               | R     | 1     |
 | Z-05 | Loops/conditionals          | `for (…) {}`                                             | `E-LX-CONTROL`                                              | R     | 1     |
 | Z-06 | Lambda escape               | `x => fetch(x)`, `x => { y(); return x; }`               | `E-LX-LAMBDA`                                               | R     | 1     |
 | Z-07 | Prototype tricks            | `__proto__`, `constructor` identifiers                   | rejected at lexing or name resolution                       | R     | 1     |
@@ -1167,7 +1165,7 @@ that informed it, if any.
 The headline metric is measured, not asserted:
 
 > **What fraction of Strudel that frontier LLMs naturally generate runs unchanged in Tartlet and produces the intended
-structure?**
+> structure?**
 
 The corpus is generated in **Week 1**, before the L2 grammar is locked. The grammar should be shaped by what models
 actually write, not by what we expect them to write.
@@ -1179,16 +1177,17 @@ Methodology:
 2. **Generation.** Collect outputs from several frontier models, with multiple samples per prompt. Store the model,
    date, and prompt alongside each output. This is our own corpus, generated by us.
 3. **Classification.** Run every sample through `tartlet check` and bucket the result:
-    - *clean*: no diagnostics beyond info notes;
-    - *degraded*: warnings only;
-    - *partial*: some outputs muted;
-    - *rejected*: nothing playable.
+   - _clean_: no diagnostics beyond info notes;
+   - _degraded_: warnings only;
+   - _partial_: some outputs muted;
+   - _rejected_: nothing playable.
 
    A program counts as clean or degraded only if it also passes the event-sanity check (§11.4): a 4-cycle query yields
    `totalEvents > 0`, and no unmuted output is completely silent. A program that checks cleanly but fails the sanity
    check is a silent failure and is counted as partial.
+
 4. **Frequency ranking.** Count every registry miss, unsupported construct, and fallback-mapped sample name. The ranked
-   list *is* the L3 backlog, the compatibility alias table's backlog, and the general kit's coverage list.
+   list _is_ the L3 backlog, the compatibility alias table's backlog, and the general kit's coverage list.
 5. **Semantic spot-checks.** For a sample of clean programs, a reviewer confirms the result plays and matches the
    request. This is a sanity check, not an evaluation of artistic quality.
 6. **Repair benchmark.** For partial and rejected programs, apply safe fixes, give the model its Tartlet repair payload
@@ -1200,7 +1199,7 @@ Methodology:
 Coverage targets:
 
 | Milestone    | Clean + degraded | Partial | Rejected | One-round repair success |
-|--------------|------------------|---------|----------|--------------------------|
+| ------------ | ---------------- | ------- | -------- | ------------------------ |
 | Phase 1 exit | ≥70%             | —       | ≤10%     | —                        |
 | Phase 2 exit | ≥90%             | ≤7%     | ≤3%      | ≥80%                     |
 | 1.0          | ≥95%             | ≤4%     | ≤1%      | ≥90%                     |
@@ -1232,12 +1231,12 @@ $: n("<0 2 4 6>").scale("D:minor").s("triangle").room(.4).slow(2)
 1. The renderer passes the blob text, document id, and blob index to `<tartlet-player>`.
 2. The player parses and checks the source immediately, in its worker. This has no side effects and plays no audio.
 3. The player renders:
-    - ▶ / ■ transport;
-    - cycle position;
-    - a per-output mixer, with heuristic track names, mute, solo, and diagnostic badges. User-muted and error-muted
-      tracks look different. Clicking an error-muted track scrolls the source view to the offending range;
-    - a source view with diagnostics, one-click safe fixes, and live provenance highlighting;
-    - an optional piano roll.
+   - ▶ / ■ transport;
+   - cycle position;
+   - a per-output mixer, with heuristic track names, mute, solo, and diagnostic badges. User-muted and error-muted
+     tracks look different. Clicking an error-muted track scrolls the source view to the offending range;
+   - a source view with diagnostics, one-click safe fixes, and live provenance highlighting;
+   - an optional piano roll.
 4. Audio starts only after a user gesture. A singleton audio coordinator ensures that starting one player in a document
    pauses any other by default.
 5. **Read-only** is the default mode. In **editable** mode, the host receives source patches through events and decides
@@ -1249,14 +1248,14 @@ $: n("<0 2 4 6>").scale("D:minor").s("triangle").room(.4).slow(2)
 ### 13.3 Custom element API
 
 ```html
-
 <tartlet-player
-        src-type="text/vnd.tartlet"
-        seed="default"
-        mode="read-only | editable"
-        views="mixer source pianoroll"
-        resource-policy="embedded package fallback">
-    <!-- source text as content, or provided via the .source property -->
+  src-type="text/vnd.tartlet"
+  seed="default"
+  mode="read-only | editable"
+  views="mixer source pianoroll"
+  resource-policy="embedded package fallback"
+>
+  <!-- source text as content, or provided via the .source property -->
 </tartlet-player>
 ```
 
@@ -1344,10 +1343,10 @@ under 10⁴ randomized spans per construct.
 ### Phase 2: Coverage drive (week 3–5)
 
 - Work down the corpus frequency list:
-    - transforms X-11–X-21 and X-28, with the §8.6 structure rules backed by oracle specifications;
-    - mini-notation rows M-21–M-28;
-    - capabilities (Q-03);
-    - new compatibility aliases as the corpus surfaces them.
+  - transforms X-11–X-21 and X-28, with the §8.6 structure rules backed by oracle specifications;
+  - mini-notation rows M-21–M-28;
+  - capabilities (Q-03);
+  - new compatibility aliases as the corpus surfaces them.
 - The resource resolver, with embedded, package, allowlisted URLs, and fallback mapping, plus `samples()` policy
   handling (X-31, Q-05).
 - The general kit, about 100 CC0 or synthesized sounds chosen from corpus frequency, plus the fallback mapper (Q-08).
@@ -1359,11 +1358,11 @@ under 10⁴ randomized spans per construct.
 ### Phase 3: Projections, sound quality, and accessibility (week 5–7)
 
 - An audio quality pass beyond the safety floor:
-    - full ADSR envelopes;
-    - filters;
-    - shared reverb and delay buses per orbit;
-    - panning;
-    - a sample player with `speed`, `begin`, and `end`.
+  - full ADSR envelopes;
+  - filters;
+  - shared reverb and delay buses per orbit;
+  - panning;
+  - a sample player with `speed`, `begin`, and `end`.
 - Offline rendering with A-kind tests.
 - The piano roll and pattern visualizer, with provenance highlighting from events to source and from source to events.
   Dragging notes to edit them is deferred to 1.1.
@@ -1425,7 +1424,7 @@ tactical, about scheduling and boundaries, and they resolved without changing th
 folded into this revision.
 
 | Risk                                       | Impact                                                 | Mitigation                                                                                                                                                                                                                                                 |
-|--------------------------------------------|--------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------------------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Compatibility-surface legal challenge      | Project-threatening                                    | Week 1 counsel sign-off on the protocol; taint policy covering Strudel, TidalCycles, and SuperDirt; logged AI provenance with cross-model regeneration for core modules; descriptive naming only; original tests, docs, and registry prose; pre-1.0 review |
 | Semantic drift from the reference behavior | "Runs, but sounds wrong"                               | Explicit structure rules (§8.6); black-box oracle protocol; documented interpretations in each matrix row; semantic spot-checks on the corpus                                                                                                              |
 | The "silent or toy audio" trap             | Programs check cleanly yet play silence or sound harsh | General kit with fallback mapping; event-sanity checks in the corpus; master limiter and default envelopes from the first WebAudio milestone                                                                                                               |

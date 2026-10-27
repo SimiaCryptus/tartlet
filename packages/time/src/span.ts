@@ -1,4 +1,4 @@
-import { type Rational, ONE, add, eq, floor, lt, max, min } from "./rational";
+import { type Rational, ONE, add, eq, floor, lt, max, min } from './rational';
 
 /** Half-open [begin, end) in cycles. */
 export interface TimeSpan {
@@ -7,7 +7,7 @@ export interface TimeSpan {
 }
 
 export function span(begin: Rational, end: Rational): TimeSpan {
-  if (lt(end, begin)) throw new RangeError("span: end before begin");
+  if (lt(end, begin)) throw new RangeError('span: end before begin');
   return { begin, end };
 }
 

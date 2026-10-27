@@ -1,6 +1,6 @@
 // The only layer aware of wall-clock time (idea.md §6.1 and §11.3).
-import { type Rational, type TimeSpan, add, eq, fromFloat, lte, sub, toNumber, ZERO } from "@tartlet/time";
-import type { Event } from "@tartlet/core";
+import { type Rational, type TimeSpan, add, eq, fromFloat, lte, sub, toNumber, ZERO } from '@tartlet/time';
+import type { Event } from '@tartlet/core';
 
 export interface ClockMapping {
   readonly t0: number;
@@ -54,9 +54,12 @@ export class Scheduler<T> {
     this.cursor = atCycle;
     this.clock = { t0: this.opts.now() + 0.05, cycle0: atCycle, cps: this.clock.cps };
     this.tick();
-    this.timer = setInterval(() => {
-      this.tick();
-    }, (this.opts.interval ?? 0.025) * 1000);
+    this.timer = setInterval(
+      () => {
+        this.tick();
+      },
+      (this.opts.interval ?? 0.025) * 1000,
+    );
   }
 
   stop(): void {

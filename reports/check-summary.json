@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "durationMs": 13580,
+  "steps": [
+    {
+      "name": "format",
+      "cmd": "prettier --check .",
+      "status": "pass",
+      "code": 0,
+      "durationMs": 2147
+    },
+    {
+      "name": "lint",
+      "cmd": "eslint . --max-warnings=0",
+      "status": "fail",
+      "code": 2,
+      "durationMs": 170
+    },
+    {
+      "name": "typecheck",
+      "cmd": "tsc -p tsconfig.core.json --noEmit --pretty && tsc -p tsconfig.json --noEmit --pretty",
+      "status": "fail",
+      "code": 2,
+      "durationMs": 2647
+    },
+    {
+      "name": "test",
+      "cmd": "vitest run --coverage",
+      "status": "fail",
+      "code": 1,
+      "durationMs": 4522
+    },
+    {
+      "name": "build",
+      "cmd": "tsc -p tsconfig.core.json --noEmit && pnpm -r --filter \"./apps/*\" build",
+      "status": "fail",
+      "code": 1,
+      "durationMs": 4091
+    }
+  ],
+  "skipped": []
+}

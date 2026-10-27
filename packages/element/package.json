@@ -1,2 +1,18 @@
-{ "name": "@tartlet/element", "version": "0.0.0", "type": "module", "license": "Apache-2.0", "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@tartlet/time": "workspace:*", "@tartlet/ir": "workspace:*", "@tartlet/check": "workspace:*", "@tartlet/core": "workspace:*", "@tartlet/schedule": "workspace:*", "@tartlet/webaudio": "workspace:*", "@tartlet/worker": "workspace:*" } }
+{
+  "name": "@tartlet/element",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@tartlet/time": "workspace:*",
+    "@tartlet/ir": "workspace:*",
+    "@tartlet/check": "workspace:*",
+    "@tartlet/core": "workspace:*",
+    "@tartlet/schedule": "workspace:*",
+    "@tartlet/webaudio": "workspace:*",
+    "@tartlet/worker": "workspace:*"
+  }
+}

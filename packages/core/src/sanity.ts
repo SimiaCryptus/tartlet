@@ -1,6 +1,6 @@
 // Event-sanity analysis (idea.md §11.4): catches programs that check cleanly but play nothing.
-import { eq, rat } from "@tartlet/time";
-import type { CompiledProgram } from "./compile";
+import { eq, rat } from '@tartlet/time';
+import type { CompiledProgram } from './compile';
 
 export interface SanityReport {
   readonly totalEvents: number;
@@ -32,7 +32,7 @@ export function sanity(p: CompiledProgram, cycles = 4): SanityReport {
         per++;
         counts.set(id, (counts.get(id) ?? 0) + 1);
         const note = ev.value.note as { value?: unknown } | undefined;
-        if (typeof note?.value === "number") {
+        if (typeof note?.value === 'number') {
           lo = Math.min(lo, note.value);
           hi = Math.max(hi, note.value);
         }

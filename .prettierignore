@@ -1,0 +1,7 @@
+dist/
+coverage/
+reports/
+**/fixtures/**
+**/__snapshots__/**
+test/**/*.md
+test/**/*.html

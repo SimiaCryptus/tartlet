@@ -1,8 +1,8 @@
 # Tartlet Reference Implementation: Project Plan
 
-*Targets: the Tartlet design document (`idea.md`)*
-*Stack: TypeScript, Vite, PWA. It deliberately mirrors `tools/Markdown2/plan.md`.*
-*Primary consumer: Markdown2, through a `text/vnd.tartlet` handler*
+_Targets: the Tartlet design document (`idea.md`)_
+_Stack: TypeScript, Vite, PWA. It deliberately mirrors `tools/Markdown2/plan.md`._
+_Primary consumer: Markdown2, through a `text/vnd.tartlet` handler_
 
 ## 1. Purpose and Scope
 
@@ -36,16 +36,16 @@ The Markdown2 dependency direction is therefore strictly one-way. Markdown2 depe
 
 ## 2. Guiding Constraints
 
-| Constraint | Consequence for the implementation |
-|---|---|
-| `idea.md` is the source of truth | Every normative rule and matrix row is linked to a test ID. Ambiguities go to `spec-issues.md` (§13 of this plan) and are never resolved silently in code. |
-| Clean-room, Apache-2.0 from commit zero (`idea.md` §4) | Implementers work only from `idea.md`, oracle specifications, the registry and the conformance tests. Every session is logged. No upstream source, tests or doc prose enters the repository or anyone's working context. |
-| Parsed, never evaluated (`idea.md` §5.2 #1) | No `eval`, `new Function`, `setTimeout(string)` or runtime code generation anywhere. This includes dependencies, so runtime-codegen schema validators are excluded. Lint enforces it statically, and the playground's CSP without `unsafe-eval` enforces it at runtime. |
-| Determinism (`idea.md` §8.4) | No `Math.random`, `Date.now` or `performance.now` in the core path. Lint bans them there. Seeds are explicit inputs. |
-| Exact time (`idea.md` §8.1) | Floats appear only in `@tartlet/schedule` and `@tartlet/webaudio`. A lint rule bans `number`-typed time fields in core packages. |
-| No prototype reachable from data (`idea.md` §6.2) | All name-keyed tables use `Map` or `Object.create(null)`. Z-07 and Z-10 tests fuzz `__proto__` and `constructor` at every entry point. |
-| A bad lead line never kills the drums (`idea.md` §10.2) | Every failure path is tested for output isolation. A property test asserts that muting one output never changes another output's events. |
-| Fit inside Markdown2 | The core is under 40 kB gzip. The full player is lazy-loaded and never counts against Markdown2's 100 kB initial budget. Everything works inside `<iframe sandbox="allow-scripts">` with no `allow-same-origin`. |
+| Constraint                                              | Consequence for the implementation                                                                                                                                                                                                                                      |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idea.md` is the source of truth                        | Every normative rule and matrix row is linked to a test ID. Ambiguities go to `spec-issues.md` (§13 of this plan) and are never resolved silently in code.                                                                                                              |
+| Clean-room, Apache-2.0 from commit zero (`idea.md` §4)  | Implementers work only from `idea.md`, oracle specifications, the registry and the conformance tests. Every session is logged. No upstream source, tests or doc prose enters the repository or anyone's working context.                                                |
+| Parsed, never evaluated (`idea.md` §5.2 #1)             | No `eval`, `new Function`, `setTimeout(string)` or runtime code generation anywhere. This includes dependencies, so runtime-codegen schema validators are excluded. Lint enforces it statically, and the playground's CSP without `unsafe-eval` enforces it at runtime. |
+| Determinism (`idea.md` §8.4)                            | No `Math.random`, `Date.now` or `performance.now` in the core path. Lint bans them there. Seeds are explicit inputs.                                                                                                                                                    |
+| Exact time (`idea.md` §8.1)                             | Floats appear only in `@tartlet/schedule` and `@tartlet/webaudio`. A lint rule bans `number`-typed time fields in core packages.                                                                                                                                        |
+| No prototype reachable from data (`idea.md` §6.2)       | All name-keyed tables use `Map` or `Object.create(null)`. Z-07 and Z-10 tests fuzz `__proto__` and `constructor` at every entry point.                                                                                                                                  |
+| A bad lead line never kills the drums (`idea.md` §10.2) | Every failure path is tested for output isolation. A property test asserts that muting one output never changes another output's events.                                                                                                                                |
+| Fit inside Markdown2                                    | The core is under 40 kB gzip. The full player is lazy-loaded and never counts against Markdown2's 100 kB initial budget. Everything works inside `<iframe sandbox="allow-scripts">` with no `allow-same-origin`.                                                        |
 
 ## 3. Technology Stack
 
@@ -184,17 +184,17 @@ The IR, event, pattern, diagnostic and registry types are defined normatively in
 ```ts
 // @tartlet/check: pure, synchronous, no I/O
 export interface CheckOptions {
-  readonly documentId: string;      // seed input, see §8.3 of this plan
-  readonly blobIndex: string;       // stable blob identity within the document
-  readonly seed?: string;           // user seed; "default" when absent
+  readonly documentId: string; // seed input, see §8.3 of this plan
+  readonly blobIndex: string; // stable blob identity within the document
+  readonly seed?: string; // user seed; "default" when absent
   readonly limits?: Partial<LimitsConfig>;
-  readonly catalog?: SoundCatalog;  // enables resource diagnostics before playback
+  readonly catalog?: SoundCatalog; // enables resource diagnostics before playback
 }
 
 export interface CheckResult {
-  readonly program: Program;        // always produced, possibly with all outputs muted
+  readonly program: Program; // always produced, possibly with all outputs muted
   readonly diagnostics: readonly Diagnostic[];
-  readonly tree: SyntaxTree;        // source-preserving, for edits and highlighting
+  readonly tree: SyntaxTree; // source-preserving, for edits and highlighting
 }
 
 export function check(source: string, opts: CheckOptions): CheckResult;
@@ -204,7 +204,7 @@ export function applyFix(source: string, fix: Fix): string;
 
 ```ts
 // @tartlet/core
-export function compile(program: Program): CompiledProgram;  // validated IR only
+export function compile(program: Program): CompiledProgram; // validated IR only
 
 export interface CompiledProgram {
   readonly outputs: ReadonlyMap<OutputId, Pattern<Controls>>;
@@ -213,27 +213,34 @@ export interface CompiledProgram {
 
 export interface QueryResult {
   readonly events: readonly Event<Controls>[];
-  readonly muted: ReadonlyMap<OutputId, Diagnostic>;  // e.g. E-LIMIT-DENSITY, per output
+  readonly muted: ReadonlyMap<OutputId, Diagnostic>; // e.g. E-LIMIT-DENSITY, per output
 }
 ```
 
 ```ts
 // @tartlet/embed: protocol v1, every message carries { v: 1, id }
 export type HostToEmbed =
-  | { type: "init"; source: string; documentId: string; blobIndex: string;
-      seed?: string; mode: "read-only" | "editable"; views: readonly View[];
-      theme?: ThemeTokens }
-  | { type: "source"; source: string }                   // host-side edit
-  | { type: "resource"; requestId: string; bytes: ArrayBuffer | null; mediaType?: string }
-  | { type: "command"; command: "play" | "stop" | "seek"; cycle?: RationalJson };
+  | {
+      type: 'init';
+      source: string;
+      documentId: string;
+      blobIndex: string;
+      seed?: string;
+      mode: 'read-only' | 'editable';
+      views: readonly View[];
+      theme?: ThemeTokens;
+    }
+  | { type: 'source'; source: string } // host-side edit
+  | { type: 'resource'; requestId: string; bytes: ArrayBuffer | null; mediaType?: string }
+  | { type: 'command'; command: 'play' | 'stop' | 'seek'; cycle?: RationalJson };
 
 export type EmbedToHost =
-  | { type: "ready"; protocol: 1; tartletVersion: string }
-  | { type: "diagnostics"; diagnostics: readonly Diagnostic[]; payload: string }
-  | { type: "patch"; source: string; edits: readonly TextEdit[] } // editable mode only
-  | { type: "resource-request"; requestId: string; name: string; index: number }
-  | { type: "resize"; height: number }
-  | { type: "summary"; text: string };                   // a11y summary from the sanity check
+  | { type: 'ready'; protocol: 1; tartletVersion: string }
+  | { type: 'diagnostics'; diagnostics: readonly Diagnostic[]; payload: string }
+  | { type: 'patch'; source: string; edits: readonly TextEdit[] } // editable mode only
+  | { type: 'resource-request'; requestId: string; name: string; index: number }
+  | { type: 'resize'; height: number }
+  | { type: 'summary'; text: string }; // a11y summary from the sanity check
 ```
 
 Protocol rules:
@@ -336,17 +343,17 @@ The playground is Tartlet's own application. It serves three purposes: it is a p
 
 ### 7.1 Views
 
-| View | Purpose |
-|---|---|
-| **Editor + player** | CodeMirror with diagnostics, safe fixes and autocompletion, plus `<tartlet-player>` with mixer, piano roll and transport. This is the default demo surface. |
-| **IR inspector** | Collapsible tree of the `Program`, with node ids, types, aliases and ranges. Selecting a node highlights its source range. Shows the IR diff between edits, so id stability can be checked by eye. |
-| **Event inspector** | Query any rational span and seed, with provenance on or off. Shows a table of whole, part, value and provenance, and can export the result as a draft fixture for hand review. It never writes golden files automatically. |
-| **Determinism lab** | Runs the same source under two seeds, or before and after an edit, and highlights events whose random draws changed. This makes D-kind failures visible. |
-| **Conformance browser** | Lists every matrix row (M, X, T, Q, Z) with status, interpretation notes and linked oracle specification. Each row can be opened in the editor. |
-| **Corpus dashboard** | Shows classification buckets per model and per level, the frequency-ranked registry misses, which form the L3 backlog, sample-name fallbacks and repair-benchmark results. It reads `tartlet corpus` output files and never calls models itself. |
-| **Repair loop viewer** | Shows the source, the exact repair payload and, for recorded benchmark runs, the model's revision with a per-track diff that confirms working tracks were untouched. |
-| **Sandbox harness** | Mounts `@tartlet/embed` inside `<iframe sandbox="allow-scripts">` through a reference host shim. It mirrors Markdown2's handler host and uses the same headers. A protocol log shows every message. |
-| **Limits and abuse lab** | Preloaded Z-row inputs, a live budget meter and the worker watchdog state. It demonstrates that hostile input cannot freeze the page. |
+| View                     | Purpose                                                                                                                                                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Editor + player**      | CodeMirror with diagnostics, safe fixes and autocompletion, plus `<tartlet-player>` with mixer, piano roll and transport. This is the default demo surface.                                                                                      |
+| **IR inspector**         | Collapsible tree of the `Program`, with node ids, types, aliases and ranges. Selecting a node highlights its source range. Shows the IR diff between edits, so id stability can be checked by eye.                                               |
+| **Event inspector**      | Query any rational span and seed, with provenance on or off. Shows a table of whole, part, value and provenance, and can export the result as a draft fixture for hand review. It never writes golden files automatically.                       |
+| **Determinism lab**      | Runs the same source under two seeds, or before and after an edit, and highlights events whose random draws changed. This makes D-kind failures visible.                                                                                         |
+| **Conformance browser**  | Lists every matrix row (M, X, T, Q, Z) with status, interpretation notes and linked oracle specification. Each row can be opened in the editor.                                                                                                  |
+| **Corpus dashboard**     | Shows classification buckets per model and per level, the frequency-ranked registry misses, which form the L3 backlog, sample-name fallbacks and repair-benchmark results. It reads `tartlet corpus` output files and never calls models itself. |
+| **Repair loop viewer**   | Shows the source, the exact repair payload and, for recorded benchmark runs, the model's revision with a per-track diff that confirms working tracks were untouched.                                                                             |
+| **Sandbox harness**      | Mounts `@tartlet/embed` inside `<iframe sandbox="allow-scripts">` through a reference host shim. It mirrors Markdown2's handler host and uses the same headers. A protocol log shows every message.                                              |
+| **Limits and abuse lab** | Preloaded Z-row inputs, a live budget meter and the worker watchdog state. It demonstrates that hostile input cannot freeze the page.                                                                                                            |
 
 ### 7.2 Behaviour
 
@@ -364,15 +371,15 @@ The playground is Tartlet's own application. It serves three purposes: it is a p
 
 ### 8.1 Division of responsibility
 
-| Concern | Owner |
-|---|---|
-| Recognising the blob, decoding bytes (`utf-8`, `base64`, `gzip`), grants and fail-closed fallback | Markdown2 |
-| UTF-8 validity of the decoded payload | Markdown2 handler shim. Invalid input means the node is `failed`, which matches Markdown2 spec question 3. |
-| Handler registration for `text/vnd.tartlet` and `text/x-strudel` (exact types, no sniffing) | Markdown2 (`@markdown2/handlers/tartlet.ts`) |
-| Sandboxed iframe, `postMessage` transport, `allow="autoplay"` delegation | Markdown2 handler host |
-| Everything inside the iframe: check, worker, scheduling, audio, UI | Tartlet (`@tartlet/embed`) |
-| Resource policy for `samples()` URLs and embedded attachments | Markdown2. It answers `resource-request` messages with bytes or `null`, applying its `uri` policy and grants. |
-| Persisting editable-mode patches | Markdown2. It receives `patch` messages and decides whether to save. |
+| Concern                                                                                           | Owner                                                                                                         |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Recognising the blob, decoding bytes (`utf-8`, `base64`, `gzip`), grants and fail-closed fallback | Markdown2                                                                                                     |
+| UTF-8 validity of the decoded payload                                                             | Markdown2 handler shim. Invalid input means the node is `failed`, which matches Markdown2 spec question 3.    |
+| Handler registration for `text/vnd.tartlet` and `text/x-strudel` (exact types, no sniffing)       | Markdown2 (`@markdown2/handlers/tartlet.ts`)                                                                  |
+| Sandboxed iframe, `postMessage` transport, `allow="autoplay"` delegation                          | Markdown2 handler host                                                                                        |
+| Everything inside the iframe: check, worker, scheduling, audio, UI                                | Tartlet (`@tartlet/embed`)                                                                                    |
+| Resource policy for `samples()` URLs and embedded attachments                                     | Markdown2. It answers `resource-request` messages with bytes or `null`, applying its `uri` policy and grants. |
+| Persisting editable-mode patches                                                                  | Markdown2. It receives `patch` messages and decides whether to save.                                          |
 
 ### 8.2 Embedded resources
 
@@ -404,29 +411,29 @@ The handler shim passes this value in `init`. Hosts that care about stability sh
 
 ### 8.5 Timeline alignment
 
-| Tartlet | Markdown2 | Handoff |
-|---|---|---|
-| T0 (week 1) | M0 | Agree on ADR-004 (embed protocol) jointly. |
-| T2 (weeks 4–6) | M2 | Embed v1 and protocol freeze candidate delivered by end of week 6. |
-| T3 (weeks 6–8) | M3 (handlers) | Markdown2 builds the shim against embed v1. Joint sandbox tests. |
-| T4–T5 (weeks 8–12) | M4–M5 | Editable-mode patches feed Markdown2's editor. Joint a11y and security review. |
-| 1.0 (week 12) | M6 (week 14) | Markdown2 0.2 ships with the blob type on by default. |
+| Tartlet            | Markdown2     | Handoff                                                                        |
+| ------------------ | ------------- | ------------------------------------------------------------------------------ |
+| T0 (week 1)        | M0            | Agree on ADR-004 (embed protocol) jointly.                                     |
+| T2 (weeks 4–6)     | M2            | Embed v1 and protocol freeze candidate delivered by end of week 6.             |
+| T3 (weeks 6–8)     | M3 (handlers) | Markdown2 builds the shim against embed v1. Joint sandbox tests.               |
+| T4–T5 (weeks 8–12) | M4–M5         | Editable-mode patches feed Markdown2's editor. Joint a11y and security review. |
+| 1.0 (week 12)      | M6 (week 14)  | Markdown2 0.2 ships with the blob type on by default.                          |
 
 ## 9. Testing Strategy
 
-| Layer | Tooling | Coverage target |
-|---|---|---|
-| Unit (`time`, `mini`, `syntax`, `check`, `core`, `random`) | Vitest in Node, Deno and a worker | ≥ 95% branches |
-| Conformance matrix (`idea.md` §12.2–12.4) | Fixture runner | 100% of rows scheduled for the current phase |
-| Pattern laws (L) | fast-check, 10⁴ spans per construct in CI, 10⁶ nightly | All four laws, every registered transform |
-| Determinism (D) | fast-check edit generators: appended methods, edits to unrelated subtrees | Zero changed draws outside the edited subtree |
-| Output isolation | fast-check: inject a fault into one output | Other outputs' events are byte-identical |
-| Rational differential | fast-check vs a naive `bigint` reference | Identical results on every operation |
-| Rejection and fuzz (R) | fast-check plus a corpus-seeded mutator over lexer, parser, IR and embed protocol | No crash, no hang beyond budget, no host API reachable |
-| Audio (A) | Vitest browser mode with `OfflineAudioContext` | Onsets within one sample, non-silent, master ≤ 0 dBFS |
-| Corpus and repair | `tartlet corpus` in CI on every release, nightly on `main` | `idea.md` §12.5 targets |
-| E2E | Playwright (3 engines) | Playground flows and sandbox harness |
-| Accessibility | axe plus manual screen-reader passes | WCAG 2.2 AA |
+| Layer                                                      | Tooling                                                                           | Coverage target                                        |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Unit (`time`, `mini`, `syntax`, `check`, `core`, `random`) | Vitest in Node, Deno and a worker                                                 | ≥ 95% branches                                         |
+| Conformance matrix (`idea.md` §12.2–12.4)                  | Fixture runner                                                                    | 100% of rows scheduled for the current phase           |
+| Pattern laws (L)                                           | fast-check, 10⁴ spans per construct in CI, 10⁶ nightly                            | All four laws, every registered transform              |
+| Determinism (D)                                            | fast-check edit generators: appended methods, edits to unrelated subtrees         | Zero changed draws outside the edited subtree          |
+| Output isolation                                           | fast-check: inject a fault into one output                                        | Other outputs' events are byte-identical               |
+| Rational differential                                      | fast-check vs a naive `bigint` reference                                          | Identical results on every operation                   |
+| Rejection and fuzz (R)                                     | fast-check plus a corpus-seeded mutator over lexer, parser, IR and embed protocol | No crash, no hang beyond budget, no host API reachable |
+| Audio (A)                                                  | Vitest browser mode with `OfflineAudioContext`                                    | Onsets within one sample, non-silent, master ≤ 0 dBFS  |
+| Corpus and repair                                          | `tartlet corpus` in CI on every release, nightly on `main`                        | `idea.md` §12.5 targets                                |
+| E2E                                                        | Playwright (3 engines)                                                            | Playground flows and sandbox harness                   |
+| Accessibility                                              | axe plus manual screen-reader passes                                              | WCAG 2.2 AA                                            |
 
 Fixtures are language-neutral JSON: source, span, seed, options and expected events in `RationalJson`, plus an `interpretation` field and an optional `oracle` reference. Every expectation is **written by hand** (`idea.md` §12.1). The event inspector can draft a fixture, but a human must review and commit it, and the commit message must state the source of the expectation. Every normative statement in `idea.md` gets a requirement ID, for example `R-8.3-span-split`. `docs/traceability.md` maps IDs to tests, and CI fails if a MUST has no test.
 
@@ -459,17 +466,17 @@ A contributor who has studied upstream internals is assigned only to packages ou
 
 This table covers plan-level risks. Product-level risks are in `idea.md` §15.
 
-| ID | Risk | Impact | Mitigation |
-|---|---|---|---|
-| R-1 | Legal sign-off on `CLEAN_ROOM.md` slips past week 1. | T1 blocked | Submit in week 1. T0 and corpus work continue. Line up T1 tasks that touch only tooling, fixtures and the playground shell so they can proceed. |
-| R-2 | Oracle specifications arrive late for T2 transforms. | Implementers guess, causing semantic drift | Analyst starts in week 2 and works in corpus-frequency order. A transform is not assigned until its specification is merged. |
-| R-3 | Workers or `AudioWorklet` fail to start from `blob:` URLs in opaque-origin iframes on some engine. | Embed unusable in Markdown2 | Test in T0 on all three engines (ADR-003). Fallback: evaluate on the iframe's main thread with tighter budgets. The iframe is already isolated from the host page, so the host stays responsive. |
-| R-4 | Autoplay policy blocks audio in the sandboxed frame despite a gesture in the host. | Play button does nothing | Require `allow="autoplay"` delegation in the shim. The embed renders its own play control, so the gesture lands inside the frame. |
-| R-5 | Core bundle exceeds 40 kB because of the registry. | Markdown2 budget pressure | Store registry descriptions in a separate lazy chunk used only by tooling. The runtime registry carries signatures only. |
-| R-6 | The rational fast path diverges from `bigint` semantics. | Wrong timings at edge cases | Differential property tests on every operation. Denominator ceiling enforced. |
-| R-7 | Seed instability from Markdown2 structural ids. | "Same document sounds different" after unrelated edits | §8.3 rule, documented guidance to set `id`, and a D-kind test inside the Markdown2 integration suite. |
-| R-8 | Corpus generation costs or model access limits. | Thin frequency data | Budget the generation runs up front. Keep the corpus incremental. Prioritise breadth of prompts over samples per prompt. |
-| R-9 | Plan and phase overlap, as T2 and T3 share week 6. | Slip | T4 is the release valve, as in `idea.md`. The audio quality pass may start in week 5 because it touches disjoint packages. |
+| ID  | Risk                                                                                               | Impact                                                 | Mitigation                                                                                                                                                                                       |
+| --- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| R-1 | Legal sign-off on `CLEAN_ROOM.md` slips past week 1.                                               | T1 blocked                                             | Submit in week 1. T0 and corpus work continue. Line up T1 tasks that touch only tooling, fixtures and the playground shell so they can proceed.                                                  |
+| R-2 | Oracle specifications arrive late for T2 transforms.                                               | Implementers guess, causing semantic drift             | Analyst starts in week 2 and works in corpus-frequency order. A transform is not assigned until its specification is merged.                                                                     |
+| R-3 | Workers or `AudioWorklet` fail to start from `blob:` URLs in opaque-origin iframes on some engine. | Embed unusable in Markdown2                            | Test in T0 on all three engines (ADR-003). Fallback: evaluate on the iframe's main thread with tighter budgets. The iframe is already isolated from the host page, so the host stays responsive. |
+| R-4 | Autoplay policy blocks audio in the sandboxed frame despite a gesture in the host.                 | Play button does nothing                               | Require `allow="autoplay"` delegation in the shim. The embed renders its own play control, so the gesture lands inside the frame.                                                                |
+| R-5 | Core bundle exceeds 40 kB because of the registry.                                                 | Markdown2 budget pressure                              | Store registry descriptions in a separate lazy chunk used only by tooling. The runtime registry carries signatures only.                                                                         |
+| R-6 | The rational fast path diverges from `bigint` semantics.                                           | Wrong timings at edge cases                            | Differential property tests on every operation. Denominator ceiling enforced.                                                                                                                    |
+| R-7 | Seed instability from Markdown2 structural ids.                                                    | "Same document sounds different" after unrelated edits | §8.3 rule, documented guidance to set `id`, and a D-kind test inside the Markdown2 integration suite.                                                                                            |
+| R-8 | Corpus generation costs or model access limits.                                                    | Thin frequency data                                    | Budget the generation runs up front. Keep the corpus incremental. Prioritise breadth of prompts over samples per prompt.                                                                         |
+| R-9 | Plan and phase overlap, as T2 and T3 share week 6.                                                 | Slip                                                   | T4 is the release valve, as in `idea.md`. The audio quality pass may start in week 5 because it touches disjoint packages.                                                                       |
 
 ## 13. Known Spec Questions (seed for `spec-issues.md`)
 

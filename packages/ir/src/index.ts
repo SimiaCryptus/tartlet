@@ -1,18 +1,18 @@
 // Types from idea.md §9 and §10. T0 deviations are noted inline and in spec-issues.md.
-import type { Rational } from "@tartlet/time";
-import type { MiniAst } from "@tartlet/mini"; // TS-13
+import type { Rational } from '@tartlet/time';
+import type { MiniAst } from '@tartlet/mini'; // TS-13
 
 export type NodeId = string;
 export type RegistryId = string;
 export type ControlId = string;
 export type DiagnosticId = string;
 
-export type ValueKind = "note" | "sample" | "number" | "string" | "bool" | "controls";
+export type ValueKind = 'note' | 'sample' | 'number' | 'string' | 'bool' | 'controls';
 export type PatternType =
-  | { readonly kind: "pattern"; readonly of: ValueKind }
-  | { readonly kind: "signal"; readonly of: "number" }
-  | { readonly kind: "function" }
-  | { readonly kind: "error" };
+  | { readonly kind: 'pattern'; readonly of: ValueKind }
+  | { readonly kind: 'signal'; readonly of: 'number' }
+  | { readonly kind: 'function' }
+  | { readonly kind: 'error' };
 
 /** Line and col are 0-based. col counts UTF-16 units and byte counts UTF-8 bytes (TS-15). */
 export interface Offset {
@@ -27,13 +27,13 @@ export interface SourceRange {
 export interface Provenance {
   readonly node: NodeId;
   readonly range: SourceRange;
-  readonly role: "origin" | "transform" | "control";
+  readonly role: 'origin' | 'transform' | 'control';
 }
 
 export type ConstValue =
-  | { readonly t: "num"; readonly v: Rational }
-  | { readonly t: "str"; readonly v: string }
-  | { readonly t: "bool"; readonly v: boolean };
+  | { readonly t: 'num'; readonly v: Rational }
+  | { readonly t: 'str'; readonly v: string }
+  | { readonly t: 'bool'; readonly v: boolean };
 
 export interface NodeBase {
   readonly id: NodeId;
@@ -41,65 +41,64 @@ export interface NodeBase {
   readonly type: PatternType;
 }
 export interface MiniNode extends NodeBase {
-  readonly kind: "mini";
+  readonly kind: 'mini';
   readonly text: string;
   /** UTF-16 index of the string content in the source (TS-15). */
   readonly textOffset: number;
   readonly ast: MiniAst;
-  readonly valueKind: "note" | "sample" | "number" | "string";
+  readonly valueKind: 'note' | 'sample' | 'number' | 'string';
 }
 export interface PureNode extends NodeBase {
-  readonly kind: "pure";
+  readonly kind: 'pure';
   readonly value: ConstValue;
 }
 export interface SilenceNode extends NodeBase {
-  readonly kind: "silence";
+  readonly kind: 'silence';
 }
 export interface RefNode extends NodeBase {
-  readonly kind: "ref";
+  readonly kind: 'ref';
   readonly name: string;
   readonly binding: NodeId;
 }
 export interface CombineNode extends NodeBase {
-  readonly kind: "combine";
-  readonly op: "stack" | "slowcat" | "fastcat" | "timecat" | "polymeter" | "arrange"; // timecat: TS-3
+  readonly kind: 'combine';
+  readonly op: 'stack' | 'slowcat' | 'fastcat' | 'timecat' | 'polymeter' | 'arrange'; // timecat: TS-3
   readonly children: readonly PatternNode[];
   readonly weights?: readonly Rational[];
 }
 export interface TransformNode extends NodeBase {
-  readonly kind: "transform";
+  readonly kind: 'transform';
   readonly fn: RegistryId;
   readonly target: PatternNode;
   readonly args: readonly Arg[];
 }
 export interface ControlNode extends NodeBase {
-  readonly kind: "control";
+  readonly kind: 'control';
   readonly control: ControlId;
   readonly alias?: string;
   readonly target: PatternNode | null;
   readonly value: Arg;
-  readonly structure?: "receiver" | "argument" | "both";
+  readonly structure?: 'receiver' | 'argument' | 'both';
 }
 export interface SignalNode extends NodeBase {
-  readonly kind: "signal";
+  readonly kind: 'signal';
   readonly fn: RegistryId;
 }
 export interface ErrorNode extends NodeBase {
-  readonly kind: "error";
+  readonly kind: 'error';
   readonly diagnostic: DiagnosticId;
   readonly recovered?: PatternNode;
 }
 export type PatternNode =
-  | MiniNode | PureNode | SilenceNode | RefNode | CombineNode
-  | TransformNode | ControlNode | SignalNode | ErrorNode;
+  MiniNode | PureNode | SilenceNode | RefNode | CombineNode | TransformNode | ControlNode | SignalNode | ErrorNode;
 
 export type Arg =
-  | { readonly kind: "pattern"; readonly node: PatternNode }
-  | { readonly kind: "const"; readonly value: ConstValue }
-  | { readonly kind: "function"; readonly fn: FunctionValue };
+  | { readonly kind: 'pattern'; readonly node: PatternNode }
+  | { readonly kind: 'const'; readonly value: ConstValue }
+  | { readonly kind: 'function'; readonly fn: FunctionValue };
 export type FunctionValue =
-  | { readonly kind: "ref"; readonly fn: RegistryId; readonly args: readonly Arg[] }
-  | { readonly kind: "lambda"; readonly param: string; readonly body: PatternNode };
+  | { readonly kind: 'ref'; readonly fn: RegistryId; readonly args: readonly Arg[] }
+  | { readonly kind: 'lambda'; readonly param: string; readonly body: PatternNode };
 
 export interface SourceRef {
   readonly hash: string;
@@ -119,15 +118,15 @@ export interface Output {
   readonly id: NodeId;
   readonly label?: string;
   readonly expr: PatternNode;
-  readonly status: "ok" | "muted-error" | "muted-user";
+  readonly status: 'ok' | 'muted-error' | 'muted-user';
 }
 export interface ResourceDecl {
-  readonly kind: "samples";
+  readonly kind: 'samples';
   readonly spec: string;
   readonly range: SourceRange;
 }
 export interface Program {
-  readonly irVersion: "tartlet/1";
+  readonly irVersion: 'tartlet/1';
   readonly source?: SourceRef;
   readonly settings: Settings;
   readonly bindings: readonly Binding[];
@@ -143,12 +142,12 @@ export interface Fix {
 }
 export interface Diagnostic {
   readonly id: DiagnosticId;
-  readonly severity: "error" | "warning" | "info";
+  readonly severity: 'error' | 'warning' | 'info';
   readonly message: string;
   readonly range: SourceRange;
   readonly node?: NodeId;
   readonly output?: string;
-  readonly effect: "none" | "subtree-muted" | "output-muted" | "program-rejected";
+  readonly effect: 'none' | 'subtree-muted' | 'output-muted' | 'program-rejected';
   readonly fixes?: readonly Fix[];
   readonly related?: readonly { readonly range: SourceRange; readonly message: string }[];
 }
@@ -177,6 +176,6 @@ export interface QueryBudget {
 }
 
 export type Pitch =
-  | { readonly kind: "midi"; readonly value: number }
-  | { readonly kind: "name"; readonly letter: string; readonly accidental: number; readonly octave: number };
-export * from "./codec";
+  | { readonly kind: 'midi'; readonly value: number }
+  | { readonly kind: 'name'; readonly letter: string; readonly accidental: number; readonly octave: number };
+export * from './codec';

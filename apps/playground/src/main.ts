@@ -1,4 +1,4 @@
-import { defineTartletPlayer, type TartletPlayerElement } from "@tartlet/element";
+import { defineTartletPlayer, type TartletPlayerElement } from '@tartlet/element';
 
 // The idea.md §13.1 example.
 const EXAMPLE = `setcpm(92/4)
@@ -9,13 +9,15 @@ $: n("<0 2 4 6>").scale("D:minor").s("triangle").room(.4).slow(2)
 `;
 
 defineTartletPlayer();
-const player = document.getElementById("player") as TartletPlayerElement;
-const editor = document.getElementById("editor") as HTMLTextAreaElement;
+const player = document.getElementById('player') as TartletPlayerElement;
+const editor = document.getElementById('editor') as HTMLTextAreaElement;
 editor.value = EXAMPLE;
 player.source = EXAMPLE;
 
 let timer: ReturnType<typeof setTimeout> | undefined;
-editor.addEventListener("input", () => {
+editor.addEventListener('input', () => {
   clearTimeout(timer);
-  timer = setTimeout(() => { player.source = editor.value; }, 300);
+  timer = setTimeout(() => {
+    player.source = editor.value;
+  }, 300);
 });

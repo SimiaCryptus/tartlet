@@ -3,7 +3,14 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "lib": ["ES2022"], "types": [] },
   "include": [
-    "packages/time/src", "packages/mini/src", "packages/syntax/src", "packages/ir/src",
-    "packages/registry/src", "packages/check/src", "packages/random/src", "packages/core/src"
+    "packages/time/src",
+    "packages/mini/src",
+    "packages/syntax/src",
+    "packages/ir/src",
+    "packages/registry/src",
+    "packages/check/src",
+    "packages/random/src",
+    "packages/core/src",
+    "packages/resources/src"
   ]
 }

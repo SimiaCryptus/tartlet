@@ -24,7 +24,7 @@ TS-1 to TS-10 are seeded from plan.md §13 and still open. The T0 status of each
   exempts control merges until resolved.
 - **TS-13: package graph.** `MiniNode.ast: MiniAst` (§9.2) makes `@tartlet/ir` depend on
   `@tartlet/mini` (type-only). §6.3 lists `ir → time` only. T0 adds the edge.
-- **TS-14: nested alternation.** In `<a b>`, child *i* is queried at cycle floor(k/n), so
+- **TS-14: nested alternation.** In `<a b>`, child _i_ is queried at cycle floor(k/n), so
   `<a <b c>>` gives a, b, a, c. Needs oracle confirmation.
 - **TS-15: `MiniNode.textOffset`.** Provenance needs the string-content offset in the
   document. T0 adds `textOffset` (a UTF-16 index) to `MiniNode`. `Offset.col` is in UTF-16
@@ -67,3 +67,38 @@ TS-1 to TS-10 are seeded from plan.md §13 and still open. The T0 status of each
   uses `s("~ ~")` until `mask` lands.
 - **TS-27: T0 test expectations corrected.** In X-07, `s(cat("a","b"))` plays a then b. In
   X-09, cycle 1 of `.slow("<1 2>")` holds one onset. Both follow from §8.6 window semantics.
+
+## Found during T2
+
+- **TS-28: seed scope.** This resolves TS-18 for `.seed()`. The query state carries a seed
+  _scope_: the root seed, or `hash(root, "seed", x)` below `.seed(x)`. Seeded nodes do not
+  reseed their children. They salt their own draws with their node id, so each draw is keyed
+  by (scope, node id, …). An inner `.seed()` replaces the scope instead of chaining.
+- **TS-29: polymeter step count.** Without `%n`, steps per cycle equal the total step weight
+  of the first layer, so `@` and `!` count.
+- **TS-30: random choice draws.** `MiniAst.choice` gains `at`, the offset of the first `|`.
+  The draw is keyed by (scope, node id, `|at`, cycle). `|` binds looser than sequence and
+  tighter than `,`.
+- **TS-31: `.` grouping.** `.` is a separator only when it lexes as a standalone word.
+  `.5` stays a number.
+- **TS-32: `euclid` method vs mini `(k,n)`.** The method uses structure from the argument,
+  which is struct semantics. The mini form squeezes the step body into each hit. They agree
+  for single-event receivers (X-19 = M-19). This needs an oracle spec.
+- **TS-33: signals.** A signal returns one whole-less event over the query span, valued at
+  its start. Receivers sample it at each event's whole start. Continuous events are exempt
+  from the span-splitting law.
+- **TS-34: constant control arguments.** These use `fmap` instead of receiver-structure
+  combination, so events that cross a cycle boundary are not split. This narrows TS-12 to
+  patterned arguments.
+- **TS-35: capability rule.** `scale` and `transpose` give `E-CAP-PITCHED` only when the
+  receiver sets `s` and no `n` (for scale), `note` or `freq`. Lambda parameters are assumed
+  pitched.
+- **TS-36: `.label()` placement.** The checker reads `.label("x")` from the outermost chain
+  and uses `x` as the output anchor. Named outputs (`x: …`) take precedence. `.label` adds
+  no IR node.
+- **TS-37: no oracle specs for T2 transforms.** `oracle/` is empty. `off`, `jux`, `ply`,
+  `struct`, `mask` and the patterned-argument rules follow the §8.6 prose and §12.3
+  assertions. They are provisional and must be reconciled when the specifications land.
+- **TS-38: general kit size.** The initial kit has 11 synthesized drums plus 4 oscillators.
+  Names outside the kit fall back by alias and keyword. Growth toward about 100 sounds
+  waits for corpus frequency data.
