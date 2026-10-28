@@ -10,6 +10,7 @@ export interface Token {
 
 const IDENT_START = /[A-Za-z_$]/;
 const IDENT = /[A-Za-z0-9_$]/;
+// eslint-disable-next-line security/detect-unsafe-regex -- sticky, no nested repetition: linear time
 const NUM = /(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y;
 const PUNCT3 = ['...'];
 const PUNCT2 = ['=>'];

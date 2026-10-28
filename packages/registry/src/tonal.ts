@@ -9,6 +9,7 @@ const PITCH_CLASS = new Map<string, number>([
   ['a', 9],
   ['b', 11],
 ]);
+// eslint-disable-next-line security/detect-unsafe-regex -- anchored, no nested repetition: linear time
 const NOTE = /^([a-gA-G])([#sbf]*)(-?\d+)?$/;
 const NUMBER = /^-?(\d+\.?\d*|\.\d+)$/;
 

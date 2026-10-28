@@ -84,7 +84,7 @@ describe('L2 expressions, T2 rows', () => {
     const draws = (s: string) =>
       Array.from({ length: 12 }, (_, c) =>
         onsets(`s("a*8").sometimesBy(.5, x => x.speed(2)).seed("${s}")`, c)
-          .map((e) => String(e.value.speed ?? 1))
+          .map((e) => String((e.value.speed as number | undefined) ?? 1))
           .join(''),
       ).join('|');
     expect(draws('v2')).toBe(draws('v2'));

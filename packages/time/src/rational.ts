@@ -225,18 +225,34 @@ export function fromFloat(x: number, maxDen = 1_000_000): Rational {
   return k1 === 0 ? normN(Math.round(x), 1) : normN(h1, k1);
 }
 
-const DECIMAL = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/;
+// Kept free of nested quantifiers (security/detect-unsafe-regex); the literal is split by hand.
+const DIGITS = /^\d*$/;
+const EXPONENT = /^[+-]?\d+$/;
 
 /** Parses a decimal literal exactly: "0.25" gives 1/4. Returns null if the text is not a number. */
 export function parseDecimal(text: string): Rational | null {
-  const m = DECIMAL.exec(text);
-  if (!m) return null;
-  const intPart = m[2] ?? '';
-  const fracPart = m[3] ?? '';
+  let body = text;
+  let negative = false;
+  if (body.startsWith('+') || body.startsWith('-')) {
+    negative = body.startsWith('-');
+    body = body.slice(1);
+  }
+  let expText = '0';
+  const e = body.search(/[eE]/);
+  if (e >= 0) {
+    expText = body.slice(e + 1);
+    body = body.slice(0, e);
+    if (!EXPONENT.test(expText)) return null;
+  }
+  const dot = body.indexOf('.');
+  const intPart = dot >= 0 ? body.slice(0, dot) : body;
+  const fracPart = dot >= 0 ? body.slice(dot + 1) : '';
+  // DIGITS rejects any second '.', so "1.2.3" fails here.
+  if (!DIGITS.test(intPart) || !DIGITS.test(fracPart)) return null;
   if (intPart === '' && fracPart === '') return null;
-  const exp = Number(m[4] ?? '0') - fracPart.length;
+  const exp = Number(expText) - fracPart.length;
   if (Math.abs(exp) > 40) return null;
   let n = BigInt(intPart + fracPart || '0');
-  if (m[1] === '-') n = -n;
+  if (negative) n = -n;
   return exp >= 0 ? normB(n * 10n ** BigInt(exp), 1n) : normB(n, 10n ** BigInt(-exp));
 }

@@ -162,12 +162,12 @@ function constNum(a: Arg | undefined): number | null {
   return a?.kind === 'const' && a.value.t === 'num' ? toNumber(a.value.v) : null;
 }
 
-export function compile(program: Program, opts: CompileOptions = {}): CompiledProgram {
-  const locate = opts.locate ?? ((i: number): Offset => ({ line: 0, col: i, byte: i }));
+export function compile(program: Program, opts?: CompileOptions): CompiledProgram {
+  const locate = opts?.locate ?? ((i: number): Offset => ({ line: 0, col: i, byte: i }));
   const bindings = new Map(program.bindings.map((b) => [b.id, b] as const));
   const refCache = new Map<string, Pattern<unknown>>();
   const inProgress = new Set<string>();
-  const root = rootSeed(opts.documentId ?? '', opts.blobIndex ?? '', opts.seed ?? program.settings.seed);
+  const root = rootSeed(opts?.documentId ?? '', opts?.blobIndex ?? '', opts?.seed ?? program.settings.seed);
 
   const atomValue = (atom: MiniAtom, kind: string): unknown => {
     switch (kind) {

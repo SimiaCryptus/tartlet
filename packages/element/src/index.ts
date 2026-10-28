@@ -59,7 +59,7 @@ export class TartletPlayerElement extends HTMLElement {
   }
 
   connectedCallback(): void {
-    if (this.#source === undefined) this.source = this.textContent ?? '';
+    if (this.#source === undefined) this.source = this.textContent;
   }
 
   disconnectedCallback(): void {

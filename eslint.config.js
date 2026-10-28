@@ -3,6 +3,9 @@ import tseslint from 'typescript-eslint';
 import security from 'eslint-plugin-security';
 
 const CORE = ['packages/{time,mini,syntax,ir,registry,check,random,core}/src/**/*.ts'];
+// Packages that carry musical time. `mini` and `syntax` deal only in source offsets (UTF-16
+// indices), which are plain numbers by design: the parser knows nothing about time (idea.md §6.2).
+const TIME_PKGS = ['packages/{time,ir,registry,check,random,core}/src/**/*.ts'];
 
 const BASE_SYNTAX = [
   { selector: "ImportExpression[source.type!='Literal']", message: 'Dynamic import() needs a literal specifier.' },
@@ -16,6 +19,18 @@ const BASE_GLOBALS = [
   { name: 'Function', message: 'No runtime code generation.' },
   { name: 'eval', message: 'Tartlet never evaluates source.' },
 ];
+const CORE_SYNTAX = [
+  ...BASE_SYNTAX,
+  { selector: "NewExpression[callee.name='Date']", message: 'No wall clock in the core path.' },
+  {
+    selector: 'ObjectExpression[properties.length=0]',
+    message: 'Use Map or Object.create(null) for dictionaries.',
+  },
+];
+const TIME_FIELD = {
+  selector: 'TSPropertySignature[key.name=/^(begin|end|cycle|whole|part)$/] TSNumberKeyword',
+  message: 'Musical time is Rational, never number.',
+};
 
 const deps = (pkg, allowed) => ({
   files: [`packages/${pkg}/src/**/*.ts`],
@@ -52,7 +67,10 @@ export default tseslint.config(
     plugins: { security },
     rules: {
       ...security.configs.recommended.rules,
-      'security/detect-object-injection': 'warn',
+      // Every hit is numeric array indexing or a typed key. Prototype safety is enforced
+      // structurally instead: Map / Object.create(null) dictionaries (rule below) and the
+      // Z-07 / Z-10 tests (idea.md §6.2).
+      'security/detect-object-injection': 'off',
       'no-restricted-properties': [
         'error',
         { object: 'Math', property: 'random', message: 'Use @tartlet/random seed paths.' },
@@ -69,20 +87,17 @@ export default tseslint.config(
         'setInterval',
         'XMLHttpRequest',
       ],
-      'no-restricted-syntax': [
-        'error',
-        ...BASE_SYNTAX,
-        { selector: "NewExpression[callee.name='Date']", message: 'No wall clock in the core path.' },
-        {
-          selector: 'ObjectExpression[properties.length=0]',
-          message: 'Use Map or Object.create(null) for dictionaries.',
-        },
-        {
-          selector: 'TSPropertySignature[key.name=/^(begin|end|cycle|whole|part)$/] TSNumberKeyword',
-          message: 'Musical time is Rational, never number.',
-        },
-      ],
+      'no-restricted-syntax': ['error', ...CORE_SYNTAX],
     },
+  },
+  {
+    files: TIME_PKGS,
+    rules: { 'no-restricted-syntax': ['error', ...CORE_SYNTAX, TIME_FIELD] },
+  },
+  {
+    // In tests a wrong shape assumption fails the test anyway.
+    files: ['packages/*/test/**/*.ts', 'e2e/**/*.ts'],
+    rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
   deps('time', []),
   deps('mini', ['time']),

@@ -226,7 +226,7 @@ class Lowerer {
   run(tree: SyntaxTree): void {
     let slot = 0;
     for (const st of tree.statements) {
-      this.errored = false;
+      this.resetErrored();
       this.params.length = 0;
       if (st.k === 'error') continue;
       if (st.k === 'binding') {
@@ -279,6 +279,13 @@ class Lowerer {
         status: this.errored ? 'muted-error' : 'ok',
       });
     }
+  }
+  /**
+   * Clears the per-statement error flag. A method call keeps TypeScript from narrowing
+   * `errored` to `false` for the rest of the statement.
+   */
+  private resetErrored(): void {
+    this.errored = false;
   }
 
   // ---- diagnostics

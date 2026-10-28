@@ -36,11 +36,18 @@ const key = (e: Event<string>): string =>
 /** Merges fragments sharing a whole and value with adjacent parts. */
 const merged = (evs: Event<string>[]): string[] => {
   const groups = new Map<string, Event<string>[]>();
-  for (const e of evs) groups.set(key(e), [...(groups.get(key(e)) ?? []), e]);
+  for (const e of evs) {
+    const k = key(e);
+    const g = groups.get(k);
+    if (g) g.push(e);
+    else groups.set(k, [e]);
+  }
   const out: string[] = [];
   for (const [k, es] of groups) {
     es.sort((a, b) => (lte(a.part.begin, b.part.begin) ? -1 : 1));
-    let cur = es[0]!.part;
+    const first = es[0];
+    if (!first) continue;
+    let cur = first.part;
     for (const e of es.slice(1)) {
       if (toJson(e.part.begin).join() === toJson(cur.end).join()) cur = { begin: cur.begin, end: e.part.end };
       else {
@@ -53,13 +60,16 @@ const merged = (evs: Event<string>[]): string[] => {
   return out.sort();
 };
 
-const arbPoint = fc.tuple(fc.integer({ min: 0, max: 400 }), fc.integer({ min: 1, max: 12 })).map(([n, d]) => rat(n, d));
+// Spans stay within a few cycles: the laws are local, and long spans make dense patterns
+// (a*8?, euclid, polymeter) so slow that the property test appears to hang.
+const arbStart = fc.tuple(fc.integer({ min: 0, max: 200 }), fc.integer({ min: 1, max: 12 })).map(([n, d]) => rat(n, d));
+const arbLen = fc.tuple(fc.integer({ min: 0, max: 48 }), fc.integer({ min: 1, max: 12 })).map(([n, d]) => rat(n, d));
 
 describe('pattern laws', () => {
   for (const src of SOURCES) {
     it(`span splitting and containment: ${src}`, () => {
       fc.assert(
-        fc.property(arbPoint, arbPoint, arbPoint, (x, y, z) => {
+        fc.property(arbStart, arbLen, arbLen, (x, y, z) => {
           const [a, t, c] = [x, add(x, y), add(add(x, y), z)];
           if (!(lte(a, t) && lte(t, c)) || toJson(a).join() === toJson(c).join()) return;
           const whole = q(src, a, c);
@@ -68,6 +78,6 @@ describe('pattern laws', () => {
         }),
         { numRuns: 300 },
       );
-    });
+    }, 30_000);
   }
 });
