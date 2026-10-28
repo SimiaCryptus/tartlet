@@ -997,6 +997,31 @@ body.is-mobile .tag-chip {
   min-height: 36px;
   font-size: 13px;
 }
+.catalog-info-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.catalog-mount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.catalog-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.catalog .catalog-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 /* ============================================================================
    Player
@@ -1090,6 +1115,7 @@ tartlet-player {
 .library button,
 .assistant button,
 .dialog button,
+.catalog .catalog-action,
 .button-link {
   position: relative;
   font: inherit;
@@ -1120,6 +1146,7 @@ tartlet-player {
 .library button:hover:not(:disabled),
 .assistant button:hover:not(:disabled),
 .dialog button:hover:not(:disabled),
+.catalog .catalog-action:hover:not(:disabled),
 .button-link:hover {
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   color: var(--accent);
@@ -1776,6 +1803,7 @@ body.is-mobile .toolbar,
 body.is-mobile .library button,
 body.is-mobile .assistant button,
 body.is-mobile .dialog button,
+body.is-mobile .catalog .catalog-action,
 body.is-mobile .button-link {
   min-height: 44px;
 }

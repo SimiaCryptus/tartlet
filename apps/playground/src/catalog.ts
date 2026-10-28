@@ -1,5 +1,6 @@
 // Bundled album catalog: discovers albums through albums/manifest.json and shows them in the
-// Albums window with album, category, search and tag filters.
+// Albums window with album, category, search and tag filters. Extra albums can be mounted from
+// any URL (the playground passes the ?album= parameters), which makes them shareable as links.
 import { parseAlbum, slugify, type ParsedAlbum } from './album-schema';
 
 export interface CatalogSketch {
@@ -23,6 +24,10 @@ export interface CatalogAlbum {
   readonly category: string;
   readonly tags: readonly string[];
   readonly sketches: CatalogSketch[];
+  /** Absolute URL of the album file; mounting this URL elsewhere shares the album. */
+  readonly url: string;
+  /** True when the album was mounted from a link rather than listed in the manifest. */
+  readonly mounted: boolean;
 }
 
 export interface Catalog {
@@ -54,12 +59,39 @@ interface ManifestEntry {
   readonly file: string;
 }
 
+interface AlbumSource extends ManifestEntry {
+  readonly url: string;
+  readonly mounted: boolean;
+}
+
 function obj(v: unknown): Record<string, unknown> {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {};
 }
 
 function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+/**
+ * Turns a user-supplied album link into an absolute http(s) URL, or null if it is not one.
+ * GitHub file pages (github.com/user/repo/blob/branch/path) are rewritten to the raw file.
+ */
+export function resolveAlbumUrl(raw: string, base: string): string | null {
+  const text = raw.trim();
+  if (!text) return null;
+  let u: URL;
+  try {
+    u = new URL(text, base);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+  const gh = /^\/([^/]+)\/([^/]+)\/blob\/(.+)$/.exec(u.pathname);
+  if (u.hostname === 'github.com' && gh) {
+    return `https://raw.githubusercontent.com/${gh[1] ?? ''}/${gh[2] ?? ''}/${gh[3] ?? ''}`;
+  }
+  u.hash = '';
+  return u.href;
 }
 
 /** Accepts { albums: [...] } or a bare array; entries are file names or { id?, file }. */
@@ -93,14 +125,17 @@ function unique(base: string, used: Set<string>): string {
 }
 
 function buildAlbum(
-  entry: ManifestEntry,
+  src: AlbumSource,
   parsed: ParsedAlbum,
   albumIds: Set<string>,
   sketchIds: Set<string>,
 ): CatalogAlbum {
   const m = parsed.meta;
-  const fallback = entry.file.replace(/^.*\//, '').replace(/\.json$/i, '');
-  const id = unique(slugify(entry.id ?? m.id ?? (parsed.name || fallback)) || 'album', albumIds);
+  const fallback = src.file
+    .replace(/[?#].*$/, '')
+    .replace(/^.*\//, '')
+    .replace(/\.json$/i, '');
+  const id = unique(slugify(src.id ?? m.id ?? (parsed.name || fallback)) || 'album', albumIds);
   const album: CatalogAlbum = {
     id,
     name: parsed.name || fallback || id,
@@ -110,6 +145,8 @@ function buildAlbum(
     category: m.category ?? '',
     tags: m.tags ?? [],
     sketches: [],
+    url: src.url,
+    mounted: src.mounted,
   };
   for (const s of parsed.sketches) {
     const base = s.id ?? `${id}-${slugify(s.name) || 'sketch'}`;
@@ -128,21 +165,32 @@ function buildAlbum(
   return album;
 }
 
-/** Loads every album listed in the manifest. Never throws; failures are reported in `errors`. */
-export async function loadCatalog(manifestUrl: string): Promise<{ catalog: Catalog; errors: string[] }> {
+/**
+ * Loads every album listed in the manifest, then the extra album URLs (already absolute).
+ * Never throws; failures are reported in `errors`.
+ */
+export async function loadCatalog(
+  manifestUrl: string,
+  mounted: readonly string[] = [],
+): Promise<{ catalog: Catalog; errors: string[] }> {
   const errors: string[] = [];
-  let entries: ManifestEntry[];
+  const sources: AlbumSource[] = [];
   try {
-    entries = readManifest(await fetchJson(manifestUrl));
+    for (const entry of readManifest(await fetchJson(manifestUrl))) {
+      sources.push({ ...entry, url: new URL(entry.file, manifestUrl).href, mounted: false });
+    }
   } catch (e) {
-    return { catalog: EMPTY_CATALOG, errors: [`Could not read the album manifest: ${message(e)}.`] };
+    errors.push(`Could not read the album manifest: ${message(e)}.`);
+  }
+  for (const url of mounted) {
+    if (!sources.some((s) => s.url === url)) sources.push({ file: url, url, mounted: true });
   }
   const loaded = await Promise.all(
-    entries.map(async (entry) => {
+    sources.map(async (src) => {
       try {
-        return { entry, parsed: parseAlbum(await fetchJson(new URL(entry.file, manifestUrl).href)) };
+        return { src, parsed: parseAlbum(await fetchJson(src.url)) };
       } catch (e) {
-        errors.push(`Could not load ${entry.file}: ${message(e)}.`);
+        errors.push(`Could not load ${src.mounted ? src.url : src.file}: ${message(e)}.`);
         return null;
       }
     }),
@@ -151,17 +199,28 @@ export async function loadCatalog(manifestUrl: string): Promise<{ catalog: Catal
   const sketchIds = new Set<string>();
   const albums: CatalogAlbum[] = [];
   for (const item of loaded) {
-    if (item) albums.push(buildAlbum(item.entry, item.parsed, albumIds, sketchIds));
+    if (item) albums.push(buildAlbum(item.src, item.parsed, albumIds, sketchIds));
   }
   return { catalog: makeCatalog(albums), errors };
 }
 
 // ---- UI
 
+export interface CatalogActions {
+  /** Mounts the album at a user-entered link; resolves true on success. */
+  mount(url: string): Promise<boolean>;
+  /** Removes a mounted album. */
+  unmount(album: CatalogAlbum): void;
+  /** Copies or shares a link that mounts and opens the album. */
+  shareAlbum(album: CatalogAlbum): void;
+}
+
 export interface CatalogView {
   setCatalog(catalog: Catalog, errors?: readonly string[]): void;
   /** Highlights the sketch that is in the editor (undefined for none). */
   markActive(id: string | undefined): void;
+  /** Shows one album in the browser. */
+  selectAlbum(id: string): void;
 }
 
 const MAX_CHIPS = 24;
@@ -171,7 +230,7 @@ function count(n: number): string {
   return `${String(n)} ${n === 1 ? 'sketch' : 'sketches'}`;
 }
 
-export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => void): CatalogView {
+export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => void, host: CatalogActions): CatalogView {
   function q<T extends HTMLElement>(sel: string, type: new () => T): T {
     const e = root.querySelector(sel);
     if (!(e instanceof type)) throw new Error(`missing ${sel}`);
@@ -184,6 +243,9 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
   const infoEl = q('#cat-info', HTMLElement);
   const statusEl = q('#cat-status', HTMLElement);
   const grid = q('#presets', HTMLElement);
+  const mountForm = q('#cat-mount-form', HTMLFormElement);
+  const mountInput = q('#cat-mount', HTMLInputElement);
+  const mountBtn = q('#cat-mount-btn', HTMLButtonElement);
 
   let catalog = EMPTY_CATALOG;
   let problems: readonly string[] = [];
@@ -301,13 +363,37 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
     }
     const parts: HTMLElement[] = [make('h3', 'catalog-info-name', a.name)];
     if (a.description) parts.push(make('p', 'catalog-info-desc', a.description));
-    const meta = [count(a.sketches.length), a.category, a.author ? `by ${a.author}` : '', a.license].filter(Boolean);
+    const meta = [
+      count(a.sketches.length),
+      a.category,
+      a.author ? `by ${a.author}` : '',
+      a.license,
+      a.mounted ? 'linked album' : '',
+    ].filter(Boolean);
     parts.push(make('p', 'catalog-info-meta', meta.join(' · ')));
     if (a.tags.length > 0) {
       const tags = make('span', 'preset-tags');
       for (const t of a.tags) tags.append(make('span', 'tag', t));
       parts.push(tags);
     }
+    const actions = make('div', 'catalog-info-actions');
+    const share = make('button', 'catalog-action', 'Copy album link');
+    share.type = 'button';
+    share.title = 'A link that opens the playground with this album mounted';
+    share.addEventListener('click', () => {
+      host.shareAlbum(a);
+    });
+    actions.append(share);
+    if (a.mounted) {
+      const remove = make('button', 'catalog-action', 'Unmount');
+      remove.type = 'button';
+      remove.title = 'Remove this linked album from the page';
+      remove.addEventListener('click', () => {
+        host.unmount(a);
+      });
+      actions.append(remove);
+    }
+    parts.push(actions);
     infoEl.replaceChildren(...parts);
     infoEl.hidden = false;
   }
@@ -361,10 +447,15 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
     statusEl.classList.toggle('error', problems.length > 0);
   }
 
-  albumSel.addEventListener('change', () => {
+  function selectAlbum(id: string): void {
+    albumSel.value = catalog.albums.some((a) => a.id === id) ? id : '';
     savePref(albumSel.value);
     fillCategories();
     render();
+  }
+
+  albumSel.addEventListener('change', () => {
+    selectAlbum(albumSel.value);
   });
   categorySel.addEventListener('change', render);
   searchInput.addEventListener('input', render);
@@ -375,6 +466,19 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
       render();
     }
   });
+  mountForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const value = mountInput.value.trim();
+    if (!value) {
+      mountInput.focus();
+      return;
+    }
+    mountBtn.disabled = true;
+    void host.mount(value).then((ok) => {
+      mountBtn.disabled = false;
+      if (ok) mountInput.value = '';
+    });
+  });
 
   return {
     setCatalog(c, errors = []) {
@@ -383,7 +487,9 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
       const keep = albumSel.value || loadPref();
       albumSel.replaceChildren(
         new Option('All albums', ''),
-        ...c.albums.map((a) => new Option(`${a.name} (${String(a.sketches.length)})`, a.id)),
+        ...c.albums.map(
+          (a) => new Option(`${a.name}${a.mounted ? ' · linked' : ''} (${String(a.sketches.length)})`, a.id),
+        ),
       );
       albumSel.value = c.albums.some((a) => a.id === keep) ? keep : '';
       albumSel.disabled = c.albums.length === 0;
@@ -396,5 +502,6 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
         b.setAttribute('aria-pressed', String(b.dataset.id === id));
       }
     },
+    selectAlbum,
   };
 }

@@ -413,6 +413,24 @@ $: s("bird").slow(2).azimuth(saw.range(-180, 180).slow(4)).distance(4).posglide(
 $: note("c3").s("sawtooth").grain(40).gdensity(30).gjitter(.4).slow(2).gain(.3)
 `,
   },
+  {
+    id: 'ear-tricks',
+    name: 'Ear tricks',
+    group: 'Sound and signals',
+    blurb: 'Headphones on: an octave illusion, a wide noise bed, a drone inside the head and a leaning pluck.',
+    tags: ['headphones', 'illusions'],
+    source: `setcpm(60/4)
+// octave illusion: each ear hears the opposite octave on every step
+$: note("c5 c4").s("sine").pan(1).gain(.4)
+$: note("c4 c5").s("sine").pan(0).gain(.4)
+// a wide bed: unrelated pink noise in each ear, with a filter drifting on the left only
+$: s("pink").slow(8).icorr(.2).lcutoff("<800 1200 600>").gain(.3)
+// a drone that sits inside the head: the ears in opposite phase, slightly detuned (it nearly vanishes in mono)
+$: note("c2").s("sawtooth").iphase(180).earsh(6).slow(4).gain(.4)
+// precedence: delaying the left ear by 12 ms widens the pluck and leans it right
+$: note("e3 g3 b3 d4").s("triangle").itd(12).release(.2).gain(.4)
+`,
+  },
 
   // ---- Language
   {
@@ -459,6 +477,27 @@ $: s("bd sd [~ bd] sd").every(4, rev)
 $: s("hh*8").every(3, fast(2)).gain(.5)
 $: note("c3 e3 g3 b3").s("triangle").every(2, x => x.add(5)).release(.1)
 $: note("c2 ~ g1 ~").s("sawtooth").every(4, x => { return x.ply(2).lpf(400); }).release(.2)
+`,
+  },
+  {
+    id: 'functions',
+    name: 'Your own functions',
+    group: 'Language',
+    blurb: 'Name a transform once, then use it as a method, a function value, through apply, or as a builder.',
+    tags: ['const f =', 'apply'],
+    source: `setcpm(104/4)
+// a function names a transform once; n has a default
+const stutter = (x, n = 2) => x.ply(n).gain(.7)
+// a builder makes a whole pattern from a number
+const beat = (k) => s("bd").euclid(k, 8)
+$: beat(3)
+$: beat(5).late(1/16).gain(.5)
+// as a function value: the extra argument follows the pattern
+$: s("~ sd ~ sd").every(4, stutter(3))
+// as a method, using the default
+$: s("hh*8").stutter().gain(.4)
+// through apply
+$: n("0 2 4 7").scale("A:minor").s("triangle").apply(stutter).release(.1)
 `,
   },
 ];

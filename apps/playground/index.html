@@ -84,6 +84,24 @@
             <div id="cat-info" class="catalog-info" hidden></div>
             <p id="cat-status" class="catalog-status" role="status" aria-live="polite">Loading albums…</p>
             <div id="presets" class="preset-grid"></div>
+            <form id="cat-mount-form" class="catalog-mount">
+              <label class="field">
+                <span>Mount an album from a link</span>
+                <input
+                  id="cat-mount"
+                  type="text"
+                  inputmode="url"
+                  placeholder="https://example.com/my-album.json"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </label>
+              <button id="cat-mount-btn" type="submit" class="catalog-action">Mount</button>
+            </form>
+            <p class="catalog-hint">
+              Mounted albums are added to the address bar (<code>?album=</code>), so the page link shares them. Export
+              your library as an album, host the JSON (for example on GitHub) and share its link.
+            </p>
           </div>
         </section>
       </div>
@@ -298,39 +316,138 @@
                   <dd>take turns, one per cycle</dd>
                   <dt><code>a, b</code></dt>
                   <dd>layer at the same time</dd>
-                  <dt><code>a*4</code> <code>a/2</code></dt>
-                  <dd>faster or slower</dd>
+                  <dt><code>a*4</code> <code>a/2</code> <code>a*&lt;2 3&gt;</code></dt>
+                  <dd>faster or slower; the factor can be a pattern</dd>
                   <dt><code>a!3</code> <code>a@2</code></dt>
                   <dd>repeat, or make a step longer</dd>
-                  <dt><code>a?</code> <code>a(3,8)</code></dt>
-                  <dd>random drop, Euclidean hits</dd>
+                  <dt><code>a?</code> <code>a?0.3</code></dt>
+                  <dd>seeded random drop, with odds</dd>
+                  <dt><code>a(3,8)</code> <code>a(3,8,2)</code></dt>
+                  <dd>Euclidean hits, with rotation</dd>
+                  <dt><code>{a b c, d e}</code> <code>{a b c}%4</code></dt>
+                  <dd>polymeter; steps per cycle</dd>
+                  <dt><code>a | b</code></dt>
+                  <dd>pick one option per cycle</dd>
+                  <dt><code>a b . c d e</code></dt>
+                  <dd>a lone dot splits equal groups</dd>
+                  <dt><code>bd:2</code> <code>c3 eb3 f#4</code></dt>
+                  <dd>sample variant; notes (bare letter = octave 3)</dd>
                 </dl>
               </div>
               <div>
-                <h3>Methods</h3>
+                <h3>Tracks and names</h3>
+                <dl>
+                  <dt><code>setcpm(120/4)</code></dt>
+                  <dd>tempo: one cycle per 4/4 bar</dd>
+                  <dt><code>$: …</code> <code>bass: …</code></dt>
+                  <dd>one track per line; named tracks are unique</dd>
+                  <dt><code>const kick = s("bd*4")</code></dt>
+                  <dd>reuse a pattern by name</dd>
+                  <dt><code>const f = (x, n = 2) =&gt; x.ply(n)</code></dt>
+                  <dd>your own function, with a default</dd>
+                  <dt><code>.f(3)</code> <code>.every(4, f(3))</code></dt>
+                  <dd>call it as a method or pass it as a value</dd>
+                  <dt><code>.apply(f, 3)</code></dt>
+                  <dd>hand the pattern to a function</dd>
+                  <dt><code>stack(a, b)</code> <code>cat(a, b)</code> <code>seq(a, b)</code></dt>
+                  <dd>layer, one per cycle, all in one cycle</dd>
+                  <dt><code>// note</code></dt>
+                  <dd>comments are fine; no loops, if or imports</dd>
+                </dl>
+              </div>
+              <div>
+                <h3>Starting a pattern</h3>
                 <dl>
                   <dt><code>s("bd sd")</code></dt>
                   <dd>drums: bd sd hh oh cp rim lt mt ht cr rd</dd>
                   <dt><code>note("c e g")</code></dt>
                   <dd>pitches by name or number</dd>
                   <dt><code>n("0 2").scale("D:minor")</code></dt>
-                  <dd>scale degrees</dd>
+                  <dd>scale degrees (major, dorian, minor pentatonic, blues…)</dd>
+                  <dt><code>n(run(8))</code></dt>
+                  <dd>count 0 to 7 across the cycle</dd>
+                  <dt><code>sine saw tri square rand perlin</code></dt>
+                  <dd>signals 0–1; <code>.range(200, 2000)</code> <code>.slow(4)</code></dd>
+                  <dt><code>.segment(8)</code> <code>irand(8)</code></dt>
+                  <dd>signal into steps; random whole numbers</dd>
+                </dl>
+              </div>
+              <div>
+                <h3>Time and structure</h3>
+                <dl>
                   <dt><code>.fast(2)</code> <code>.slow(2)</code> <code>.rev()</code></dt>
                   <dd>reshape time</dd>
-                  <dt><code>.every(4, x =&gt; x.rev())</code></dt>
-                  <dd>change every few cycles</dd>
-                  <dt><code>.lpf(800)</code> <code>.room(.4)</code> <code>.delay(.3)</code></dt>
-                  <dd>filter and space</dd>
-                  <dt><code>.binaural(6)</code> <code>.azimuth(90)</code></dt>
-                  <dd>headphones: binaural beat, place around the head</dd>
+                  <dt><code>.late(1/8)</code> <code>.early(1/8)</code></dt>
+                  <dd>shift in cycles</dd>
+                  <dt><code>.every(4, rev)</code> <code>.lastOf(4, f)</code></dt>
+                  <dd>change every few cycles (constant count)</dd>
+                  <dt><code>.off(1/8, x =&gt; x.add(12))</code></dt>
+                  <dd>layer a shifted, changed copy</dd>
+                  <dt><code>.jux(rev)</code> <code>.ply(2)</code></dt>
+                  <dd>stereo copy; repeat each event</dd>
+                  <dt><code>.struct("x ~ x x")</code> <code>.mask("1 0")</code></dt>
+                  <dd>borrow a rhythm; cut holes</dd>
+                  <dt><code>.iter(4)</code> <code>.palindrome()</code> <code>.chunk(4, f)</code></dt>
+                  <dd>rotate, mirror, change a moving part</dd>
+                  <dt><code>.swing(4)</code> <code>.echo(3, 1/8, .5)</code></dt>
+                  <dd>swing eighths; fading repeats</dd>
+                </dl>
+              </div>
+              <div>
+                <h3>Chance and pitch</h3>
+                <dl>
+                  <dt><code>.degradeBy(.3)</code></dt>
+                  <dd>drop a seeded share of events</dd>
+                  <dt><code>.sometimesBy(.4, x =&gt; x.add(12))</code></dt>
+                  <dd>change some events (constant share)</dd>
+                  <dt><code>.often(f)</code> <code>.rarely(f)</code> <code>.someCycles(f)</code></dt>
+                  <dd>probability shorthands</dd>
+                  <dt><code>.shuffle(4)</code> <code>.scramble(4)</code></dt>
+                  <dd>reorder slices of each cycle</dd>
+                  <dt><code>.seed("take-2")</code></dt>
+                  <dd>pin a variation; or change the Seed box</dd>
+                  <dt><code>.add(7)</code> <code>.transpose(12)</code> <code>.octave(-1)</code></dt>
+                  <dd>move notes (needs pitched events)</dd>
+                </dl>
+              </div>
+              <div>
+                <h3>Sounds</h3>
+                <dl>
+                  <dt><code>sine square triangle sawtooth</code></dt>
+                  <dd>synths; <code>white pink brown</code> noise</dd>
                   <dt><code>.fm(3)</code> <code>.lpenv(2)</code> <code>.unison(3)</code></dt>
-                  <dd>synthesis: FM, filter sweep, thick detuned copies</dd>
-                  <dt><code>s("white")</code> <code>.mono(1).glide(.1)</code></dt>
-                  <dd>noise source; a sliding monophonic line</dd>
+                  <dd>FM, filter sweep, thick detuned copies</dd>
+                  <dt><code>.penv(12)</code> <code>.timbre("organ")</code></dt>
+                  <dd>pitch drop; named waveform</dd>
+                  <dt><code>.mono(1).glide(.1)</code></dt>
+                  <dd>a sliding monophonic line</dd>
                   <dt><code>s("voice").syl("la li _")</code></dt>
                   <dd>sing syllables; also aah ooh hum whisper choir</dd>
-                  <dt><code>$: …</code></dt>
-                  <dd>one track per line</dd>
+                  <dt><code>s("rain").slow(4)</code></dt>
+                  <dd>beds: rain wind fire stream surf crowd</dd>
+                  <dt><code>drip click tick creak step</code></dt>
+                  <dd>foley; <code>bird insect engine</code> creatures</dd>
+                </dl>
+              </div>
+              <div>
+                <h3>Effects and space</h3>
+                <dl>
+                  <dt><code>.gain(.6)</code> <code>.pan(.2)</code></dt>
+                  <dd>level (keep ≤ 1) and stereo position</dd>
+                  <dt><code>.lpf(800)</code> <code>.hpf(200)</code> <code>.lpq(6)</code></dt>
+                  <dd>filters and resonance</dd>
+                  <dt><code>.attack(.01)</code> <code>.release(.3)</code></dt>
+                  <dd>envelope; also decay and sustain</dd>
+                  <dt><code>.room(.4)</code> <code>.space("hall")</code></dt>
+                  <dd>reverb: room hall plate church outdoor</dd>
+                  <dt><code>.delay(.3)</code> <code>.delaytime(.25)</code></dt>
+                  <dd>echo bus; <code>.delayfeedback(.5)</code></dd>
+                  <dt><code>.shape(.3)</code> <code>.crush(6)</code> <code>.vowel("a")</code></dt>
+                  <dd>drive, bit crush, formant</dd>
+                  <dt><code>.azimuth(90)</code> <code>.binaural(6)</code></dt>
+                  <dd>headphones: place around the head, beat</dd>
+                  <dt><code>.distance(8)</code> <code>.occlude(.5)</code></dt>
+                  <dd>far away; behind a wall</dd>
                 </dl>
               </div>
               <div>

@@ -34,9 +34,11 @@ function albums(): Plugin {
 // the worklet URL goes through a TT policy.
 // connect-src includes the default Cognotik proxy used by the optional AI assistant; add your own
 // server here if you point the assistant elsewhere (that server must also allow this origin via CORS).
+// Albums mounted with ?album=<url> are fetched too: raw.githubusercontent.com is allowed by default;
+// add any other album hosts here (they must also send CORS headers).
 // media-src allows blob: so a recorded ringtone can be previewed before download.
 const CSP =
-  "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self'; media-src 'self' blob:; connect-src 'self' https://hosted.cognotik.com; object-src 'none'; base-uri 'none'";
+  "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self'; media-src 'self' blob:; connect-src 'self' https://hosted.cognotik.com https://raw.githubusercontent.com; object-src 'none'; base-uri 'none'";
 
 export default defineConfig({
   resolve: { alias },

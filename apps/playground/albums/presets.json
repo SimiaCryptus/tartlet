@@ -245,6 +245,15 @@
       "savedAt": "2026-10-29T00:00:00.000Z"
     },
     {
+      "id": "ear-tricks",
+      "name": "Ear tricks",
+      "description": "Headphones on: an octave illusion, a wide noise bed, a drone inside the head and a leaning pluck.",
+      "category": "Sound and signals",
+      "tags": ["headphones", "illusions"],
+      "source": "setcpm(60/4)\n// octave illusion: each ear hears the opposite octave on every step\n$: note(\"c5 c4\").s(\"sine\").pan(1).gain(.4)\n$: note(\"c4 c5\").s(\"sine\").pan(0).gain(.4)\n// a wide bed: unrelated pink noise in each ear, with a filter drifting on the left only\n$: s(\"pink\").slow(8).icorr(.2).lcutoff(\"<800 1200 600>\").gain(.3)\n// a drone that sits inside the head: the ears in opposite phase, slightly detuned (it nearly vanishes in mono)\n$: note(\"c2\").s(\"sawtooth\").iphase(180).earsh(6).slow(4).gain(.4)\n// precedence: delaying the left ear by 12 ms widens the pluck and leans it right\n$: note(\"e3 g3 b3 d4\").s(\"triangle\").itd(12).release(.2).gain(.4)\n",
+      "savedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
       "id": "bindings",
       "name": "Bindings and arithmetic",
       "description": "const values, exact constant arithmetic and constant spreads.",
@@ -269,6 +278,15 @@
       "category": "Language",
       "tags": ["every", "lambdas"],
       "source": "setcpm(108/4)\n\n$: s(\"bd sd [~ bd] sd\").every(4, rev)\n$: s(\"hh*8\").every(3, fast(2)).gain(.5)\n$: note(\"c3 e3 g3 b3\").s(\"triangle\").every(2, x => x.add(5)).release(.1)\n$: note(\"c2 ~ g1 ~\").s(\"sawtooth\").every(4, x => { return x.ply(2).lpf(400); }).release(.2)\n",
+      "savedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "id": "functions",
+      "name": "Your own functions",
+      "description": "Name a transform once, then use it as a method, a function value, through apply, or as a builder.",
+      "category": "Language",
+      "tags": ["const f =", "apply"],
+      "source": "setcpm(104/4)\n\n// a function names a transform once; n has a default\nconst stutter = (x, n = 2) => x.ply(n).gain(.7)\n// a builder makes a whole pattern from a number\nconst beat = (k) => s(\"bd\").euclid(k, 8)\n\n$: beat(3)\n$: beat(5).late(1/16).gain(.5)\n// as a function value: the extra argument follows the pattern\n$: s(\"~ sd ~ sd\").every(4, stutter(3))\n// as a method, using the default\n$: s(\"hh*8\").stutter().gain(.4)\n// through apply\n$: n(\"0 2 4 7\").scale(\"A:minor\").s(\"triangle\").apply(stutter).release(.1)\n",
       "savedAt": "2026-10-29T00:00:00.000Z"
     }
   ]

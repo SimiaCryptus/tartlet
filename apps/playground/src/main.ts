@@ -6,7 +6,15 @@ import { initShare } from './share';
 import { initRingtone } from './ringtone';
 import { initLibrary } from './library';
 import { slugify, type SketchMeta } from './album-schema';
-import { EMPTY_CATALOG, initCatalog, loadCatalog, type Catalog, type CatalogSketch } from './catalog';
+import {
+  EMPTY_CATALOG,
+  initCatalog,
+  loadCatalog,
+  resolveAlbumUrl,
+  type Catalog,
+  type CatalogAlbum,
+  type CatalogSketch,
+} from './catalog';
 import { initPanels } from './panels';
 // Must run before the player builds its audio graph so ringtone recording can hear it.
 installCaptureTap();
@@ -96,11 +104,19 @@ function loadSketch(s: CatalogSketch): void {
 
 // ---- album browser
 
-const browser = initCatalog(el('panel-presets'), (s) => {
-  loadSketch(s);
-  // On phones the album list fills the screen; jump to the player so the sketch can be heard.
-  if (panels.isMobile()) panels.show('player');
-});
+const browser = initCatalog(
+  el('panel-presets'),
+  (s) => {
+    loadSketch(s);
+    // On phones the album list fills the screen; jump to the player so the sketch can be heard.
+    if (panels.isMobile()) panels.show('player');
+  },
+  {
+    mount: mountAlbum,
+    unmount: (a) => void unmountAlbum(a),
+    shareAlbum,
+  },
+);
 
 // ---- diagnostics badge
 
@@ -434,16 +450,95 @@ function loadAssistant(): void {
 }
 assistantRoot.addEventListener('panelshow', loadAssistant);
 if (panels.isVisible('assistant')) loadAssistant();
+// ---- mounted albums: ?album=<url> (repeatable) adds albums to the catalog and makes them shareable
+const ALBUM_PARAM = 'album';
+function mountedFromUrl(): string[] {
+  const out: string[] = [];
+  for (const raw of new URLSearchParams(location.search).getAll(ALBUM_PARAM)) {
+    const url = resolveAlbumUrl(raw, document.baseURI);
+    if (url && !out.includes(url)) out.push(url);
+  }
+  return out;
+}
+let mounted = mountedFromUrl();
+/** Shortens album URLs next to the page to a relative path, so links stay readable. */
+function albumRef(url: string): string {
+  const base = new URL('.', document.baseURI).href;
+  return url.startsWith(base) ? url.slice(base.length) : url;
+}
+function writeMountedToUrl(): void {
+  const params = new URLSearchParams(location.search);
+  params.delete(ALBUM_PARAM);
+  for (const url of mounted) params.append(ALBUM_PARAM, albumRef(url));
+  const qs = params.toString();
+  history.replaceState(history.state, '', `${location.pathname}${qs ? `?${qs}` : ''}${location.hash}`);
+}
+function albumLink(album: CatalogAlbum): string {
+  const link = new URL(location.pathname, location.origin);
+  link.searchParams.set(ALBUM_PARAM, albumRef(album.url));
+  return link.href;
+}
+async function refreshCatalog(): Promise<string[]> {
+  const { catalog: loaded, errors } = await loadCatalog(MANIFEST_URL, mounted);
+  catalog = loaded;
+  browser.setCatalog(loaded, errors);
+  return errors;
+}
+async function mountAlbum(raw: string): Promise<boolean> {
+  const url = resolveAlbumUrl(raw, document.baseURI);
+  if (!url) {
+    flash('Enter an http(s) link to an album JSON file');
+    return false;
+  }
+  const existing = catalog.albums.find((a) => a.url === url);
+  if (existing) {
+    browser.selectAlbum(existing.id);
+    flash(`"${existing.name}" is already available`);
+    return true;
+  }
+  mounted = [...mounted, url];
+  await refreshCatalog();
+  const album = catalog.albums.find((a) => a.url === url);
+  if (!album) {
+    mounted = mounted.filter((u) => u !== url);
+    flash('That album could not be loaded');
+    return false;
+  }
+  writeMountedToUrl();
+  browser.selectAlbum(album.id);
+  flash(`Mounted "${album.name}"`);
+  return true;
+}
+async function unmountAlbum(album: CatalogAlbum): Promise<void> {
+  mounted = mounted.filter((u) => u !== album.url);
+  writeMountedToUrl();
+  await refreshCatalog();
+  browser.selectAlbum('');
+  syncUrl(); // a sketch from the removed album is now linked by its source instead
+  flash(`Unmounted "${album.name}"`);
+}
+function shareAlbum(album: CatalogAlbum): void {
+  const link = albumLink(album);
+  navigator.clipboard.writeText(link).then(
+    () => {
+      flash('Album link copied');
+    },
+    () => {
+      window.prompt('Copy this album link:', link);
+    },
+  );
+}
 
 // ---- startup: discover albums, then load the sketch from the URL or the first album sketch
 
 async function start(): Promise<void> {
-  const { catalog: loaded, errors } = await loadCatalog(MANIFEST_URL);
-  catalog = loaded;
-  browser.setCatalog(loaded, errors);
+  const errors = await refreshCatalog();
   if (errors.length > 0) flash('Some albums could not be loaded');
+  // A shared album link opens that album.
+  const linked = mounted.map((u) => catalog.albums.find((a) => a.url === u)).find((a) => a !== undefined);
+  if (linked) browser.selectAlbum(linked.id);
   if (!loadFromHash()) {
-    const first = catalog.byId('groove') ?? catalog.sketches[0];
+    const first = linked?.sketches[0] ?? catalog.byId('groove') ?? catalog.sketches[0];
     if (first) loadSketch(first);
     else {
       presetTitle.textContent = 'Untitled';

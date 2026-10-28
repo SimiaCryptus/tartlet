@@ -15,6 +15,20 @@ import {
   textPart,
   type ChatModel,
 } from './cognotik-client.mjs';
+import {
+  AMBIENCE_SOUNDS,
+  CREATURE_SOUNDS,
+  DRUM_SOUNDS,
+  FOLEY_SOUNDS,
+  NOISE_SOUNDS,
+  OSCILLATOR_SOUNDS,
+  SCALES,
+  SPACE_NAMES,
+  VOCAL_SOUNDS,
+  VOWELS,
+  defaultRegistry,
+  type Category,
+} from '@tartlet/registry';
 import { PRESETS, type Preset } from './presets';
 
 export interface Problem {
@@ -39,33 +53,69 @@ const API_KEY_KEY = 'tartlet.assistant.apiKey';
 
 // ---- prompts
 
-const EXAMPLES = ['groove', 'layers', 'function-args']
+const EXAMPLES = ['groove', 'layers', 'functions', 'library']
   .map((id) => PRESETS.find((p) => p.id === id))
   .filter((p): p is Preset => p !== undefined);
 
 const FENCE = '```';
 
-const SYSTEM_PROMPT = `You write music sketches for Tartlet, a deterministic runtime for a safe subset of Strudel-style code. Tartlet never evaluates JavaScript: it parses a small fixed language and rejects anything outside it.
+/** Names of one registry category, canonical name first with aliases joined by "/". */
+function vocabulary(...categories: Category[]): string {
+  return [...defaultRegistry.entries()]
+    .filter((e) => categories.includes(e.category))
+    .map((e) => e.names.join('/'))
+    .join(' ');
+}
 
-Language:
-- Tempo: setcpm(bpm/4) or setcps(x) on the first line.
-- Tracks: each "$: <pattern>" line plays a track; "name: <pattern>" plays a named track.
-- Bindings: const name = <expression>, then reuse the name.
-- Pattern sources: s("..."), sound("..."), note("..."), n("...").scale("Root:mode"), freq("..."), stack(a, b), cat(a, b), seq(a, b), silence.
-- Mini-notation inside strings: spaces split the cycle, ~ rest, [a b] group, <a b> one per cycle, "a, b" layers, a*2 and a/2 speed, a!3 repeat, a@2 weight, a? or a?0.3 random drop, a(3,8) or a(3,8,2) Euclidean, {a b c}%4 polymeter, a | b random choice, a lone . splits groups, name:index picks a variant.
-- Drum sounds: bd sd hh oh cp rim lt mt ht cr rd. Synth sounds: sine sawtooth square triangle.
-- Noise sounds: white pink brown.
-- Methods: fast slow rev palindrome early late iter iterBack ply off jux every sometimes sometimesBy degrade degradeBy struct mask euclid add transpose gain velocity pan lpf hpf lpq resonance attack decay sustain release shape crush speed vowel delay delaytime delayfeedback room size orbit seed label.
-- Synthesis: lpenv lpattack lpdecay lpsustain lprelease (filter envelope, octaves), penv pdecay (pitch envelope, semitones), vib vibdepth, trem tremdepth, fm fmh, pw (square only), unison detune, timbre("organ|hollow|bright|soft|reed|glass"), mono(n) with glide(seconds).
-- Signals: sine cosine saw isaw tri square rand, with .range(lo, hi) and .slow(n).
-- Function arguments: a transform name (rev), a partial application (fast(2)), an arrow (x => x.add(7)) or a block (x => { return x.ply(2); }).
-- Constant arithmetic (1/8, 2 * 2) and spreads of constant arrays are allowed. No loops, conditionals, imports, other JavaScript or global objects.
+const words = (xs: readonly string[]): string => xs.join(' ');
+
+const SYSTEM_PROMPT = `You write music sketches for Tartlet, a deterministic runtime for a safe subset of Strudel-style code. Tartlet never runs JavaScript: it parses a small, closed language and reports anything outside it as an error, muting only the broken track.
+
+Program shape:
+- First line: the tempo. setcpm(bpm/4) makes one cycle a 4/4 bar; setcps(x) sets cycles per second.
+- "$: <pattern>" plays a track; "name: <pattern>" plays a named track (names must be unique).
+- One statement per line. A method chain may continue on following lines that start with ".".
+- const name = <pattern> binds a pattern for reuse; declare it before use. Constant arithmetic (1/8, 2 * 2) is exact.
+- const f = (x, n = 2) => x.ply(n).gain(.7) defines a function. Use it as a method (pat.f(3)), as a function value (.every(4, f(3)), extra arguments follow the pattern), through .apply(f, 3), or as a builder when it takes no pattern (const beat = k => s("bd").euclid(k, 8), then beat(3)). Defaults must be constants. Call a function parameter with x.apply(g), never g(x).
+- Binding and function names must not reuse built-in names (fast, swing, run, chunk, echo, ...).
+- // and /* */ comments are fine.
+
+Mini-notation, inside strings:
+- "a b c" splits the cycle evenly; ~ is a rest; [a b] squeezes a group into one step; <a b> takes one item per cycle; "a, b" layers.
+- a*2 and a/2 change speed (the factor may be a pattern, a*<2 3>); a!3 repeats a step; a@2 gives it more weight.
+- a? or a?0.3 drops at random (seeded); a(3,8) or a(3,8,2) is a Euclidean rhythm; {a b c, d e} is a polymeter and {a b c}%4 sets steps per cycle.
+- a | b picks one option per cycle; a lone . splits the cycle into equal groups; bd:2 picks a variant.
+- Notes: c d e f g a b with # or b and an octave (c3 = MIDI 48; a bare letter is octave 3). Numbers also work.
+
+Starting a pattern: s("bd sd") or sound(...), note("c3 e3"), n("0 2 4").scale("D:minor"), freq("220 330"), any other control, stack(a, b), cat(a, b) (one per cycle), seq(a, b) (all in one cycle), run(8) (0..7), silence.
+Signals give values from 0 to 1 sampled at each note: ${vocabulary('signal')}. Shape them with .range(lo, hi), .slow(n), .segment(n); irand(n) gives whole numbers below n. Example: .lpf(sine.range(300, 2000).slow(4)).
+
+Vocabulary (generated from Tartlet's registry; nothing else exists):
+- Controls: ${vocabulary('control')}.
+- Transforms: ${vocabulary('transform', 'tonal')}.
+- Combinators: ${vocabulary('combinator')}.
+- Scales (as "Root:name"): ${[...SCALES.keys()].join(', ')}.
+
+Sounds:
+- Drums: ${words(DRUM_SOUNDS)}. Synths: ${words(OSCILLATOR_SOUNDS)}. Noise: ${words(NOISE_SOUNDS)}.
+- Voices: ${words(VOCAL_SOUNDS)}. .syl("la li [lu _]") sings phonetic syllables: up to two consonants, then a vowel from ${words(VOWELS)} (ee also works); "_" holds the previous vowel.
+- Ambiences (use long notes, e.g. .slow(4), with .intensity and .density): ${words(AMBIENCE_SOUNDS)}. Foley one-shots: ${words(FOLEY_SOUNDS)}. Creatures and machines: ${words(CREATURE_SOUNDS)}.
+- Reverb characters for .space(): ${words(SPACE_NAMES)}; .room sets the amount and .size the length.
+- Other names (piano, 808bd, rhodes, ...) fall back to the nearest kit sound with a note.
+
+Rules that often trip models:
+- These arguments must be plain constant numbers, not strings or patterns: every(n, f), lastOf(n, f), sometimesBy(p, f), euclid(k, n, r), iter(n), chunk(n, f), shuffle(n), segment(n), range(lo, hi), within(b, e, f), echo(times, time, feedback).
+- A function argument is a transform name (rev), a partial application (fast(2)), or a one-parameter lambda that starts from its parameter (x => x.add(7)). A block body may only be { return ...; }.
+- .scale, .transpose and .octave need pitched events (note, n or freq), never drums.
+- Not allowed: loops, if, ternaries, import, new, function, class, var, a[b], object literals, template interpolation, member chains like .add.squeeze, window, fetch or any other host API.
+- Keep gain at or below 1 (0.3 to 0.6 for dense layers). Constants outside a control's range are clamped with a warning.
+- Steady pulsing between 3 and 30 Hz (binaural, isochronic, irate) triggers a safety warning before playback; use it only when asked. Headphone controls (binaural, azimuth, itd, iphase, icorr, ...) only work on headphones.
 
 Rules for your reply:
 - Reply with the complete sketch in a single ${FENCE}tartlet code block, followed by at most one short sentence.
-- Keep it musical and concise: usually 2 to 6 tracks, with gain below 1 for dense layers.
+- Keep it musical and concise: usually 2 to 6 tracks. Prefer named tracks (drums:, bass:, lead:) for clarity.
 - When editing, keep everything the user did not ask to change.
-- Short // comments are fine.
+- When fixing, change only what the reported problems point at.
 
 Examples:
 ${EXAMPLES.map((p) => `${p.name}: ${p.blurb}\n${FENCE}tartlet\n${p.source.trim()}\n${FENCE}`).join('\n\n')}`;
@@ -93,7 +143,10 @@ function userMessage(kind: Kind, prompt: string, source: string, problems: reado
 }
 
 function repairMessage(problems: readonly Problem[]): string {
-  return `Tartlet rejected that sketch:\n${listProblems(problems)}\n\nReturn the corrected complete sketch.`;
+  return (
+    `Tartlet rejected that sketch:\n${listProblems(problems)}\n\n` +
+    'Return the corrected complete sketch. Change only the lines the problems point at and keep every working track unchanged.'
+  );
 }
 
 /** Pulls the sketch out of a model reply: the longest fenced block, or the bare reply if it looks like code. */
