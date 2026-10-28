@@ -1,0 +1,95 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "bundled",
+  "name": "Showcase",
+  "description": "Longer, multi-part compositions that push the synthesis features: planets, monks, jazz, stories, birds and a small orchestra.",
+  "author": "Tartlet",
+  "license": "Apache-2.0",
+  "category": "Compositions",
+  "tags": ["showcase", "long-form"],
+  "exportedAt": "2026-10-28T23:20:14.124Z",
+  "sketches": [
+    {
+      "id": "planets-3",
+      "name": "Planets3",
+      "description": "The solar system as a choir: a pulsing sun, singing inner planets, tumbling asteroids and whistling icy bodies.",
+      "category": "Space",
+      "tags": ["88 bpm", "lydian", "vowels", "choir"],
+      "source": "setcpm(88/4)\n\n// The Sun: deep gravitational pulse and warm, detuned solar flare drone\nsun: stack(\n  s(\"bd(3,8) ~\").penv(6).pdecay(.12).shape(.3).gain(.75),\n  note(\"<c1 [c1 g1] f1 g1>\").s(\"sawtooth\").unison(4).detune(.3)\n    .lpf(sine.range(140, 520).slow(8)).lpq(4)\n    .attack(.5).release(1.4).room(.5).gain(.35)\n)\n\n// Inner planets: singing in bright, agile soprano and alto harmonies\ninner: n(\"{7 9 11 14 13}%8, <2 4 6 5>, 0 2 4 <6 7>, [~ 1] ~ 3(3,8)\")\n  .scale(\"C:lydian\").s(\"sawtooth\").timbre(\"reed\")\n  .vowel(\"a e i o u\")\n  .vib(5.5).vibdepth(.25)\n  .lpf(tri.range(1400, 3800).slow(6))\n  .every(4, x => x.add(7))\n  .pan(sine.range(.2, .8).slow(3))\n  .attack(.08).sustain(.7).release(.5).delay(.3).delaytime(3/16).room(.65).gain(.28)\n\n// Asteroid belt: tumbling rocky debris between Mars and Jupiter\nasteroids: s(\"hh*16, rim(5,16), [~ cp]*2, mt(3,8,2)\")\n  .degradeBy(.35).every(3, fast(2))\n  .speed(rand.range(.75, 1.4)).crush(7).pan(rand).hpf(1800)\n  .delay(.3).delaytime(1/12).gain(.22)\n\n// Gas giants: Jupiter and Saturn booming in a massive baritone choir\ngas_giants: n(\"<[0, 4, 7] [-1, 3, 6] [-2, 2, 5] [1, 5, 8]>\").scale(\"C:lydian\").transpose(-12)\n  .s(\"sawtooth\").unison(4).detune(.25)\n  .vowel(\"<o a u e>\")\n  .vib(4.5).vibdepth(.2)\n  .slow(2).lpf(sine.range(600, 1800).slow(5)).lpq(2)\n  .attack(.6).sustain(.85).release(2.2).delay(.45).delaytime(3/8).delayfeedback(.45).room(.75).size(.85).gain(.32)\n\n// Ice giants: Uranus and Neptune as an ethereal, gliding siren duet\nice_giants: n(\"<6 4 9 7 11 9 13 6>\").scale(\"C:lydian\").s(\"triangle\").timbre(\"hollow\")\n  .vowel(\"<u i a o>\")\n  .mono(1).glide(.35)\n  .fm(1.2).fmh(2).vib(6).vibdepth(.35)\n  .jux(rev).off(1/2, x => x.add(4))\n  .room(.9).size(.95).attack(.4).sustain(.8).release(1.8).gain(.32)\n\n// Kuiper belt: distant icy bodies singing high whistling coloratura notes\nkuiper: n(\"7 [~ 11?] 14 [9? 16] ~ 13? [11 18?] ~\").scale(\"C:lydian\").transpose(12)\n  .s(\"sine\").timbre(\"glass\").vowel(\"<i e a u>\")\n  .vib(6.5).vibdepth(.3)\n  .slow(2).sometimesBy(.4, x => x.ply(2))\n  .pan(sine.slow(5)).attack(.15).release(1.2)\n  .delay(.65).delaytime(1/3).delayfeedback(.6).room(.95).size(.95).gain(.24)\n",
+      "savedAt": "2026-10-28T22:54:49.105Z"
+    },
+    {
+      "id": "monks",
+      "name": "Monks",
+      "description": "Two brothers debate in plainchant over an organum drone, with cloister footsteps and vesper bells.",
+      "category": "Choral",
+      "tags": ["76 bpm", "dorian", "drone", "bells"],
+      "source": "setcpm(76/4)\n\n// Deep organum drone in the cathedral\ndrone: note(\"<[d2, a2] [c2, g2] [d2, a2] [a1, e2]>\").s(\"sawtooth\")\n  .timbre(\"organ\").lpf(420).attack(.5).release(1.8)\n  .room(.85).size(.9).gain(.35)\n\n// Brother Thomas states the thesis (left)\nthomas: n(\"<[0 2 3 4@2 ~ 2 0] [~ 4 5 4 3 2 ~ ~]>\").scale(\"D:dorian\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"<o a u e o i>\")\n  .lpf(1400).attack(.06).release(.35)\n  .vib(4.5).vibdepth(.15).pan(.25).room(.75).gain(.45)\n\n// Brother Anselm counters in higher register (right)\nanselm: n(\"<[~ ~ 4 6 7 6 4 3] [7 6 4@2 5 4 2@2]>\").scale(\"D:dorian\")\n  .s(\"square\").pw(.35).vowel(\"<a e i o u a>\")\n  .lpf(1600).attack(.05).release(.3)\n  .every(3, rev).pan(.75).room(.75).gain(.4)\n\n// Pacing footsteps and Wooden gavel taps in the cloister\ncloister: s(\"bd ~ ~ <~ bd>, ~ rim?0.4 ~ [~ rim?0.6]\")\n  .lpf(900).room(.8).size(.85).gain(.35)\n\n// Distant vesper bells\nbells: n(\"<7 ~ 4 ~ 11 ~ 7 ~>\").scale(\"D:dorian\").s(\"sine\")\n  .fm(3.5).fmh(2.41).decay(2.2).release(2)\n  .room(.9).pan(sine.slow(6).range(.2, .8)).gain(.2)\n",
+      "savedAt": "2026-10-28T20:20:06.367Z"
+    },
+    {
+      "id": "riff",
+      "name": "Riff",
+      "description": "A small jazz combo: swing ride, walking bass, Rhodes comping on ii-V-I-IV and an improvising horn.",
+      "category": "Jazz",
+      "tags": ["132 bpm", "swing", "walking bass"],
+      "source": "setcpm(132/4)\n\n// Swing ride, hi-hat on 2 & 4, and light snare chatter\ndrums: s(\"rd [~ ~ rd] rd [~ ~ rd], ~ hh ~ hh, [~ ~ sd?0.3] ~ [~ sd?0.2 ~] [~ ~ bd?0.4]\")\n  .gain(.75)\n  .room(.3)\n\n// Walking upright bass\nbass: note(\"<[d2 f2 a2 g2] [g2 b2 d3 db3] [c2 e2 g2 bb2] [f2 a2 c3 eb2]>\")\n  .s(\"triangle\")\n  .lpf(550)\n  .lpenv(1.5)\n  .lpdecay(.18)\n  .decay(.35)\n  .sustain(.1)\n  .gain(.85)\n\n// Syncopated Rhodes comping on ii-V-I-IV\nchords: note(\"<[f3,a3,c4,e4] [f3,a3,b3,e4] [e3,g3,b3,d4] [eb3,g3,a3,d4]>\")\n  .struct(\"[~ ~ x] [~ ~ x?] ~ [x? ~ ~]\")\n  .s(\"sine\")\n  .fm(1.2)\n  .fmh(2)\n  .trem(5)\n  .tremdepth(.2)\n  .decay(.6)\n  .sustain(.2)\n  .release(.4)\n  .pan(.35)\n  .room(.4)\n  .gain(.45)\n\n// Improvising horn solo\nlead: n(\"[0 ~ 2] [4 6 5] [~ 3 1] [<7 9> ~ <4 2>]\")\n  .scale(\"C:major\")\n  .add(7)\n  .sometimesBy(.35, rev)\n  .sometimesBy(.25, x => x.add(2))\n  .degradeBy(.15)\n  .s(\"sawtooth\")\n  .timbre(\"reed\")\n  .mono(1)\n  .glide(.04)\n  .lpf(sine.range(1100, 2600).slow(5))\n  .vib(5)\n  .vibdepth(.25)\n  .attack(.03)\n  .decay(.25)\n  .sustain(.5)\n  .release(.15)\n  .pan(.65)\n  .room(.45)\n  .gain(.55)\n",
+      "savedAt": "2026-10-28T19:58:17.978Z"
+    },
+    {
+      "id": "story",
+      "name": "Story",
+      "description": "An eight-cycle narrative arc: dawn, journey, storm and resolution.",
+      "category": "Cinematic",
+      "tags": ["96 bpm", "E minor", "narrative"],
+      "source": "setcpm(96/4)\n\n// An 8-cycle narrative arc: Dawn (1-2), Journey (3-4), Storm (5-6), Resolution (7-8)\n\n// The Hero's Theme: evolves from tentative steps to a rapid climb, then resolves\nhero: n(\"<[~ 0 ~ 2] [4 ~ 3 2] [0 2 4 7] [6 4 2 4] [7 9 11 7]*2 [11 9 7 4]*2 [7 ~ 4 2] [0 ~ ~ ~]>\")\n  .scale(\"E:minor\").s(\"triangle\").timbre(\"glass\")\n  .delay(.35).delaytime(3/8).room(.5).release(.4).gain(.6)\n\n// The World: shifting harmonic landscape with a rising and falling filter\nworld: note(\"<[e3,g3,b3] [d3,f#3,a3] [c3,e3,g3] [d3,f#3,a3] [c3,eb3,g3,bb3] [b2,eb3,f#3,a3] [c3,e3,g3,b3] [e2,b2,e3,g#3]>\")\n  .s(\"sawtooth\").unison(3).detune(.25)\n  .lpf(sine.range(500, 2400).slow(8)).lpq(2)\n  .attack(.4).release(1.5).room(.6).gain(.35)\n\n// The Undercurrent: bass that awakens on the journey and drives the storm\nshadow: note(\"<e1 ~ c1*4 d1*4 a0*8 b0*8 c1*2 e1>\")\n  .s(\"sawtooth\").lpf(\"<300 300 600 700 1200 1500 500 350>\")\n  .lpenv(2).lpdecay(.15).release(.2).gain(.55)\n\n// Footsteps & Tempest: percussion enters in chapter 2 and peaks in chapter 3\npulse: s(\"<~ [~ ~ ~ rim] [bd ~ sd ~, hh*4] [bd [~ bd] sd ~, hh*8] [bd*2 sd bd sd, hh*8, ~ oh] [bd*4, [~ cp]*2, cr ~ ~ [sd sd]] [bd ~ rim ~, hh*4] [cr ~ ~ ~]>\")\n  .room(.3).gain(.7)\n\n// Wind: swells during the storm\nwind: s(\"pink\").hpf(400).lpf(sine.range(300, 3000).slow(8))\n  .gain(\"<.05 .08 .1 .15 .35 .45 .15 .04>\").pan(sine.slow(3))\n",
+      "savedAt": "2026-10-28T19:53:54.866Z"
+    },
+    {
+      "id": "planets-2",
+      "name": "Planets2",
+      "description": "The solar system with synths: brassy gas giants, FM ice giants and glittering Kuiper belt bells.",
+      "category": "Space",
+      "tags": ["88 bpm", "lydian", "FM"],
+      "source": "setcpm(88/4)\n\n// The Sun: deep gravitational pulse and warm, detuned solar flare drone\nsun: stack(\n  s(\"bd(3,8) ~\").penv(6).pdecay(.12).shape(.3).gain(.75),\n  note(\"<c1 [c1 g1] f1 g1>\").s(\"sawtooth\").unison(4).detune(.3)\n    .lpf(sine.range(140, 520).slow(8)).lpq(4)\n    .attack(.5).release(1.4).room(.5).gain(.38)\n)\n\n// Inner planets: Mercury (fast), Venus (warm), Earth (steady), Mars (red/syncopated)\ninner: n(\"{7 9 11 14 13}%8, <2 4 6 5>, 0 2 4 <6 7>, [~ 1] ~ 3(3,8)\")\n  .scale(\"C:lydian\").s(\"triangle\").timbre(\"bright\")\n  .lpf(tri.range(900, 3200).slow(6)).lpenv(2).lpdecay(.18)\n  .every(4, x => x.add(7))\n  .pan(sine.range(.2, .8).slow(3))\n  .release(.25).delay(.25).delaytime(3/16).room(.45).gain(.3)\n\n// Asteroid belt: tumbling rocky debris between Mars and Jupiter\nasteroids: s(\"hh*16, rim(5,16), [~ cp]*2, mt(3,8,2)\")\n  .degradeBy(.35).every(3, fast(2))\n  .speed(rand.range(.75, 1.4)).crush(7).pan(rand).hpf(1800)\n  .delay(.3).delaytime(1/12).gain(.24)\n\n// Gas giants: Jupiter (massive brassy) and Saturn (ringed echoes)\ngas_giants: n(\"<[0, 4, 7] [-1, 3, 6] [-2, 2, 5] [1, 5, 8]>\").scale(\"C:lydian\").transpose(-12)\n  .s(\"sawtooth\").unison(3).detune(.25)\n  .slow(2).lpf(sine.range(350, 950).slow(5)).lpq(3).lpenv(1.5).lpattack(.6)\n  .attack(.6).release(1.8).delay(.45).delaytime(3/8).delayfeedback(.45).room(.6).gain(.3)\n\n// Ice giants: Uranus (axial-tilted jux/rev) and Neptune (deep windy FM)\nice_giants: n(\"<6 4 9 7>\").scale(\"C:lydian\").s(\"sine\").timbre(\"hollow\")\n  .fm(1.5).fmh(2).vib(4).vibdepth(.25)\n  .slow(2).jux(rev).off(1/4, x => x.add(4))\n  .room(.85).size(.9).attack(.6).release(2).gain(.28)\n\n// Kuiper belt: Pluto and distant icy bodies glittering in the outer dark\nkuiper: n(\"7 [~ 11?] 14 [9? 16] ~ 13? [11 18?] ~\").scale(\"C:lydian\").transpose(12)\n  .s(\"sine\").timbre(\"glass\").fm(2.5).fmh(3)\n  .slow(2).sometimesBy(.4, x => x.ply(2))\n  .pan(sine.slow(5)).delay(.65).delaytime(1/3).delayfeedback(.6).room(.9).size(.95).gain(.2)\n",
+      "savedAt": "2026-10-28T19:52:13.980Z"
+    },
+    {
+      "id": "haunted",
+      "name": "Haunted",
+      "description": "A detuned music box, swelling organ, a heartbeat in the attic and cold wind in the halls.",
+      "category": "Spooky",
+      "tags": ["72 bpm", "music box", "organ"],
+      "source": "setcpm(72/4)\n\n// Detuned, ghostly music box melody\nmusicbox: note(\"c5 eb5 b4 f#5 g4 eb5 d5 ab4\").s(\"sine\").timbre(\"glass\")\n  .fm(2).fmh(3.01)\n  .vib(4).vibdepth(0.25)\n  .delay(0.5).delaytime(3/8).delayfeedback(0.6)\n  .room(0.8).size(0.9)\n  .every(4, rev).gain(0.45)\n\n// Ominous swelling organ chords\norgan: note(\"<[c2,eb3,g3,b3] [b1,d3,f3,ab3] [eb2,gb3,bb3,d4] [f#1,a2,c3,eb3]>\").s(\"sawtooth\").timbre(\"organ\")\n  .unison(3).detune(0.35)\n  .lpf(sine.range(300, 1100).slow(4))\n  .attack(0.6).release(1.5).room(0.7).gain(0.35)\n\n// Heartbeat pulse and creaking footsteps in the attic\nfootsteps: s(\"[bd bd] ~ ~ ~, ~ [rim?0.6 ~] ~ [rim | cp?0.3]\")\n  .lpf(900).room(0.8).size(0.9)\n  .delay(0.3).delaytime(1/6).gain(0.65)\n\n// Cold wind howling through the hallways\nwind: s(\"pink\").lpf(sine.range(150, 700).slow(6)).lpq(4)\n  .attack(1).release(1).room(0.9).pan(sine.slow(5)).gain(0.22)\n",
+      "savedAt": "2026-10-28T19:50:39.216Z"
+    },
+    {
+      "id": "birds",
+      "name": "Birds",
+      "description": "Songbirds, warblers, finches, a woodpecker and mourning doves in a breezy forest.",
+      "category": "Nature",
+      "tags": ["110 bpm", "pitch envelopes", "ambience"],
+      "source": "setcpm(110/4)\n\n// Songbird lead: swooping syrinx whistles with pitch-envelope chirps and trills\n$: n(\"[7 9 11]? ~ [12 9 7]*2 ~ [11 14 11]?\").scale(\"F:lydian\").transpose(24)\n  .s(\"sine\").mono(1).glide(.03)\n  .penv(\"<12 -9 15 -12 7>\").pdecay(.05)\n  .vib(24).vibdepth(\"<0 1.5 3 0.5>\")\n  .attack(.005).decay(.09).sustain(0).release(.03)\n  .sometimesBy(.5, x => x.ply(3).penv(7).pdecay(.025))\n  .pan(rand.range(.1, .9))\n  .delay(.35).delaytime(3/16).delayfeedback(.35)\n  .room(.6).size(.8).gain(.55)\n\n// Answering canopy warbler: rapid FM-throated twittering\n$: n(\"~ [14|16 12 9 14]*2? ~ [16 18 14]*3?\").scale(\"F:lydian\").transpose(24)\n  .s(\"sine\").fm(1.5).fmh(2)\n  .penv(-12).pdecay(.035)\n  .vib(30).vibdepth(2)\n  .attack(.003).decay(.05).sustain(0).release(.02)\n  .sometimes(x => x.fast(2).ply(2))\n  .pan(rand.range(.1, .9))\n  .room(.7).size(.85).gain(.4)\n\n// Tiny finch peeps: sharp upward pitch-swept sine chirps\n$: freq(\"[2200|2600 3100]?0.5 ~ [3400 2500|2900]*2?0.6 ~\")\n  .s(\"sine\")\n  .penv(14).pdecay(.025)\n  .attack(.002).decay(.04).sustain(0).release(.01)\n  .sometimes(x => x.ply(4).fast(1.5))\n  .pan(rand.range(0, 1))\n  .room(.5).gain(.35)\n\n// Woodpecker drumming on hollow bark and fluttering wings\n$: s(\"rim*8?0.4 ~ [~ hh*6?0.4] ~\")\n  .speed(rand.range(1.6, 2.4))\n  .lpf(3200).hpf(500)\n  .pan(sine.slow(3).range(.2, .8))\n  .room(.6).gain(.35)\n\n// Mourning dove coos: breathy low-register sliding calls\n$: n(\"~ [0 4 2@2]? ~ [0 2 0@2]?\").scale(\"F:lydian\")\n  .s(\"sine\").timbre(\"soft\").mono(1).glide(.08)\n  .penv(3).pdecay(.12)\n  .vib(7).vibdepth(.4)\n  .attack(.06).decay(.35).sustain(0).release(.15)\n  .room(.7).size(.8).gain(.45)\n\n// Gentle forest breeze through the leaves\n$: s(\"pink\")\n  .lpf(sine.slow(5).range(400, 1100)).hpf(250)\n  .attack(1).release(2)\n  .pan(sine.slow(7).range(.2, .8))\n  .room(.6).gain(.12)\n",
+      "savedAt": "2026-10-28T19:49:40.008Z"
+    },
+    {
+      "id": "synthphony",
+      "name": "Synthphony",
+      "description": "A synthesized orchestra: strings, harp, reed solo, celesta, cello and cinematic percussion.",
+      "category": "Orchestral",
+      "tags": ["84 bpm", "lydian", "unison", "FM"],
+      "source": "setcpm(84/4)\n\n// Lush orchestral strings with unison detune, filter swells, and 9th/11th voicings\nstrings: n(\"<[0,2,4,6,8] [1,3,5,8,10] [-2,0,2,4,6] [-1,1,4,6,9]>\")\n  .scale(\"Eb:lydian\").s(\"sawtooth\")\n  .unison(4).detune(.25)\n  .attack(.8).decay(1).sustain(.7).release(2.5)\n  .lpf(sine.range(500, 2200).slow(8)).lpenv(1.5).lpattack(1.2)\n  .room(.85).size(.95).gain(.24)\n\n// Intricate polymetric harp and woodwind arpeggios dancing in stereo\nharp: n(\"{0 2 4 6 7 9 11 13 9 6}%8\")\n  .scale(\"Eb:lydian\").s(\"triangle\").timbre(\"soft\")\n  .every(3, rev).jux(x => x.iter(4).add(7).late(1/16))\n  .sometimesBy(.25, x => x.ply(2))\n  .decay(.35).sustain(0).release(.5)\n  .delay(.4).delaytime(3/16).delayfeedback(.5)\n  .room(.7).gain(.3)\n\n// Expressive reed solo with legato glide, vibrato, and ornamental grace notes\nsolo: n(\"<[7 ~ 6 [4 5]] [2 ~ 3 0] [4 6 [7 9] 11] [8 ~ 6 <4 9>]>\")\n  .scale(\"Eb:lydian\").s(\"sine\").timbre(\"reed\").transpose(12)\n  .mono(1).glide(.08).vib(5).vibdepth(.2)\n  .attack(.12).decay(.4).sustain(.8).release(.9)\n  .vowel(\"<a o e i>\").room(.75).gain(.42)\n\n// Shimmering FM celesta bells in the upper register\ncelesta: n(\"<[~ 11 ~ 14] [~ 13 11 9] [~ 7 ~ 11] [13 ~ 9 6]>\")\n  .scale(\"Eb:lydian\").s(\"sine\").timbre(\"glass\").transpose(12)\n  .fm(2.5).fmh(3).decay(.6).sustain(0).release(1.4)\n  .pan(sine.range(.2, .8).slow(3))\n  .delay(.5).delaytime(3/8).room(.85).gain(.2)\n\n// Deep contrabass and cello foundation with bow envelope and octave movement\ncello: n(\"<[0 ~ ~ -7] [1 ~ 5 1] [-2 ~ ~ -5] [-1 ~ 3 -1]>\")\n  .scale(\"Eb:lydian\").s(\"sawtooth\").transpose(-12)\n  .unison(2).detune(.12)\n  .attack(.25).decay(.6).sustain(.6).release(1.2)\n  .lpf(320).lpenv(2).lpattack(.2).lpdecay(.8)\n  .room(.5).gain(.48)\n\n// Cinematic percussion with rolling timpani, rim clicks, and cymbal swells\ntimpani: s(\"bd ~ [~ lt] <mt [lt ht]>, ~ ~ <~ cr> ~, rd(5,8,1), ~ rim?0.4 ~ [rim?0.3 ~]\")\n  .every(4, x => x.fast(2).degradeBy(.3))\n  .speed(\"<.75 .7 .8 .72>\").lpf(1800)\n  .room(.8).size(.9).gain(.4)\n",
+      "savedAt": "2026-10-28T19:46:36.696Z"
+    },
+    {
+      "id": "planets",
+      "name": "Planets",
+      "description": "The first sketch of the solar system suite: compact and airy.",
+      "category": "Space",
+      "tags": ["88 bpm", "lydian"],
+      "source": "setcpm(88/4)\n\n// The Sun: deep gravitational pulse and warm solar flare drone\nsun: stack(\n  s(\"bd ~ ~ ~\").gain(.8),\n  note(\"c2\").s(\"sawtooth\").lpf(sine.range(180, 450).slow(8)).attack(.4).release(1.2).gain(.45)\n)\n\n// Inner planets: Mercury (fast), Venus (warm), Earth (steady), Mars (red/syncopated)\ninner: n(\"{7 9 11 14}%8, <2 4>, 0 2 4 2, [~ 1] ~ 3(3,8)\")\n  .scale(\"C:lydian\").s(\"triangle\").release(.25).room(.4).gain(.32)\n\n// Asteroid belt: tumbling rocky debris between Mars and Jupiter\nasteroids: s(\"hh*16, rim(3,8)\").degradeBy(.45).pan(rand).hpf(3500).gain(.25)\n\n// Gas giants: Jupiter (massive) and Saturn (ringed echoes)\ngas_giants: n(\"<[0, 4] [1, 5]>\").scale(\"C:lydian\").transpose(-12).s(\"sawtooth\")\n  .slow(2).lpf(650).attack(.5).release(1.5).delay(.4).delaytime(3/8).gain(.35)\n\n// Ice giants: Uranus (axial-tilted jux/rev) and Neptune (deep windy blue)\nice_giants: n(\"<6 4 2 3>\").scale(\"C:lydian\").s(\"sine\")\n  .slow(4).jux(rev).room(.8).size(.9).attack(.6).release(1.8).gain(.35)\n\n// Kuiper belt: Pluto and distant icy bodies glittering in the outer dark\nkuiper: n(\"7 ~ 11? ~ ~ 14? ~ 9?\").scale(\"C:lydian\").transpose(12).s(\"sine\")\n  .slow(2).pan(sine.slow(5)).delay(.6).delaytime(1/3).delayfeedback(.55).room(.9).gain(.22)\n",
+      "savedAt": "2026-10-28T18:56:08.905Z"
+    }
+  ]
+}

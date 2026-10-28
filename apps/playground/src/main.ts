@@ -1,11 +1,12 @@
 import './style.css';
 import { installCaptureTap } from './audio-capture';
 import { defineTartletPlayer, type TartletPlayerElement } from '@tartlet/element';
-import { PRESETS, type Preset } from './presets';
 import type { Problem } from './assistant';
 import { initShare } from './share';
 import { initRingtone } from './ringtone';
-import { initLibrary, slugify } from './library';
+import { initLibrary } from './library';
+import { slugify, type SketchMeta } from './album-schema';
+import { EMPTY_CATALOG, initCatalog, loadCatalog, type Catalog, type CatalogSketch } from './catalog';
 import { initPanels } from './panels';
 // Must run before the player builds its audio graph so ringtone recording can hear it.
 installCaptureTap();
@@ -28,7 +29,6 @@ defineTartletPlayer();
 
 const player = el('player') as TartletPlayerElement;
 const editor = el('editor') as HTMLTextAreaElement;
-const presetList = el('presets');
 const presetTitle = el('preset-title');
 const seedInput = el('seed') as HTMLInputElement;
 const diagBadge = el('diag-badge');
@@ -36,8 +36,15 @@ const counts = el('counts');
 const toast = el('toast');
 const fab = el('fab-play') as HTMLButtonElement;
 
-let current: Preset = PRESETS[0];
-let fileStem = current.id;
+/** Albums are discovered through this manifest (albums/manifest.json next to index.html). */
+const MANIFEST_URL = new URL('albums/manifest.json', document.baseURI).href;
+
+let catalog: Catalog = EMPTY_CATALOG;
+/** Album sketch restored by Reset. */
+let current: CatalogSketch | null = null;
+/** Album sketch the editor came from, offered as metadata when saving to the library. */
+let origin: CatalogSketch | null = null;
+let fileStem = 'sketch';
 
 // ---- feedback
 
@@ -71,63 +78,29 @@ function scheduleApply(): void {
   timer = setTimeout(apply, 300);
 }
 
-function markActive(id: string | undefined): void {
-  for (const b of presetList.querySelectorAll<HTMLButtonElement>('button.preset')) {
-    b.setAttribute('aria-pressed', String(b.dataset.id === id));
-  }
-}
-
-function loadPreset(p: Preset): void {
-  current = p;
-  fileStem = p.id;
-  editor.value = p.source;
-  presetTitle.textContent = p.name;
-  markActive(p.id);
+function loadSketch(s: CatalogSketch): void {
+  current = s;
+  origin = s;
+  fileStem = s.id;
+  editor.value = s.source;
+  presetTitle.textContent = s.name;
+  browser.markActive(s.id);
   library.forget();
-  apply();
-}
-
-// ---- presets
-
-function presetButton(p: Preset): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'preset';
-  b.dataset.id = p.id;
-  const name = document.createElement('span');
-  name.className = 'preset-name';
-  name.textContent = p.name;
-  const blurb = document.createElement('span');
-  blurb.className = 'preset-blurb';
-  blurb.textContent = p.blurb;
-  const tags = document.createElement('span');
-  tags.className = 'preset-tags';
-  for (const t of p.tags) {
-    const tag = document.createElement('span');
-    tag.className = 'tag';
-    tag.textContent = t;
-    tags.append(tag);
+  if (s.seed !== undefined) {
+    seedInput.value = s.seed;
+    applySeed();
+  } else {
+    apply();
   }
-  b.append(name, blurb, tags);
-  b.addEventListener('click', () => {
-    loadPreset(p);
-    // On phones the preset list fills the screen; jump to the player so the sketch can be heard.
-    if (panels.isMobile()) panels.show('player');
-  });
-  return b;
 }
-const groups = new Map<string, Preset[]>();
-for (const p of PRESETS) {
-  const g = groups.get(p.group);
-  if (g) g.push(p);
-  else groups.set(p.group, [p]);
-}
-for (const [group, list] of groups) {
-  const h = document.createElement('h3');
-  h.className = 'preset-group';
-  h.textContent = group;
-  presetList.append(h, ...list.map(presetButton));
-}
+
+// ---- album browser
+
+const browser = initCatalog(el('panel-presets'), (s) => {
+  loadSketch(s);
+  // On phones the album list fills the screen; jump to the player so the sketch can be heard.
+  if (panels.isMobile()) panels.show('player');
+});
 
 // ---- diagnostics badge
 
@@ -246,7 +219,11 @@ el('apply-btn').addEventListener('click', () => {
 });
 
 el('reset-btn').addEventListener('click', () => {
-  loadPreset(current);
+  if (!current) {
+    flash('No album sketch to restore');
+    return;
+  }
+  loadSketch(current);
   flash(`Restored "${current.name}"`);
 });
 
@@ -276,8 +253,8 @@ function decode(s: string): string {
 }
 // ---- URL tracking: the hash always mirrors the editor, so the address bar is a shareable link.
 function hashFor(source: string): string {
-  const preset = PRESETS.find((p) => p.source === source);
-  if (preset) return `#preset=${preset.id}`;
+  const known = catalog.bySource(source);
+  if (known) return `#preset=${known.id}`;
   return source.trim() ? `#src=${encode(source)}` : '';
 }
 function syncUrl(): void {
@@ -289,29 +266,30 @@ function syncUrl(): void {
 /** Loads the sketch described by the current URL hash. Returns false if there was none. */
 function loadFromHash(): boolean {
   const h = location.hash;
-  const presetId = /^#preset=([\w-]+)$/.exec(h)?.[1];
-  if (presetId !== undefined) {
-    const p = PRESETS.find((x) => x.id === presetId);
-    if (p) {
-      loadPreset(p);
+  const sketchId = /^#preset=([\w-]+)$/.exec(h)?.[1];
+  if (sketchId !== undefined) {
+    const s = catalog.byId(sketchId);
+    if (s) {
+      loadSketch(s);
       return true;
     }
-    flash('That preset link is not known');
+    flash('That sketch link is not known');
     return false;
   }
   const src = /^#src=([A-Za-z0-9_-]*)$/.exec(h)?.[1];
   if (src === undefined) return false;
   try {
     const source = decode(src);
-    const preset = PRESETS.find((p) => p.source === source);
-    if (preset) {
-      loadPreset(preset);
+    const known = catalog.bySource(source);
+    if (known) {
+      loadSketch(known);
       return true;
     }
     editor.value = source;
     presetTitle.textContent = 'Shared sketch';
     fileStem = 'shared';
-    markActive(undefined);
+    origin = null;
+    browser.markActive(undefined);
     library.forget();
     apply();
     return true;
@@ -372,15 +350,26 @@ el('reroll-btn').addEventListener('click', () => {
   flash(`Seed: ${seedInput.value}`);
 });
 // ---- personal library (localStorage, JSON albums)
+function originMeta(): SketchMeta {
+  if (!origin) return {};
+  return {
+    ...(origin.description ? { description: origin.description } : {}),
+    ...(origin.category ? { category: origin.category } : {}),
+    ...(origin.tags.length > 0 ? { tags: origin.tags } : {}),
+    ...(origin.author ? { author: origin.author } : {}),
+  };
+}
 const library = initLibrary(el('library'), {
   getSource: () => editor.value,
   getSeed: () => seedInput.value,
   suggestName: () => presetTitle.textContent || '',
+  suggestMeta: originMeta,
   load(sketch) {
     editor.value = sketch.source;
     presetTitle.textContent = sketch.name;
     fileStem = slugify(sketch.name) || 'sketch';
-    markActive(undefined);
+    origin = null;
+    browser.markActive(undefined);
     seedInput.value = sketch.seed ?? '';
     applySeed(); // sets or clears the seed, then applies the source
     if (panels.isMobile()) panels.show('player');
@@ -416,11 +405,23 @@ function setSourceAndCheck(source: string, title?: string): Promise<Problem[]> {
     if (title) {
       presetTitle.textContent = title;
       fileStem = 'ai-sketch';
-      markActive(undefined);
+      origin = null;
+      browser.markActive(undefined);
       library.forget();
     }
     apply();
   });
+}
+/** Example sketches included in the assistant's system prompt. */
+function assistantExamples(): { name: string; description: string; source: string }[] {
+  const picks = ['groove', 'layers', 'function-args']
+    .map((id) => catalog.byId(id))
+    .filter((s): s is CatalogSketch => s !== undefined);
+  return (picks.length > 0 ? picks : catalog.sketches.slice(0, 3)).map((s) => ({
+    name: s.name,
+    description: s.description,
+    source: s.source,
+  }));
 }
 const assistantRoot = el('assistant');
 let assistantLoaded = false;
@@ -445,11 +446,24 @@ function loadAssistant(): void {
 assistantRoot.addEventListener('panelshow', loadAssistant);
 if (panels.isVisible('assistant')) loadAssistant();
 
-// ---- startup
+// ---- startup: discover albums, then load the sketch from the URL or the first album sketch
 
-if (!loadFromHash()) loadPreset(current);
-
-// Pasting a different link into the address bar (or editing the hash) loads it in place.
-window.addEventListener('hashchange', () => {
-  if (location.hash !== hashFor(editor.value)) loadFromHash();
-});
+async function start(): Promise<void> {
+  const { catalog: loaded, errors } = await loadCatalog(MANIFEST_URL);
+  catalog = loaded;
+  browser.setCatalog(loaded, errors);
+  if (errors.length > 0) flash('Some albums could not be loaded');
+  if (!loadFromHash()) {
+    const first = catalog.byId('groove') ?? catalog.sketches[0];
+    if (first) loadSketch(first);
+    else {
+      presetTitle.textContent = 'Untitled';
+      updateCounts();
+    }
+  }
+  // Pasting a different link into the address bar (or editing the hash) loads it in place.
+  window.addEventListener('hashchange', () => {
+    if (location.hash !== hashFor(editor.value)) loadFromHash();
+  });
+}
+void start();

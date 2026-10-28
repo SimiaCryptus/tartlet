@@ -1,41 +1,41 @@
 {
-  "ok": true,
-  "durationMs": 57019,
+  "ok": false,
+  "durationMs": 54978,
   "steps": [
     {
       "name": "format",
       "cmd": "prettier --check .",
       "status": "pass",
       "code": 0,
-      "durationMs": 3979
+      "durationMs": 4169
     },
     {
       "name": "lint",
       "cmd": "eslint . --max-warnings=0",
-      "status": "pass",
-      "code": 0,
-      "durationMs": 8901
+      "status": "fail",
+      "code": 1,
+      "durationMs": 9037
     },
     {
       "name": "typecheck",
       "cmd": "tsc -p tsconfig.core.json --noEmit --pretty && tsc -p tsconfig.json --noEmit --pretty",
       "status": "pass",
       "code": 0,
-      "durationMs": 4471
+      "durationMs": 3767
     },
     {
       "name": "test",
       "cmd": "vitest run --coverage",
       "status": "pass",
       "code": 0,
-      "durationMs": 37055
+      "durationMs": 35528
     },
     {
       "name": "build",
       "cmd": "tsc -p tsconfig.core.json --noEmit && pnpm -r --filter \"./apps/*\" build",
       "status": "pass",
       "code": 0,
-      "durationMs": 2611
+      "durationMs": 2474
     }
   ],
   "skipped": []

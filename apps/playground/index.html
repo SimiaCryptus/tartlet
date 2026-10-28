@@ -47,8 +47,42 @@
     <main id="desk" class="desk" aria-label="Workspace">
       <!-- ---- left dock -->
       <div class="dock" data-dock="left">
-        <section id="panel-presets" class="panel" data-panel="presets" data-title="Presets" data-icon="♫">
+        <section
+          id="panel-presets"
+          class="panel catalog"
+          data-panel="presets"
+          data-title="Albums"
+          data-short="Albums"
+          data-icon="♫"
+        >
           <div class="panel-body">
+            <div class="catalog-controls">
+              <label class="field">
+                <span>Album</span>
+                <select id="cat-album" disabled>
+                  <option value="">All albums</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Category</span>
+                <select id="cat-category" disabled>
+                  <option value="">All categories</option>
+                </select>
+              </label>
+              <label class="field field-wide">
+                <input
+                  id="cat-search"
+                  type="search"
+                  placeholder="Search names, descriptions and tags"
+                  aria-label="Search sketches"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </label>
+            </div>
+            <div id="cat-tags" class="catalog-tags" role="group" aria-label="Filter by tag" hidden></div>
+            <div id="cat-info" class="catalog-info" hidden></div>
+            <p id="cat-status" class="catalog-status" role="status" aria-live="polite">Loading albums…</p>
             <div id="presets" class="preset-grid"></div>
           </div>
         </section>
@@ -67,7 +101,7 @@
         <section id="panel-player" class="panel" data-panel="player" data-title="Player" data-icon="▶">
           <div class="panel-body">
             <div class="card-head">
-              <h3 id="preset-title" class="sketch-title">Groove</h3>
+              <h3 id="preset-title" class="sketch-title">Loading…</h3>
               <span id="diag-badge" class="badge ok">No issues</span>
             </div>
             <tartlet-player id="player" document-id="playground" blob-index="example"></tartlet-player>
@@ -145,6 +179,10 @@
               <label class="field">
                 <span>Name</span>
                 <input id="lib-name" type="text" maxlength="80" autocomplete="off" spellcheck="false" />
+              </label>
+              <label class="field">
+                <span>Tags</span>
+                <input id="lib-tags" type="text" placeholder="comma separated" autocomplete="off" spellcheck="false" />
               </label>
               <button id="lib-save" type="button" class="primary">Save current</button>
             </div>

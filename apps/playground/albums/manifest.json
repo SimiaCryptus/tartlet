@@ -1,0 +1,8 @@
+{
+  "format": "tartlet-album-manifest",
+  "version": 1,
+  "albums": [
+    { "id": "presets", "file": "presets.json" },
+    { "id": "bundled", "file": "bundled.json" }
+  ]
+}

@@ -1,12 +1,17 @@
 // Personal library: named sketches saved in this browser, exportable and importable as JSON albums.
+import {
+  cleanName,
+  cleanTags,
+  parseAlbum,
+  parseSketch,
+  slugify,
+  toAlbum,
+  type SketchData,
+  type SketchMeta,
+} from './album-schema';
 
-export interface SavedSketch {
+export interface SavedSketch extends SketchData {
   readonly id: string;
-  readonly name: string;
-  readonly source: string;
-  readonly seed?: string;
-  /** ISO 8601 timestamp of the last save. */
-  readonly savedAt: string;
 }
 
 export interface LibraryHost {
@@ -14,6 +19,8 @@ export interface LibraryHost {
   getSeed(): string;
   /** Name offered when the name field is empty (usually the current title). */
   suggestName(): string;
+  /** Metadata offered for new entries (usually from the album sketch that was loaded). */
+  suggestMeta(): SketchMeta;
   /** Puts a saved sketch into the editor and applies it. */
   load(sketch: SavedSketch): void;
   flash(msg: string): void;
@@ -24,39 +31,15 @@ export interface LibraryHandle {
   forget(): void;
 }
 
-type SketchData = Omit<SavedSketch, 'id'>;
-
 interface Store {
   album: string;
   sketches: SavedSketch[];
 }
 
-export interface AlbumJson {
-  format: typeof ALBUM_FORMAT;
-  version: 1;
-  name: string;
-  exportedAt: string;
-  sketches: { name: string; source: string; seed?: string; savedAt: string }[];
-}
-
 const STORAGE_KEY = 'tartlet.library.v1';
-export const ALBUM_FORMAT = 'tartlet-album';
-const MAX_NAME = 80;
 const MAX_IMPORT_BYTES = 5_000_000;
 
 // ---- helpers
-
-export function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60);
-}
-
-function cleanName(name: string): string {
-  return name.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME);
-}
 
 function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -77,51 +60,12 @@ function uniqueName(base: string, taken: readonly { name: string }[]): string {
   }
 }
 
-function parseSketch(v: unknown): SketchData | null {
-  if (typeof v !== 'object' || v === null) return null;
-  const r = v as Record<string, unknown>;
-  const source = str(r.source) ?? str(r.code);
-  if (source === undefined || !source.trim()) return null;
-  const name = cleanName(str(r.name) ?? str(r.title) ?? '') || 'Untitled';
-  const seed = str(r.seed)?.trim();
-  const at = str(r.savedAt);
-  const savedAt =
-    at !== undefined && !Number.isNaN(Date.parse(at)) ? new Date(at).toISOString() : new Date().toISOString();
-  return { name, source, ...(seed ? { seed } : {}), savedAt };
-}
-
-/** Reads an album file. Also accepts a bare array of sketches or a single { name, source } object. */
-export function parseAlbum(data: unknown): { name: string; sketches: SketchData[] } {
-  let name = '';
-  let items: unknown[] = [];
-  if (Array.isArray(data)) {
-    items = data;
-  } else if (typeof data === 'object' && data !== null) {
-    const r = data as Record<string, unknown>;
-    if (Array.isArray(r.sketches)) {
-      items = r.sketches;
-      name = cleanName(str(r.name) ?? '');
-    } else {
-      items = [data];
-    }
-  }
-  const sketches = items.map((v) => parseSketch(v)).filter((s): s is SketchData => s !== null);
-  if (sketches.length === 0) throw new Error('No sketches were found in that file.');
-  return { name, sketches };
-}
-
-export function toAlbum(albumName: string, sketches: readonly SavedSketch[]): AlbumJson {
+function withMeta(m: SketchMeta, tags: readonly string[]): SketchMeta {
   return {
-    format: ALBUM_FORMAT,
-    version: 1,
-    name: albumName,
-    exportedAt: new Date().toISOString(),
-    sketches: sketches.map((s) => ({
-      name: s.name,
-      source: s.source,
-      ...(s.seed ? { seed: s.seed } : {}),
-      savedAt: s.savedAt,
-    })),
+    ...(m.description ? { description: m.description } : {}),
+    ...(m.category ? { category: m.category } : {}),
+    ...(m.author ? { author: m.author } : {}),
+    ...(tags.length > 0 ? { tags: [...tags] } : {}),
   };
 }
 
@@ -191,6 +135,7 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
 
   const countEl = q('#lib-count', HTMLElement);
   const nameInput = q('#lib-name', HTMLInputElement);
+  const tagsInput = q('#lib-tags', HTMLInputElement);
   const saveBtn = q('#lib-save', HTMLButtonElement);
   const filterInput = q('#lib-filter', HTMLInputElement);
   const list = q('#lib-list', HTMLUListElement);
@@ -245,11 +190,16 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     if (s.id === activeId) li.setAttribute('aria-current', 'true');
 
     const load = button('library-load', '');
-    load.title = 'Load into the editor';
+    load.title = s.description ? `${s.description}\n\nLoad into the editor` : 'Load into the editor';
     const lines = s.source.split('\n').filter((l) => l.trim()).length;
-    const meta = [formatDate(s.savedAt), plural(lines, 'line')].filter(Boolean);
+    const meta = [s.category ?? '', formatDate(s.savedAt), plural(lines, 'line')].filter(Boolean);
     if (s.seed) meta.push(`seed ${s.seed}`);
     load.append(span('library-name', s.name), span('library-meta', meta.join(' · ')));
+    if (s.tags && s.tags.length > 0) {
+      const tags = span('library-tags', '');
+      for (const t of s.tags) tags.append(span('tag', t));
+      load.append(tags);
+    }
     load.addEventListener('click', () => {
       loadEntry(s);
     });
@@ -270,10 +220,16 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     return li;
   }
 
+  function matches(s: SavedSketch, f: string): boolean {
+    return [s.name, s.source, s.category ?? '', s.description ?? '', ...(s.tags ?? [])].some((v) =>
+      v.toLowerCase().includes(f),
+    );
+  }
+
   function render(): void {
     const f = filterInput.value.trim().toLowerCase();
     const all = sorted();
-    const shown = f ? all.filter((s) => s.name.toLowerCase().includes(f) || s.source.toLowerCase().includes(f)) : all;
+    const shown = f ? all.filter((s) => matches(s, f)) : all;
     list.replaceChildren(...shown.map(item));
     countEl.textContent = `${String(store.sketches.length)} saved`;
     emptyEl.hidden = shown.length > 0;
@@ -285,6 +241,8 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     clearBtn.disabled = store.sketches.length === 0;
     filterInput.hidden = store.sketches.length === 0;
     nameInput.placeholder = cleanName(host.suggestName()) || 'Untitled';
+    const hint = host.suggestMeta().tags ?? [];
+    tagsInput.placeholder = hint.length > 0 ? hint.join(', ') : 'comma separated';
   }
 
   function save(): void {
@@ -304,12 +262,24 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
       return;
     }
     const seed = host.getSeed().trim();
+    const suggested = host.suggestMeta();
+    const typed = cleanTags(tagsInput.value);
+    // The tags field is authoritative for the loaded entry; otherwise an empty field keeps or suggests tags.
+    const tags =
+      typed.length > 0
+        ? typed
+        : existing
+          ? existing.id === activeId
+            ? []
+            : (existing.tags ?? [])
+          : (suggested.tags ?? []);
     const entry: SavedSketch = {
       id: existing?.id ?? newId(),
       name,
       source,
       ...(seed ? { seed } : {}),
       savedAt: new Date().toISOString(),
+      ...withMeta(existing ?? suggested, tags),
     };
     const sketches = existing
       ? store.sketches.map((s) => (s.id === existing.id ? entry : s))
@@ -317,6 +287,7 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     if (!commit({ ...store, sketches })) return;
     activeId = entry.id;
     nameInput.value = name;
+    tagsInput.value = tags.join(', ');
     render();
     note(existing ? `Updated "${name}".` : `Saved "${name}".`);
     host.flash(existing ? 'Sketch updated in library' : 'Saved to library');
@@ -326,6 +297,7 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     host.load(s);
     activeId = s.id;
     nameInput.value = s.name;
+    tagsInput.value = (s.tags ?? []).join(', ');
     render();
     note(`Loaded "${s.name}".`);
     host.flash(`Loaded "${s.name}"`);
@@ -418,12 +390,14 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
   }
 
   saveBtn.addEventListener('click', save);
-  nameInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      save();
-    }
-  });
+  for (const input of [nameInput, tagsInput]) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        save();
+      }
+    });
+  }
   filterInput.addEventListener('input', render);
   albumInput.addEventListener('change', () => {
     commit({ ...store, album: cleanName(albumInput.value) });
@@ -465,6 +439,7 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     forget() {
       activeId = null;
       nameInput.value = '';
+      tagsInput.value = '';
       render();
     },
   };
