@@ -15,5 +15,10 @@ export default defineConfig({
   test: {
     include: ['packages/*/test/**/*.test.ts'],
     environment: 'node',
+    coverage: {
+      // Measure library source only; not build output, scripts, or app entry points.
+      include: ['packages/*/src/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/*.d.ts'],
+    },
   },
 });

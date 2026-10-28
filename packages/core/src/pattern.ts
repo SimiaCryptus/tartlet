@@ -288,6 +288,52 @@ export function every<T>(n: number, f: (p: Pattern<T>) => Pattern<T>, pat: Patte
     return out;
   });
 }
+/**
+ * Rotates where each cycle starts (X-22, TS-39). Cycle c plays the pattern shifted earlier by
+ * (c mod n)/n of a cycle. With `back`, the shift goes later instead. Each cycle is queried on
+ * its own, so the result stays inside the queried span.
+ */
+export function iter<T>(n: number, pat: Pattern<T>, back = false): Pattern<T> {
+  if (!Number.isInteger(n) || n <= 1 || n > MAX_PLY) return pat;
+  const nR = rat(n);
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    for (const piece of spanCycles(st.span)) {
+      const c = toNumber(floor(piece.begin));
+      const i = ((c % n) + n) % n;
+      const s = div(rat(i), nR);
+      const shift = back ? neg(s) : s;
+      if (isZero(shift)) {
+        for (const ev of pat.query(at(st, piece))) out.push(ev);
+        continue;
+      }
+      for (const ev of pat.query(
+        at(
+          st,
+          mapSpan(piece, (t) => add(t, shift)),
+        ),
+      )) {
+        out.push(mapEventTime(ev, (t) => sub(t, shift)));
+      }
+    }
+    return out;
+  });
+}
+/** Plays the pattern forwards on even cycles and mirrored on odd cycles (X-22, TS-39). */
+export function palindrome<T>(pat: Pattern<T>): Pattern<T> {
+  const backwards = rev(pat);
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    for (const piece of spanCycles(st.span)) {
+      const c = toNumber(floor(piece.begin));
+      const p = ((c % 2) + 2) % 2 === 1 ? backwards : pat;
+      for (const ev of p.query(at(st, piece))) out.push(ev);
+    }
+    return out;
+  });
+}
 
 /** Repeats each event `factor` times within its own whole (X-16). Fragments stay consistent. */
 export function ply<T>(factor: Rational, pat: Pattern<T>): Pattern<T> {

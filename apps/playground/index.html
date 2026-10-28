@@ -3,21 +3,306 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tartlet playground (T0)</title>
+    <meta
+      name="description"
+      content="Tartlet: a deterministic, sandbox-safe music runtime for Strudel-compatible source."
+    />
+    <title>Tartlet playground</title>
   </head>
   <body>
-    <main>
-      <h1>Tartlet</h1>
-      <p>T0 spike. Press play.</p>
-      <tartlet-player id="player" document-id="playground" blob-index="example"></tartlet-player>
-      <textarea id="editor" rows="8" cols="80" aria-label="Source" spellcheck="false"></textarea>
+    <header class="topbar">
+      <a class="brand" href="./">
+        <span class="logo" aria-hidden="true">TT</span>
+        <span class="brand-name">Tartlet</span>
+        <span class="brand-tag">playground</span>
+      </a>
+      <nav class="topnav" aria-label="Site">
+        <a href="#cheatsheet">Cheat sheet</a>
+        <a class="gh" href="https://github.com/SimiaCryptus/tartlet" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+          <span>GitHub</span>
+        </a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <h1>Music from a few lines of text.</h1>
       <p>
-        <small
-          >"Strudel" is named only to describe language compatibility. Tartlet is not affiliated with or endorsed by the
-          Strudel project.</small
-        >
+        Tartlet runs Strudel-style patterns without ever evaluating code. It is deterministic, sandbox-safe and built
+        for documents. Pick a preset, press the big button, then start editing.
       </p>
+      <div class="hero-links">
+        <a class="cta" href="#presets-heading">Browse presets</a>
+        <a class="cta ghost" href="https://github.com/SimiaCryptus/tartlet" target="_blank" rel="noopener noreferrer"
+          >View on GitHub</a
+        >
+      </div>
+    </section>
+
+    <main class="layout">
+      <aside class="card presets-card">
+        <h2 id="presets-heading">Presets</h2>
+        <div id="presets" class="preset-grid"></div>
+      </aside>
+
+      <section class="workspace" aria-label="Workspace">
+        <div class="card">
+          <div class="card-head">
+            <h2 id="preset-title">Groove</h2>
+            <span id="diag-badge" class="badge ok">No issues</span>
+          </div>
+          <tartlet-player id="player" document-id="playground" blob-index="example"></tartlet-player>
+        </div>
+
+        <div class="card editor-card">
+          <div class="toolbar" role="toolbar" aria-label="Editor actions">
+            <button id="apply-btn" type="button" class="primary">Apply <kbd>Ctrl ⏎</kbd></button>
+            <button id="reset-btn" type="button">Reset</button>
+            <button id="copy-btn" type="button">Copy</button>
+            <button id="share-btn" type="button" title="Link, QR code and share sheet">Share / QR</button>
+            <button id="download-btn" type="button">Download</button>
+            <button id="ringtone-btn" type="button" title="Record the sketch as an audio file">Ringtone</button>
+            <span class="spacer"></span>
+            <label class="seed">
+              <span>Seed</span>
+              <input id="seed" type="text" placeholder="default" autocomplete="off" spellcheck="false" />
+            </label>
+            <button id="reroll-btn" type="button" title="Pick a new random seed">Reroll</button>
+          </div>
+          <textarea id="editor" rows="14" aria-label="Source" spellcheck="false"></textarea>
+          <div class="statusbar">
+            <span id="counts"></span>
+            <span class="hint"
+              ><kbd>Space</kbd> start or stop · edits apply live · the URL always links to this sketch</span
+            >
+          </div>
+        </div>
+        <details id="library" class="card library" open>
+          <summary>My library <span id="lib-count" class="brand-tag">0 saved</span></summary>
+          <p class="library-intro">
+            Sketches are saved in this browser only. Export an album (JSON) to back them up or move them to another
+            device. <kbd>Ctrl S</kbd> saves the current sketch.
+          </p>
+          <div class="library-row">
+            <label class="field">
+              <span>Name</span>
+              <input id="lib-name" type="text" maxlength="80" autocomplete="off" spellcheck="false" />
+            </label>
+            <button id="lib-save" type="button" class="primary">Save current</button>
+          </div>
+          <label class="field field-wide library-filter">
+            <input
+              id="lib-filter"
+              type="search"
+              placeholder="Filter by name or source"
+              aria-label="Filter saved sketches"
+            />
+          </label>
+          <ul id="lib-list" class="library-list" aria-label="Saved sketches"></ul>
+          <p id="lib-empty" class="library-empty">Nothing saved yet.</p>
+          <div class="library-row library-actions">
+            <label class="field">
+              <span>Album name</span>
+              <input id="lib-album" type="text" maxlength="80" placeholder="My Tartlet album" autocomplete="off" />
+            </label>
+            <button id="lib-export" type="button">Export album</button>
+            <button id="lib-import" type="button">Import album…</button>
+            <input id="lib-file" type="file" accept=".json,application/json" hidden />
+            <button id="lib-clear" type="button" class="library-delete">Clear library</button>
+          </div>
+          <p id="lib-status" class="library-status" role="status" aria-live="polite"></p>
+        </details>
+        <details id="assistant" class="card assistant">
+          <summary>AI assistant <span class="brand-tag">optional</span></summary>
+          <p class="assistant-intro">
+            Generate or edit sketches with a language model through a
+            <a href="https://hosted.cognotik.com" target="_blank" rel="noopener noreferrer">Cognotik</a> server. Sign in
+            there in this browser, or paste an API key. Nothing is sent until you press a button.
+          </p>
+          <div class="assistant-settings">
+            <label class="field">
+              <span>Server</span>
+              <input id="ai-url" type="url" autocomplete="off" spellcheck="false" />
+            </label>
+            <label class="field">
+              <span>API key</span>
+              <input id="ai-key" type="password" placeholder="optional" autocomplete="off" spellcheck="false" />
+            </label>
+            <button id="ai-connect" type="button">Connect</button>
+            <label class="field field-wide">
+              <span>Model</span>
+              <select id="ai-model" disabled>
+                <option value="">Connect to load models</option>
+              </select>
+            </label>
+          </div>
+          <textarea
+            id="ai-prompt"
+            rows="3"
+            aria-label="Describe the music"
+            placeholder="e.g. a slow lo-fi beat in F minor with a wobbly bass, or: make the hats busier"
+          ></textarea>
+          <div class="assistant-actions">
+            <button id="ai-generate" type="button" class="primary">Generate new</button>
+            <button id="ai-edit" type="button" title="Ctrl+Enter in the prompt">Edit current</button>
+            <button id="ai-fix" type="button">Fix issues</button>
+            <button id="ai-undo" type="button">Undo AI change</button>
+            <button id="ai-cancel" type="button" hidden>Cancel</button>
+          </div>
+          <div class="assistant-status">
+            <span id="ai-status" role="status" aria-live="polite"></span>
+            <span id="ai-usage"></span>
+          </div>
+        </details>
+
+        <details id="cheatsheet" class="card cheatsheet">
+          <summary>Cheat sheet</summary>
+          <div class="cheat-grid">
+            <div>
+              <h3>Inside strings</h3>
+              <dl>
+                <dt><code>a b c</code></dt>
+                <dd>split the cycle evenly</dd>
+                <dt><code>~</code></dt>
+                <dd>silence for one step</dd>
+                <dt><code>[a b]</code></dt>
+                <dd>squeeze a group into one step</dd>
+                <dt><code>&lt;a b&gt;</code></dt>
+                <dd>take turns, one per cycle</dd>
+                <dt><code>a, b</code></dt>
+                <dd>layer at the same time</dd>
+                <dt><code>a*4</code> <code>a/2</code></dt>
+                <dd>faster or slower</dd>
+                <dt><code>a!3</code> <code>a@2</code></dt>
+                <dd>repeat, or make a step longer</dd>
+                <dt><code>a?</code> <code>a(3,8)</code></dt>
+                <dd>random drop, Euclidean hits</dd>
+              </dl>
+            </div>
+            <div>
+              <h3>Methods</h3>
+              <dl>
+                <dt><code>s("bd sd")</code></dt>
+                <dd>drums: bd sd hh oh cp rim lt mt ht cr rd</dd>
+                <dt><code>note("c e g")</code></dt>
+                <dd>pitches by name or number</dd>
+                <dt><code>n("0 2").scale("D:minor")</code></dt>
+                <dd>scale degrees</dd>
+                <dt><code>.fast(2)</code> <code>.slow(2)</code> <code>.rev()</code></dt>
+                <dd>reshape time</dd>
+                <dt><code>.every(4, x =&gt; x.rev())</code></dt>
+                <dd>change every few cycles</dd>
+                <dt><code>.lpf(800)</code> <code>.room(.4)</code> <code>.delay(.3)</code></dt>
+                <dd>filter and space</dd>
+                <dt><code>.binaural(6)</code> <code>.azimuth(90)</code></dt>
+                <dd>headphones: binaural beat, place around the head</dd>
+                <dt><code>.fm(3)</code> <code>.lpenv(2)</code> <code>.unison(3)</code></dt>
+                <dd>synthesis: FM, filter sweep, thick detuned copies</dd>
+                <dt><code>s("white")</code> <code>.mono(1).glide(.1)</code></dt>
+                <dd>noise source; a sliding monophonic line</dd>
+                <dt><code>s("voice").syl("la li _")</code></dt>
+                <dd>sing syllables; also aah ooh hum whisper choir</dd>
+                <dt><code>$: …</code></dt>
+                <dd>one track per line</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+      </section>
     </main>
+
+    <footer class="footer">
+      <p>
+        <a href="https://github.com/SimiaCryptus/tartlet" target="_blank" rel="noopener noreferrer"
+          >Tartlet on GitHub</a
+        >
+        · Apache-2.0
+      </p>
+      <p>
+        <small>
+          "Strudel" is named only to describe language compatibility. Tartlet is not affiliated with or endorsed by the
+          Strudel project.
+        </small>
+      </p>
+    </footer>
+    <dialog id="share-dialog" class="dialog" aria-labelledby="share-title">
+      <form method="dialog" class="dialog-head">
+        <h2 id="share-title">Share this sketch</h2>
+        <button type="submit" class="dialog-close" aria-label="Close">×</button>
+      </form>
+      <div class="share-body">
+        <div class="share-qr">
+          <canvas id="share-qr" width="256" height="256" role="img" aria-label="QR code for the share link"></canvas>
+          <p id="share-qr-note" class="dialog-note"></p>
+        </div>
+        <div class="share-actions">
+          <label class="field field-wide">
+            <span>Link</span>
+            <input id="share-url" type="text" readonly spellcheck="false" />
+          </label>
+          <div class="dialog-buttons">
+            <button id="share-copy" type="button" class="primary">Copy link</button>
+            <button id="share-native" type="button" hidden>Share…</button>
+            <a id="share-email" class="button-link" href="mailto:">Email</a>
+            <button id="share-qr-download" type="button">Download QR</button>
+            <button id="share-copy-source" type="button">Copy source</button>
+          </div>
+          <p class="dialog-note">The link contains the whole sketch, so nothing is uploaded anywhere.</p>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="ringtone-dialog" class="dialog" aria-labelledby="rt-title">
+      <form method="dialog" class="dialog-head">
+        <h2 id="rt-title">Make a ringtone</h2>
+        <button type="submit" class="dialog-close" aria-label="Close">×</button>
+      </form>
+      <div class="dialog-row">
+        <label class="field">
+          <span>Length</span>
+          <select id="rt-length">
+            <option value="10">10 seconds</option>
+            <option value="15">15 seconds</option>
+            <option value="20" selected>20 seconds</option>
+            <option value="30">30 seconds</option>
+          </select>
+        </label>
+        <button id="rt-record" type="button" class="primary">Record</button>
+        <button id="rt-cancel" type="button" hidden>Cancel</button>
+      </div>
+      <progress id="rt-progress" class="rt-progress" max="1" value="0" hidden></progress>
+      <p id="rt-status" class="dialog-note" role="status" aria-live="polite"></p>
+      <audio id="rt-preview" class="rt-preview" controls hidden></audio>
+      <div class="dialog-buttons">
+        <button id="rt-download-wav" type="button" disabled>Download WAV</button>
+        <button id="rt-download-m4r" type="button" hidden>Download M4R (iPhone)</button>
+        <button id="rt-share" type="button" hidden>Share audio…</button>
+      </div>
+      <details class="rt-help">
+        <summary>How to install it as a ringtone</summary>
+        <p class="dialog-note">
+          Browsers cannot change system ringtones themselves, but installing the file takes a minute:
+        </p>
+        <ul>
+          <li>
+            <strong>Android:</strong> download the WAV (or use <em>Share audio</em> to save it), then open Settings →
+            Sound → Phone ringtone → <em>+</em> and pick the file. Some phones offer "Set as ringtone" when you open the
+            file in the Files app.
+          </li>
+          <li>
+            <strong>iPhone:</strong> save the WAV to Files, open it in GarageBand and choose Share → Ringtone. On a
+            computer you can instead drag the M4R file onto your iPhone in Finder (Mac) or iTunes (Windows).
+          </li>
+          <li><strong>Notifications and alarms:</strong> the same file works; choose it in the relevant settings.</li>
+        </ul>
+      </details>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

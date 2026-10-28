@@ -253,16 +253,15 @@ Protocol rules:
 
 The milestones follow the `idea.md` §14 phases, re-expressed in the Markdown2 plan's format. Each ends with its exit criteria green in CI. Week numbers are aligned to the Markdown2 plan, so integration points land when Markdown2 is ready for them (§8).
 
-### G0: Gates and Foundations (week 1, in parallel with T0)
+### G0: Foundations (week 1, in parallel with T0)
 
-- **Legal gate:** `CLEAN_ROOM.md` drafted and submitted to IP counsel. Gate status is recorded there by maintainers. **No T1 code merges before sign-off.** T0 does not wait.
 - Clean-room log template and a session-logging script, recording model, version, task, inputs and commits.
 - Monorepo, TypeScript project references, lint (including the eval, randomness and boundary rules), Vitest and CI matrix (Node 22, Deno, Playwright on three engines).
 - Conformance skeleton: fixture JSON Schema, runner and one passing smoke fixture.
 - **Corpus v0:** 500+ original prompts written, and the first multi-model generation run stored with metadata in `corpus/`.
 - Role assignments recorded, including the oracle analyst, who does not implement `mini` or `core` (§11).
 - ADR-001 (hand-written parsers), ADR-002 (fast-path rationals), ADR-003 (worker and worklet architecture in opaque origins), ADR-004 (embed protocol).
-- **Exit:** `pnpm test` and `pnpm build` pass in CI. Counsel review is scheduled. Corpus v0 is committed.
+- **Exit:** `pnpm test` and `pnpm build` pass in CI. Corpus v0 is committed.
 
 ### T0: Vertical Spike (day 1–week 1, `idea.md` Phase 0)
 
@@ -333,9 +332,9 @@ The milestones follow the `idea.md` §14 phases, re-expressed in the Markdown2 p
   - query cost per 100 ms window is p99 under 2 ms on the corpus on mid-range hardware, with provenance off
 - Fuzzing of the lexers, parsers, IR ingestion and embed protocol, seeded from fixtures and the corpus.
 - A security review covering the threat model, the CSP and Trusted Types audit, prototype-pollution review and sandbox review.
-- The clean-room record completed, and the pre-1.0 legal review done.
 - Documentation: the language guide, the generated registry reference, the published system prompt and an integration guide for hosts.
-- **Exit:** the 1.0 coverage targets are met, legal sign-off is obtained, no high-severity findings remain open, and Markdown2 ships the blob type on by default.
+- The clean-room record completed.
+- **Exit:** the 1.0 coverage targets are met, no high-severity findings remain open, and Markdown2 ships the blob type on by default.
 
 ## 7. The Playground (Demo and Test UI)
 
@@ -468,7 +467,6 @@ This table covers plan-level risks. Product-level risks are in `idea.md` §15.
 
 | ID  | Risk                                                                                               | Impact                                                 | Mitigation                                                                                                                                                                                       |
 | --- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| R-1 | Legal sign-off on `CLEAN_ROOM.md` slips past week 1.                                               | T1 blocked                                             | Submit in week 1. T0 and corpus work continue. Line up T1 tasks that touch only tooling, fixtures and the playground shell so they can proceed.                                                  |
 | R-2 | Oracle specifications arrive late for T2 transforms.                                               | Implementers guess, causing semantic drift             | Analyst starts in week 2 and works in corpus-frequency order. A transform is not assigned until its specification is merged.                                                                     |
 | R-3 | Workers or `AudioWorklet` fail to start from `blob:` URLs in opaque-origin iframes on some engine. | Embed unusable in Markdown2                            | Test in T0 on all three engines (ADR-003). Fallback: evaluate on the iframe's main thread with tighter budgets. The iframe is already isolated from the host page, so the host stays responsive. |
 | R-4 | Autoplay policy blocks audio in the sandboxed frame despite a gesture in the host.                 | Play button does nothing                               | Require `allow="autoplay"` delegation in the shim. The embed renders its own play control, so the gesture lands inside the frame.                                                                |

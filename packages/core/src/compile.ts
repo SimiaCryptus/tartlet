@@ -22,7 +22,7 @@ import type {
   Provenance,
 } from '@tartlet/ir';
 import { DEFAULT_LIMITS } from '@tartlet/ir';
-import { degreeToMidi, noteToMidi, parseScale } from '@tartlet/registry';
+import { VOCAL_SOUNDS, degreeToMidi, noteToMidi, parseScale } from '@tartlet/registry';
 import { draw, hash64, rootSeed } from '@tartlet/random';
 import {
   appLeft,
@@ -36,6 +36,9 @@ import {
   fastcat,
   fmap,
   late,
+  iter,
+  palindrome,
+  pattern,
   ply,
   pure,
   rev,
@@ -102,6 +105,27 @@ const SIGNALS = new Map<string, (t: Rational, st: QueryState, salt: string) => n
   ['square', (t) => (frac(t) < 0.5 ? 0 : 1)],
   ['rand', (t, st, salt) => draw(st.seed, salt, 'rand', ratStr(t))],
 ]);
+const VOCAL_SET: ReadonlySet<string> = new Set(VOCAL_SOUNDS);
+/**
+ * Adds `vseed`, a counter-based draw in [0, 1), to vocal events (TS-44). The audio adapter
+ * derives every micro-variation from it, so it never rolls its own dice. The draw is keyed by
+ * the output, the whole's start, the note and the sound, so fragments agree.
+ */
+function withVoiceSeed(pat: Pattern<ControlMap>, id: string): Pattern<ControlMap> {
+  return pattern((st) =>
+    pat.query(st).map((ev) => {
+      const v = ev.value;
+      const s = typeof v.s === 'string' ? v.s : '';
+      if (!VOCAL_SET.has(s) && typeof v.syl !== 'string') return ev;
+      const note = v.note as { value?: unknown } | undefined;
+      const pitch = typeof note?.value === 'number' ? String(note.value) : '';
+      const out = dict();
+      Object.assign(out, v);
+      out.vseed = draw(st.seed, id, 'vseed', ratStr((ev.whole ?? ev.part).begin), pitch, s);
+      return { ...ev, value: out };
+    }),
+  );
+}
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !isRational(v);
@@ -305,6 +329,15 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
         if (n === null || f?.kind !== 'function') return target;
         return every(Math.floor(n), (p) => applyFn(f.fn, p, env, fid), target);
       }
+      case 'iter':
+      case 'iterBack': {
+        // TS-39: n is a constant, like every (TS-20).
+        const n = constNum(a);
+        if (n === null) return target;
+        return iter(Math.floor(n), target, fn === 'iterBack');
+      }
+      case 'palindrome':
+        return palindrome(target);
       case 'off': {
         // TS-37: provisional until the oracle spec for off lands.
         const f = args[1];
@@ -380,7 +413,7 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
   const ranges = new Map<string, PatternNode['range']>();
   for (const o of program.outputs) {
     if (o.status !== 'ok') continue;
-    outputs.set(o.id, node(o.expr, NO_ENV) as Pattern<ControlMap>);
+    outputs.set(o.id, withVoiceSeed(node(o.expr, NO_ENV) as Pattern<ControlMap>, o.id));
     labels.set(o.id, o.label ?? o.id);
     ranges.set(o.id, o.expr.range);
   }

@@ -102,3 +102,114 @@ TS-1 to TS-10 are seeded from plan.md §13 and still open. The T0 status of each
 - **TS-38: general kit size.** The initial kit has 11 synthesized drums plus 4 oscillators.
   Names outside the kit fall back by alias and keyword. Growth toward about 100 sounds
   waits for corpus frequency data.
+
+## Found while completing L2
+
+- **TS-39: `iter`, `iterBack` and `palindrome`.** X-22 says only "rotating start per cycle".
+  `iter(n)` plays cycle c shifted earlier by (c mod n)/n. `iterBack(n)` shifts it later by
+  the same amount. `palindrome()` plays odd cycles mirrored with `rev`. Each cycle mirrors its
+  own cycle, so cycles are not reindexed as they are in alternation (TS-14). `n` must be a
+  constant integer, as with `every` (TS-20). Values above 1024, or below 1, leave the pattern
+  unchanged. This needs an oracle spec.
+
+## Found while adding headphone features
+
+- **TS-40: binaural and spatial controls.** These are Tartlet extensions (idea.md §7.4); no
+  matrix row covers them. `binaural(hz)` makes an oscillator voice play `freq − hz/2` in the
+  left ear and `freq + hz/2` in the right. Such voices bypass `pan` and HRTF placement, because
+  both would blur the two-tone image the beat depends on. On drums, `binaural` has no audible
+  effect. Any of `azimuth`, `elevation` or `distance` selects an HRTF panner with an inverse
+  distance model: reference distance 1, no boost closer than that, and a maximum of 50.
+  Azimuth 0 is straight ahead and 90 is to the right. The master safety chain keeps the stereo
+  image, since its limiter applies one shared gain to both channels.
+
+## Found while implementing Tier 0 and Tier 1 extensions
+
+- **TS-41: making the carried controls audible.** These are audio-adapter interpretations;
+  the IR keeps the authored values.
+  - `decay` and `sustain` complete an ADSR amplitude envelope on oscillator and noise voices.
+    `sustain` defaults to 1, so `decay` alone changes nothing. The synthesized drums keep
+    their own envelopes.
+  - `hcutoff` is a high-pass filter (Q 0.7) after the low-pass.
+  - `speed` applies to the synthesized kit only. Its magnitude, clamped to [1/8, 8], scales
+    pitch and divides decay times. Negative values do not reverse anything yet.
+  - `shape` is a gain-compensated tanh waveshaper. `crush` is a stepped waveshaper curve with
+    1–16 bits. Curves are interpolated, so high bit depths are approximate.
+  - `vowel` is three parallel band-pass formants for `a e i o u`. Other strings are ignored.
+  - `room` is a send level to a convolution reverb shared per `orbit` (0–15). `size` in [0, 1]
+    picks the impulse length, 0.4 s to 4.4 s in steps of 0.4 s. The impulse is seeded decaying
+    noise, identical everywhere. At most 8 reverb buses exist.
+  - `delay` is a send level to a feedback delay shared per `orbit`. `delaytime` is in seconds
+    (0.01–2, default 0.25), and `delayfeedback` defaults to 0.5 and is clamped to 0.95. The
+    latest event on an orbit sets the bus parameters at its onset. Stopping cuts feedback.
+  - Every bus feeds the master bus ahead of the safety chain.
+- **TS-42: synthesis building blocks.** Tartlet extensions where no matrix row exists.
+  - `white`, `pink` and `brown` are kit sounds of kind `noise`: unpitched, with the ADSR
+    envelope. Their buffers are generated from fixed seeds.
+  - `lpenv` is in octaves. `lpattack`, `lpdecay`, `lpsustain` and `lprelease` shape it;
+    `lprelease` defaults to `release`. `lpenv` without `cutoff` starts from 300 Hz.
+  - `penv` is in semitones and settles linearly in cents over `pdecay` (default 0.1 s).
+  - `vib` and `trem` are rates in hertz. `vibdepth` is in semitones (default 0.2) and
+    `tremdepth` in [0, 1] (default 0.5). Each note starts its own LFO at phase zero.
+  - `fm` is the modulation index and `fmh` the modulator ratio (default 1), with a sine
+    modulator.
+  - `pw` applies to `square` only, clamped to [0.01, 0.99]. One half is a plain square.
+  - `unison` stacks 1–8 copies spread evenly over `detune` cents in total (default 12), each
+    at level 1/√n.
+  - `timbre` names a fixed harmonic table: `organ`, `hollow`, `bright`, `soft`, `reed` or
+    `glass`. It overrides the waveform and `pw`. Unknown names are ignored.
+  - `mono` is a line number, 0–64. A new note on a line fades out the previous one within
+    10 ms, so on drums it acts as a choke group. `glide` slides from the previous pitch on the
+    same line and has no effect without `mono` or after an unpitched note. Line state lives in
+    the audio adapter, so the core stays pure. The scheduler therefore dispatches onsets in
+    time order. Lines survive recompiles while playing and reset on stop.
+  - Polyphony is budgeted by cost: each running oscillator or buffer source costs one, with
+    64 in total. The oldest voices are stolen first.
+  - `vibrato`, `tremolo` and `portamento` are compatibility aliases, and `fmi` is an alias
+    of `fm`.
+
+## Found while implementing vocals (docs/vocals.md)
+
+- **TS-43: vocal sounds and formants.** Tartlet extensions; no matrix row covers them.
+  - `voice`, `aah`, `ooh`, `hum`, `whisper` and `choir` are kit sounds of kind `voice`, built
+    from native nodes, not a worklet. The glottal source is a periodic wave whose harmonic n
+    has amplitude n^-(2 − effort). `effort` defaults to `velocity`, or 0.6.
+  - Breath is pink noise through the formants. The default is 0.08 (`hum` 0.03), plus up to
+    0.12 as effort falls. `whisper` is breath only.
+  - Voices default to vibrato at 5.2 Hz, 0.15 semitones, fading in after `vibdel` (0.25 s).
+    `hum` and `whisper` have none.
+  - `jitter` and `shimmer` default to 0.1. They read one of four fixed-seed brown-noise beds,
+    chosen by `vseed`.
+  - `choir` defaults to `unison` 5, `detune` 14 cents, `scatter` 0.025 s and `width` 0.6.
+    Each voice has its own vibrato rate and phase. The registry range of `unison` is now 1–16;
+    oscillators still clamp to 8.
+  - Formants: five resonances per vowel. F1–F3 come from adult averages, scaled by voice type
+    (bass 0.9, tenor 1, alto 1.12, soprano 1.22, child 1.35). F4 and F5 are set per type, and
+    the default type is tenor. `formant` shifts all five. `hum` uses a nasal bank.
+  - Unknown vowels are sung as `ah`, also for `vowel` on oscillators. Oscillators now get five
+    formants instead of three.
+- **TS-44: `vseed`.** Core adds `vseed` to events whose `s` is a vocal sound or that carry
+  `syl`. It is a draw keyed by (scope seed, output id, `whole.begin`, note, `s`). It is added at
+  the output level, so an inner `.seed()` does not change it.
+- **TS-45: the singing alphabet.**
+  - Vowels are `a e i o u ae ah aw eh er ih oh oo uh`. `ee ou ue ai oa` are read as `i oo oo e
+oh`.
+  - Consonants are `p t k b d g f s sh h v z th m n ng l r w y`.
+  - A syllable has at most two onset and two coda consonants, at most 16 characters, with
+    longest-match tokenisation. `_` joins vowels inside a syllable (`mi_a_u`); they are glided
+    evenly across the note.
+  - A lone `_` holds the previous vowel of the mono line, or the default vowel.
+  - Consonants sound only on vocal sounds. On other sounds `syl` drives the formants only.
+- **TS-46: consonant timing.**
+  - The audio adapter, not the scheduler, starts onset consonants before the onset, in
+    seconds. The lead is capped at 60 ms and by how early the event arrived.
+  - When the lead is shortened, the consonants are compressed, at most to a quarter, and may
+    overlap the vowel.
+  - `l r w y` add no lead: they are formant transitions starting at the beat.
+  - Coda consonants are placed at the end of the note.
+- **TS-47: colour controls and deferrals.**
+  - `talk` defaults to 1 when a vowel or syllable is given on a non-voice sound.
+  - `overtone` is a peaking filter (Q 40, +20 dB) at harmonic 4–16 of the note.
+  - `ring` is a peaking filter at 2.8 kHz, scaled by voice type, with up to +10 dB.
+  - Deferred: recorded voice banks (V5), the vocoder, `W-ARG-UNSUPPORTED`, `W-RES-HEAVY`,
+    `I-RES-CONSENT` and `I-RES-MODEL`.

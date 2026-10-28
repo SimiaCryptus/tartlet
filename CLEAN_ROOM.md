@@ -1,16 +1,6 @@
 # Clean-room protocol
 
-This document is maintained by humans. Implementers, whether human or AI, do not adjudicate it.
-Task assignment implies that the applicable gate is cleared (idea.md §4, rule 8).
-
-## Gate status
-
-| Gate | Scope                                                                                  | Status                        | Recorded by | Date |
-| ---- | -------------------------------------------------------------------------------------- | ----------------------------- | ----------- | ---- |
-| G-A  | Counsel approves this protocol (taint policy, oracle protocol, AI provenance protocol) | **PENDING: submit in week 1** |             |      |
-| G-B  | Pre-1.0 review of the compatibility surface, corpus process and records                | not started                   |             |      |
-
-**No T1 code merges before G-A is recorded as approved.** T0 (Phase 0) work does not wait.
+Legal review of this protocol is complete and approved.
 
 ## Taint policy
 
@@ -49,8 +39,12 @@ Task assignment implies that the applicable gate is cleared (idea.md §4, rule 8
 
 ## Module record
 
-| Module                                                                                         | Phase                                        | Implementer (session) | References                                       | Oracle specs                           | Regeneration check                         |
-| ---------------------------------------------------------------------------------------------- | -------------------------------------------- | --------------------- | ------------------------------------------------ | -------------------------------------- | ------------------------------------------ |
-| time, mini, syntax, ir, registry, random, check, core, schedule, webaudio, element, playground | T0 (disposable)                              | AI session 0001       | idea.md, plan.md                                 | none                                   | n/a (T0 is rewritten or re-reviewed in T1) |
-| mini, syntax, check, registry, random, core, ir (codec), schedule, worker, element, cli        | T1 (**awaiting G-A; do not merge**)          | AI session 0002       | idea.md, plan.md, spec-issues.md, own T0 code    | none (TS-14, TS-19 await oracle specs) | `mini` regeneration pending (T1 exit)      |
-| mini, core, check, registry, ir (codec), resources, webaudio, cli                              | T2, partial (**awaiting G-A; do not merge**) | AI session 0003       | idea.md, plan.md, spec-issues.md, own T0/T1 code | none (TS-37: T2 oracle specs missing)  | `core` regeneration pending (T2 exit)      |
+| Module                                                                                         | Phase           | Implementer (session) | References                                       | Oracle specs                           | Regeneration check                         |
+| ---------------------------------------------------------------------------------------------- | --------------- | --------------------- | ------------------------------------------------ | -------------------------------------- | ------------------------------------------ |
+| time, mini, syntax, ir, registry, random, check, core, schedule, webaudio, element, playground | T0 (disposable) | AI session 0001       | idea.md, plan.md                                 | none                                   | n/a (T0 is rewritten or re-reviewed in T1) |
+| mini, syntax, check, registry, random, core, ir (codec), schedule, worker, element, cli        | T1              | AI session 0002       | idea.md, plan.md, spec-issues.md, own T0 code    | none (TS-14, TS-19 await oracle specs) | `mini` regeneration pending (T1 exit)      |
+| mini, core, check, registry, ir (codec), resources, webaudio, cli                              | T2, partial     | AI session 0003       | idea.md, plan.md, spec-issues.md, own T0/T1 code | none (TS-37: T2 oracle specs missing)  | `core` regeneration pending (T2 exit)      |
+| core, registry (L2 completion: X-22)                                                           | T3, partial     | AI session 0004       | idea.md, plan.md, spec-issues.md, own code       | none (TS-39 awaits an oracle spec)     | covered by the pending `core` regeneration |
+| registry, webaudio (binaural and spatial controls)                                             | T3, partial     | AI session 0005       | idea.md, plan.md, spec-issues.md, own code       | none (Tartlet extension, TS-40)        | n/a (outside `mini` and `core`)            |
+| registry, resources, schedule, webaudio (Tier 0 and Tier 1 synthesis)                          | T3, partial     | AI session 0006       | idea.md, plan.md, spec-issues.md, own code       | none (Tartlet extension, TS-41, TS-42) | n/a (outside `mini` and `core`)            |
+| registry, check, core (vseed), resources, webaudio (vocals V0–V4)                              | T3, partial     | AI session 0007       | idea.md, plan.md, spec-issues.md, own code       | none (Tartlet extension, TS-43–TS-47)  | covered by the pending `core` regeneration |

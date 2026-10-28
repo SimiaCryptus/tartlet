@@ -1,6 +1,11 @@
 dist/
 coverage/
 reports/
+node_modules/
+terraform/
+.terraform/
+*.tfstate
+*.tfstate.*
 **/fixtures/**
 **/__snapshots__/**
 test/**/*.md

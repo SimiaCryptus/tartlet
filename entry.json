@@ -1,11 +1,11 @@
 {
-    "id": "tartlet",
-    "title": "Tartlet",
-    "category": "tool",
-    "href": "apps/playground/dist/index.html",
-    "readme": "README.md",
-    "section": "tools",
-    "icon": "TT",
-    "launchLabel": "Open Tartlet",
-    "pitch": "Music Composition Tool"
+  "id": "tartlet",
+  "title": "Tartlet",
+  "category": "tool",
+  "href": "apps/playground/dist/index.html",
+  "readme": "README.md",
+  "section": "tools",
+  "icon": "TT",
+  "launchLabel": "Open Tartlet",
+  "pitch": "Music Composition Tool"
 }

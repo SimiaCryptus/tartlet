@@ -19,7 +19,10 @@
     "coverage": "vitest run --coverage",
     "check": "node scripts/check.mjs",
     "fix": "prettier --write . && eslint . --fix",
-    "prepublishOnly": "npm run check"
+    "e2e": "playwright test",
+    "cleanroom:log": "node scripts/log-session.mjs",
+    "corpus:prompts": "node corpus/prompts/generate-prompts.mjs",
+    "prepublishOnly": "pnpm run check"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

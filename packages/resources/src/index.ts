@@ -8,13 +8,17 @@ export type Resolution =
 
 export interface KitEntry {
   readonly name: string;
-  readonly kind: 'drum' | 'oscillator';
+  readonly kind: 'drum' | 'oscillator' | 'noise' | 'voice';
   readonly license: 'Apache-2.0';
   readonly provenance: string;
 }
 
 export const OSCILLATORS: readonly string[] = ['sine', 'square', 'triangle', 'sawtooth'];
-const DRUMS = ['bd', 'sd', 'hh', 'oh', 'cp', 'rim', 'lt', 'mt', 'ht', 'cr', 'rd'];
+export const DRUMS: readonly string[] = ['bd', 'sd', 'hh', 'oh', 'cp', 'rim', 'lt', 'mt', 'ht', 'cr', 'rd'];
+/** Noise sources (TS-42). */
+export const NOISES: readonly string[] = ['white', 'pink', 'brown'];
+/** Vocal model sounds (TS-43). */
+export const VOICES: readonly string[] = ['voice', 'aah', 'ooh', 'hum', 'whisper', 'choir'];
 
 /** License manifest for the general kit. Every sound is procedurally synthesized (TS-38). */
 export const GENERAL_KIT: readonly KitEntry[] = [
@@ -29,6 +33,18 @@ export const GENERAL_KIT: readonly KitEntry[] = [
     kind: 'oscillator',
     license: 'Apache-2.0',
     provenance: 'Web Audio oscillator',
+  })),
+  ...NOISES.map((name): KitEntry => ({
+    name,
+    kind: 'noise',
+    license: 'Apache-2.0',
+    provenance: 'generated deterministically in @tartlet/webaudio',
+  })),
+  ...VOICES.map((name): KitEntry => ({
+    name,
+    kind: 'voice',
+    license: 'Apache-2.0',
+    provenance: 'glottal source and formant filters synthesized in @tartlet/webaudio',
   })),
 ];
 
@@ -83,6 +99,17 @@ const ALIASES = new Map<string, string>([
   ['sin', 'sine'],
   ['sqr', 'square'],
   ['pulse', 'square'],
+  ['noise', 'white'],
+  ['whitenoise', 'white'],
+  ['pinknoise', 'pink'],
+  ['brownnoise', 'brown'],
+  ['hiss', 'white'],
+  ['vox', 'voice'],
+  ['vocal', 'voice'],
+  ['vocals', 'voice'],
+  ['singer', 'voice'],
+  ['chorus', 'choir'],
+  ['whisp', 'whisper'],
 ]);
 
 const HEURISTICS: readonly (readonly [RegExp, string])[] = [
@@ -97,9 +124,15 @@ const HEURISTICS: readonly (readonly [RegExp, string])[] = [
   [/tom/, 'mt'],
   [/perc|wood|block|click/, 'rim'],
   [/piano|keys|rhodes|organ|pluck|bell|marimba|vibe|harp/, 'triangle'],
-  [/bass|pad|string|choir|lead|brass/, 'sawtooth'],
+  [/choir/, 'choir'],
+  [/whisper/, 'whisper'],
+  [/vox|vocal|voice|sing/, 'voice'],
+  [/bass|pad|string|lead|brass/, 'sawtooth'],
   [/sine|sub/, 'sine'],
   [/square|chip/, 'square'],
+  [/pink/, 'pink'],
+  [/brown|rumble/, 'brown'],
+  [/noise|hiss|static/, 'white'],
 ];
 
 export interface SoundCatalog {

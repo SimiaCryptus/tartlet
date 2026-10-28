@@ -11,6 +11,11 @@ describe('resources', () => {
   it('disabling fallback reports missing names', () => {
     expect(createCatalog({ fallback: false }).resolve('808bd').status).toBe('missing');
   });
+  it('noise sources are kit sounds (TS-42)', () => {
+    expect(['white', 'pink', 'brown'].map((n) => resolveSound(n).status)).toEqual(['ok', 'ok', 'ok']);
+    expect(resolveSound('noise')).toEqual({ status: 'fallback', name: 'noise', to: 'white' });
+    expect(GENERAL_KIT.filter((k) => k.kind === 'noise').map((k) => k.name)).toEqual(['white', 'pink', 'brown']);
+  });
   it('every kit asset carries a license and provenance', () => {
     for (const k of GENERAL_KIT) {
       expect(k.license).toBe('Apache-2.0');

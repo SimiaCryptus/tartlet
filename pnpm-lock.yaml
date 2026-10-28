@@ -216,6 +216,9 @@ importers:
       '@tartlet/ir':
         specifier: workspace:*
         version: link:../ir
+      '@tartlet/registry':
+        specifier: workspace:*
+        version: link:../registry
       '@tartlet/resources':
         specifier: workspace:*
         version: link:../resources

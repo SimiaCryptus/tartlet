@@ -90,12 +90,16 @@ export class Scheduler<T> {
       .then(
         (events) => {
           if (gen !== this.generation) return;
+          // Onsets are dispatched in time order, which mono lines rely on (TS-42).
+          const due: [Event<T>, number, number][] = [];
           for (const ev of events) {
             if (!ev.whole || !eq(ev.part.begin, ev.whole.begin)) continue; // onsets only
             const time = cycleToTime(clock, ev.whole.begin);
             const duration = toNumber(sub(ev.whole.end, ev.whole.begin)) / toNumber(clock.cps);
-            this.opts.onEvent(ev, time, duration);
+            due.push([ev, time, duration]);
           }
+          due.sort((a, b) => a[1] - b[1]);
+          for (const [ev, time, duration] of due) this.opts.onEvent(ev, time, duration);
         },
         (e: unknown) => this.opts.onError?.(e),
       )

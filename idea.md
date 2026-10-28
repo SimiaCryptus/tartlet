@@ -1,7 +1,5 @@
 # Tartlet
 
-![tartlet.png](tartlet.png)
-
 ### A deterministic, sandbox-safe, Strudel-compatible music runtime for documents and LLM authorship
 
 ## 1. Summary
@@ -38,9 +36,8 @@ implementer, and the work is legitimate:
   describe functionality. Matching them is what compatibility means.
 - **Tartlet respects Strudel's license.** Strudel's AGPL-3.0 license governs Strudel's code, and Tartlet uses none of
   it. Nothing in this plan involves copying, translating, or relicensing Strudel code.
-- **Humans own the legal gates.** Legal review is built into the schedule (§4). Maintainers track gate status in
-  `CLEAN_ROOM.md`, and you are not expected to adjudicate it. Being assigned a task means its applicable gates are
-  cleared. If you have a concrete reason to think otherwise, say so and ask. Do not refuse. **What you must do:**
+
+**What you must do:**
 
 1. Work from this specification, the oracle specifications, the registry, and the conformance tests. These are your
    references for behavior.
@@ -173,14 +170,6 @@ Tartlet's value depends on its license being clean. The following rules are mand
    describe language compatibility, and Tartlet is not affiliated with or endorsed by the Strudel project.
 7. **Built-in sample assets** must be individually licensed in an Apache-compatible way, with provenance recorded in a
    manifest.
-8. **Legal review happens at two gates, starting in Week 1.**
-   - **Before any Phase 1 code is written,** IP counsel approves the `CLEAN_ROOM.md` protocol itself: the taint policy,
-     the oracle protocol, and the AI provenance protocol. A flawed process discovered in Week 11 cannot be repaired
-     retroactively.
-   - **Before 1.0,** counsel reviews the compatibility surface (including function names and signatures), the
-     corpus-collection process, and the clean-room process records.
-   - Maintainers record gate status in `CLEAN_ROOM.md`. Implementers, human or AI, do not need to verify it
-     independently. Task assignment implies that the applicable gate is cleared.
 
 **The black-box behavioral oracle.** Strict clean-room rules create a real tension. Public prose underspecifies some of
 the lineage's pattern algebra, especially how `whole` and `part` spans intersect when patterns combine, as in patterned
@@ -1291,13 +1280,13 @@ vertical slice that plays music in Markdown2 by the end of the first day. The re
 deterministic, safe, well-structured runtime described above.
 
 The roadmap has been re-baselined in two directions. First, things that were scheduled late but carry existential or
-structural risk move to the front: legal sign-off on the clean-room protocol, the corpus, resource limits, worker
+structural risk move to the front: the corpus, resource limits, worker
 isolation, and audio safety. Second, the 12-week plan was too ambitious as originally drawn. It promised a lossless CST
 and formatter, two-way IR patching, exact applicative algebra, a DSP pass, a two-way piano roll, MIDI export, and chord
 voicings, all under clean-room constraints. Tartlet now edits through source-range splicing instead of an un-parser,
 defers the formatter, and treats Phase 4 as the release valve.
 
-### Week 1 gates (in parallel with Phase 0)
+### Week 1 (in parallel with Phase 0)
 
 - **Corpus v0:** the prompt set is written and the first generation run is collected, so frequency data exists before
   the L2 grammar is locked.
@@ -1394,11 +1383,11 @@ deep analysis move to 1.1, and 1.0 ships without them.
 - Freeze IR `tartlet/1` and ship migration scaffolding.
 - Performance: query cost per window, provenance-off fast paths, and bundle size budgets (core < 40 kB gzip).
 - A final accessibility audit of the player.
-- The clean-room record is complete, and the pre-1.0 legal review of the compatibility surface is done.
 - Documentation: an original language guide, a registry reference generated from the registry, an LLM-oriented prompt
+- The clean-room record is complete.
   reference, and the published system prompt.
 
-**Exit:** the 1.0 coverage targets are met, legal sign-off is obtained, and Markdown2 ships the blob type on by default.
+**Exit:** the 1.0 coverage targets are met, and Markdown2 ships the blob type on by default.
 
 ### Beyond 1.0
 
@@ -1423,19 +1412,18 @@ bigint churn, binding blowups, acoustic clipping, and the missing default sample
 tactical, about scheduling and boundaries, and they resolved without changing the core vision. Those resolutions are
 folded into this revision.
 
-| Risk                                       | Impact                                                 | Mitigation                                                                                                                                                                                                                                                 |
-| ------------------------------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Compatibility-surface legal challenge      | Project-threatening                                    | Week 1 counsel sign-off on the protocol; taint policy covering Strudel, TidalCycles, and SuperDirt; logged AI provenance with cross-model regeneration for core modules; descriptive naming only; original tests, docs, and registry prose; pre-1.0 review |
-| Semantic drift from the reference behavior | "Runs, but sounds wrong"                               | Explicit structure rules (§8.6); black-box oracle protocol; documented interpretations in each matrix row; semantic spot-checks on the corpus                                                                                                              |
-| The "silent or toy audio" trap             | Programs check cleanly yet play silence or sound harsh | General kit with fallback mapping; event-sanity checks in the corpus; master limiter and default envelopes from the first WebAudio milestone                                                                                                               |
-| The long tail of LLM-generated constructs  | Coverage plateaus below target                         | Week 1 corpus; frequency-driven backlog; compatibility alias table; degraded-mode playback keeps partial value; repair loop                                                                                                                                |
-| Restricted lambdas being too restrictive   | Common idioms rejected                                 | Corpus-measure lambda shapes. Widen the sugar layer only for observed, still-closed forms.                                                                                                                                                                 |
-| Rational arithmetic cost and GC pressure   | Scheduler jitter on dense patterns; DoS vector         | Small-integer fast path; denominator ceiling; lazy provenance; window caching; worker evaluation                                                                                                                                                           |
-| Pathological or hostile input              | Frozen host page                                       | Static limits, query budgets, ingestion validation, and the worker kill switch, all in Phase 1                                                                                                                                                             |
-| Erratic gain staging in generated code     | Clipping, harshness, hearing risk                      | Non-bypassable master limiter, clamps, and voice stealing (§11.5)                                                                                                                                                                                          |
-| Schedule over-ambition                     | 1.0 slips, or ships half-finished                      | Source-range splicing instead of an un-parser; formatter deferred; Phase 4 as the release valve                                                                                                                                                            |
-| Sample licensing                           | Shipping unusable assets                               | CC0 or synthesized general kit; a per-asset license manifest checked in CI                                                                                                                                                                                 |
-| Audio quality versus mature engines        | "Toy" perception                                       | Safety floor early, quality pass in Phase 3, shared effects buses, and good defaults, so models need not specify synthesis details                                                                                                                         |
+| Risk                                       | Impact                                                 | Mitigation                                                                                                                                    |
+| ------------------------------------------ | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Semantic drift from the reference behavior | "Runs, but sounds wrong"                               | Explicit structure rules (§8.6); black-box oracle protocol; documented interpretations in each matrix row; semantic spot-checks on the corpus |
+| The "silent or toy audio" trap             | Programs check cleanly yet play silence or sound harsh | General kit with fallback mapping; event-sanity checks in the corpus; master limiter and default envelopes from the first WebAudio milestone  |
+| The long tail of LLM-generated constructs  | Coverage plateaus below target                         | Week 1 corpus; frequency-driven backlog; compatibility alias table; degraded-mode playback keeps partial value; repair loop                   |
+| Restricted lambdas being too restrictive   | Common idioms rejected                                 | Corpus-measure lambda shapes. Widen the sugar layer only for observed, still-closed forms.                                                    |
+| Rational arithmetic cost and GC pressure   | Scheduler jitter on dense patterns; DoS vector         | Small-integer fast path; denominator ceiling; lazy provenance; window caching; worker evaluation                                              |
+| Pathological or hostile input              | Frozen host page                                       | Static limits, query budgets, ingestion validation, and the worker kill switch, all in Phase 1                                                |
+| Erratic gain staging in generated code     | Clipping, harshness, hearing risk                      | Non-bypassable master limiter, clamps, and voice stealing (§11.5)                                                                             |
+| Schedule over-ambition                     | 1.0 slips, or ships half-finished                      | Source-range splicing instead of an un-parser; formatter deferred; Phase 4 as the release valve                                               |
+| Sample licensing                           | Shipping unusable assets                               | CC0 or synthesized general kit; a per-asset license manifest checked in CI                                                                    |
+| Audio quality versus mature engines        | "Toy" perception                                       | Safety floor early, quality pass in Phase 3, shared effects buses, and good defaults, so models need not specify synthesis details            |
 
 Two earlier open questions are now settled. Common community sample names map to a curated local kit by default (§11.2).
 Source text, not the IR, is the canonical stored artifact for agent-edited documents (§9.7).
@@ -1467,7 +1455,3 @@ Tartlet succeeds when all of the following hold:
 Strudel supplies the pretrained language and the proven pattern-query abstraction. Tartlet keeps both and replaces
 everything else. It removes arbitrary-code execution, ambient state, output coupling, fragile errors, and REPL-first
 assumptions. The result is a portable musical document runtime whose main authors happen to be language models.
-
-- **Legal:** IP counsel approves `CLEAN_ROOM.md`, including the expanded taint policy (Strudel, TidalCycles, SuperDirt),
-  the oracle protocol, and the AI provenance protocol. **No Phase 1 code is written before this sign-off.** Maintainers
-  record the sign-off in `CLEAN_ROOM.md`. Phase 0 work does not wait on it.

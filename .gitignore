@@ -3,3 +3,4 @@ dist
 corpus/adapters.local.mjs
 test-results
 playwright-report
+coverage/

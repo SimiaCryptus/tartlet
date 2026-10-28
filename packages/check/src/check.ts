@@ -33,7 +33,17 @@ import type {
   PatternType,
 } from '@tartlet/ir';
 import { DEFAULT_LIMITS } from '@tartlet/ir';
-import { defaultRegistry, parseScale, type ParamSpec, type Registry, type RegistryEntry } from '@tartlet/registry';
+import {
+  VOICE_TYPES,
+  defaultRegistry,
+  normalizeVowel,
+  parseScale,
+  parseSyllable,
+  suggestSyllable,
+  type ParamSpec,
+  type Registry,
+  type RegistryEntry,
+} from '@tartlet/registry';
 import { hash64 } from '@tartlet/random';
 /** The result of looking up a sound name. @tartlet/resources implements this structurally. */
 export type SoundResolution =
@@ -63,6 +73,9 @@ const ERR: PatternType = { kind: 'error' };
 const SAMPLE_IDS: ReadonlySet<string> = new Set(['s']);
 const SCALE_OK: ReadonlySet<string> = new Set(['n', 'note', 'freq']);
 const PITCH_OK: ReadonlySet<string> = new Set(['note', 'freq']);
+/** String controls whose atoms are checked against closed sets (TS-45). */
+const VOCAL_STRINGS: ReadonlySet<string> = new Set(['syl', 'vowel', 'voicetype']);
+const VOICE_TYPE_SET: ReadonlySet<string> = new Set(VOICE_TYPES);
 
 /** Host APIs that a document can never reach (idea.md §7.3, Z-02). */
 export const HOST_NAMES: ReadonlySet<string> = new Set([
@@ -133,6 +146,27 @@ function chainLabel(e: Expr): string | undefined {
   }
   return undefined;
 }
+/** Every atom in a mini-notation AST. */
+function miniAtoms(a: MiniAst, out: { text: string; range: readonly [number, number] }[]): void {
+  switch (a.t) {
+    case 'atom':
+      out.push(a);
+      return;
+    case 'rest':
+      return;
+    case 'seq':
+      for (const s of a.steps) miniAtoms(s.body, out);
+      return;
+    case 'stack':
+    case 'poly':
+      for (const l of a.layers) miniAtoms(l, out);
+      return;
+    case 'alt':
+    case 'choice':
+      for (const i of a.items) miniAtoms(i, out);
+      return;
+  }
+}
 
 export function check(source: string, opts: CheckOptions): CheckResult {
   const limits = { ...DEFAULT_LIMITS, ...opts.limits };
@@ -162,6 +196,7 @@ export function check(source: string, opts: CheckOptions): CheckResult {
 
   const lw = new Lowerer(opts.registry ?? defaultRegistry, sr, diagnostics, limits);
   lw.run(tree);
+  lw.checkVocal();
   if (opts.catalog) lw.checkResources(opts.catalog);
 
   if (!lw.outputs.some((o) => o.status === 'ok') && diagnostics.some((d) => d.severity === 'error')) {
@@ -369,6 +404,75 @@ class Lowerer {
     for (const o of this.outputs) {
       this.outputLabel = o.label;
       walk(o.expr, false);
+    }
+    this.outputLabel = undefined;
+  }
+  /** Syllables, vowels and voice types in constant patterns (W-ARG-PHONEME, W-ARG-VOWEL; TS-45). */
+  checkVocal(): void {
+    const seen = new Set<number>();
+    const inspect = (control: string, n: PatternNode): void => {
+      if (n.kind !== 'mini' || !VOCAL_STRINGS.has(control)) return;
+      const found: { text: string; range: readonly [number, number] }[] = [];
+      miniAtoms(n.ast, found);
+      for (const a of found) {
+        const start = n.textOffset + a.range[0];
+        if (seen.has(start)) continue;
+        seen.add(start);
+        const range = { start, end: n.textOffset + a.range[1] };
+        if (control === 'syl') {
+          if (parseSyllable(a.text) !== null) continue;
+          const fix = suggestSyllable(a.text);
+          this.diag(
+            'W-ARG-PHONEME',
+            'warning',
+            `\`${a.text}\` is not a syllable in the singing alphabet, so it is sung as \`ah\`.`,
+            range,
+            'none',
+            fix === undefined
+              ? undefined
+              : [{ title: `Replace with \`${fix}\``, edits: [{ range: this.sr(range), text: fix }], safe: false }],
+          );
+        } else if (control === 'vowel') {
+          if (normalizeVowel(a.text) === undefined)
+            this.diag('W-ARG-VOWEL', 'warning', `Unknown vowel \`${a.text}\`; \`ah\` is used.`, range, 'none');
+        } else if (!VOICE_TYPE_SET.has(a.text.toLowerCase())) {
+          this.diag('W-ARG-VOWEL', 'warning', `Unknown voice type \`${a.text}\`; \`tenor\` is used.`, range, 'none');
+        }
+      }
+    };
+    const walkArg = (a: Arg): void => {
+      if (a.kind === 'pattern') walk(a.node);
+      else if (a.kind === 'function') {
+        if (a.fn.kind === 'lambda') walk(a.fn.body);
+        else a.fn.args.forEach(walkArg);
+      }
+    };
+    const walk = (n: PatternNode): void => {
+      switch (n.kind) {
+        case 'control':
+          if (n.target) walk(n.target);
+          if (n.value.kind === 'pattern') inspect(n.control, n.value.node);
+          walkArg(n.value);
+          return;
+        case 'transform':
+          walk(n.target);
+          n.args.forEach(walkArg);
+          return;
+        case 'combine':
+          n.children.forEach(walk);
+          return;
+        case 'error':
+          if (n.recovered) walk(n.recovered);
+          return;
+        default:
+          return;
+      }
+    };
+    this.outputLabel = undefined;
+    for (const b of this.bindings) walk(b.expr);
+    for (const o of this.outputs) {
+      this.outputLabel = o.label;
+      walk(o.expr);
     }
     this.outputLabel = undefined;
   }
@@ -878,7 +982,14 @@ class Lowerer {
       return { kind: 'const', value: { t: 'num', v } };
     }
     if (e.k === 'str') {
-      if (!p.patternable) return { kind: 'const', value: { t: 'str', v: e.value } };
+      if (!p.patternable) {
+        // A string cannot stand in for a constant number, e.g. `.iter("<1 2>")` (TS-20, TS-39).
+        if (p.type === 'number') {
+          this.diag('E-ARG-TYPE', 'error', `\`${p.name}\` must be a constant number.`, e.range, 'subtree-muted');
+          return null;
+        }
+        return { kind: 'const', value: { t: 'str', v: e.value } };
+      }
       const kind =
         p.type === 'note' || p.type === 'sample' || p.type === 'number' || p.type === 'string' ? p.type : 'string';
       return { kind: 'pattern', node: this.mini(e, kind, hash64(anchor, 'mini')) };

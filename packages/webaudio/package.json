@@ -10,6 +10,7 @@
     "@tartlet/schedule": "workspace:*",
     "@tartlet/time": "workspace:*",
     "@tartlet/ir": "workspace:*",
+    "@tartlet/registry": "workspace:*",
     "@tartlet/resources": "workspace:*"
   }
 }

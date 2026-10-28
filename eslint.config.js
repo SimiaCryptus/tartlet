@@ -50,7 +50,20 @@ const deps = (pkg, allowed) => ({
 });
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', 'corpus/**', '**/*.js', '**/*.mjs'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      'corpus/**',
+      'coverage/**',
+      'reports/**',
+      'terraform/**',
+      '~/**',
+      '**/*.js',
+      '**/*.mjs',
+      '**/*.cjs',
+    ],
+  },
   ...tseslint.configs.strictTypeChecked,
   { languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname } } },
   {
@@ -109,6 +122,6 @@ export default tseslint.config(
   deps('core', ['time', 'mini', 'ir', 'registry', 'random']),
   deps('resources', ['ir']),
   deps('schedule', ['core', 'time']),
-  deps('webaudio', ['schedule', 'time', 'ir', 'resources']),
+  deps('webaudio', ['schedule', 'time', 'ir', 'resources', 'registry']),
   deps('worker', ['check', 'core', 'ir', 'time']),
 );

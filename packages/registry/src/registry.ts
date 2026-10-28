@@ -36,13 +36,17 @@ export interface Lookup {
 const SINCE = '0.0.0';
 const SINCE_T1 = '0.1.0';
 const SINCE_T2 = '0.2.0';
+const SINCE_T3 = '0.3.0';
+const SINCE_T4 = '0.4.0';
 
 function control(
   id: string,
   names: readonly string[],
   kind: ValueKind,
   description: string,
-  extra: { compat?: readonly string[]; range?: readonly [number, number] } = Object.create(null) as object,
+  extra: { compat?: readonly string[]; range?: readonly [number, number]; since?: string } = Object.create(
+    null,
+  ) as object,
 ): RegistryEntry {
   return {
     id,
@@ -53,7 +57,7 @@ function control(
     returns: { kind: 'pattern', of: 'controls' },
     level: 'L2',
     deterministic: 'pure',
-    since: SINCE,
+    since: extra.since ?? SINCE,
     description,
     category: 'control',
   };
@@ -99,6 +103,9 @@ function t2(
   deterministic: 'pure' | 'seeded' = 'pure',
 ): RegistryEntry {
   return { ...transform(id, names, params, description, deterministic), since: SINCE_T2 };
+}
+function t3(id: string, names: readonly string[], params: readonly ParamSpec[], description: string): RegistryEntry {
+  return { ...transform(id, names, params, description), since: SINCE_T3 };
 }
 function signalEntry(id: string, description: string): RegistryEntry {
   return {
@@ -146,8 +153,204 @@ export const ENTRIES: readonly RegistryEntry[] = [
   }),
   control('shape', ['shape'], 'number', 'Waveshaping distortion amount.', { range: [0, 1] }),
   control('crush', ['crush'], 'number', 'Bit-depth reduction.', { range: [1, 16] }),
-  control('vowel', ['vowel'], 'string', 'Formant filter vowel.'),
+  control(
+    'vowel',
+    ['vowel'],
+    'string',
+    'Formant filter vowel: a e i o u, or ae ah aw eh er ih oh oo uh. Unknown vowels are sung as ah.',
+  ),
   control('orbit', ['orbit'], 'number', 'Effects bus number.'),
+  // Headphone extensions (TS-40).
+  control(
+    'binaural',
+    ['binaural'],
+    'number',
+    'Beat rate in hertz for headphones: the left ear hears the pitch lowered by half this amount, the right ear raised by half.',
+    { range: [0, 40], since: SINCE_T3 },
+  ),
+  control(
+    'azimuth',
+    ['azimuth'],
+    'number',
+    'Direction around the listener in degrees: zero is straight ahead, 90 is to the right and -90 to the left.',
+    { range: [-180, 180], since: SINCE_T3 },
+  ),
+  control('elevation', ['elevation'], 'number', 'Height above or below the listener in degrees.', {
+    range: [-90, 90],
+    since: SINCE_T3,
+  }),
+  control(
+    'distance',
+    ['distance'],
+    'number',
+    'How far the sound is from the listener. One is the reference distance; farther sounds are quieter.',
+    { range: [0.5, 50], since: SINCE_T3 },
+  ),
+  // Synthesis extensions (TS-42).
+  control(
+    'lpenv',
+    ['lpenv'],
+    'number',
+    'How far the filter envelope moves the low-pass cutoff, in octaves. Negative values sweep downwards.',
+    { range: [-8, 8], since: SINCE_T3 },
+  ),
+  control('lpattack', ['lpattack'], 'number', 'Seconds for the filter envelope to reach its peak.', {
+    range: [0, 10],
+    since: SINCE_T3,
+  }),
+  control('lpdecay', ['lpdecay'], 'number', 'Seconds for the filter envelope to fall to its held level.', {
+    range: [0, 10],
+    since: SINCE_T3,
+  }),
+  control('lpsustain', ['lpsustain'], 'number', 'Held level of the filter envelope, from zero to one.', {
+    range: [0, 1],
+    since: SINCE_T3,
+  }),
+  control('lprelease', ['lprelease'], 'number', 'Seconds for the filter envelope to settle after the note ends.', {
+    range: [0, 10],
+    since: SINCE_T3,
+  }),
+  control(
+    'penv',
+    ['penv'],
+    'number',
+    'Starting pitch offset in semitones; the pitch then settles back onto the note.',
+    { range: [-48, 48], since: SINCE_T3 },
+  ),
+  control('pdecay', ['pdecay'], 'number', 'Seconds for the pitch offset to settle.', {
+    range: [0, 5],
+    since: SINCE_T3,
+  }),
+  control('vib', ['vib'], 'number', 'Vibrato rate in hertz.', {
+    compat: ['vibrato'],
+    range: [0, 30],
+    since: SINCE_T3,
+  }),
+  control('vibdepth', ['vibdepth'], 'number', 'Vibrato depth in semitones.', { range: [0, 12], since: SINCE_T3 }),
+  control('trem', ['trem'], 'number', 'Tremolo rate in hertz.', {
+    compat: ['tremolo'],
+    range: [0, 30],
+    since: SINCE_T3,
+  }),
+  control('tremdepth', ['tremdepth'], 'number', 'Tremolo depth, from zero for none to one for full.', {
+    range: [0, 1],
+    since: SINCE_T3,
+  }),
+  control('fm', ['fm', 'fmi'], 'number', 'Frequency-modulation index: how strongly a sine modulator bends the pitch.', {
+    range: [0, 50],
+    since: SINCE_T3,
+  }),
+  control('fmh', ['fmh'], 'number', 'Modulator frequency as a multiple of the note frequency.', {
+    range: [0, 16],
+    since: SINCE_T3,
+  }),
+  control('pw', ['pw'], 'number', 'Pulse width for square voices; one half is a plain square.', {
+    range: [0, 1],
+    since: SINCE_T3,
+  }),
+  control('unison', ['unison'], 'number', 'How many slightly detuned copies of an oscillator voice to stack.', {
+    range: [1, 16],
+    since: SINCE_T3,
+  }),
+  control('detune', ['detune'], 'number', 'Total spread of the unison copies, in cents.', {
+    range: [0, 100],
+    since: SINCE_T3,
+  }),
+  control(
+    'timbre',
+    ['timbre'],
+    'string',
+    'A named waveform for oscillator voices: organ, hollow, bright, soft, reed or glass.',
+    { since: SINCE_T3 },
+  ),
+  control('glide', ['glide'], 'number', 'Seconds to slide from the previous note of the same mono line.', {
+    compat: ['portamento'],
+    range: [0, 5],
+    since: SINCE_T3,
+  }),
+  control('mono', ['mono'], 'number', 'A monophonic line number: a new note on the line ends the one before.', {
+    range: [0, 64],
+    since: SINCE_T3,
+  }),
+  // Vocal extensions (TS-43 to TS-47).
+  control(
+    'voicetype',
+    ['voicetype'],
+    'string',
+    'Voice type that sets the vowel resonances: bass, tenor, alto, soprano or child.',
+    {
+      since: SINCE_T4,
+    },
+  ),
+  control(
+    'formant',
+    ['formant'],
+    'number',
+    'Moves the vowel resonances by semitones without changing pitch; lower sounds larger.',
+    {
+      range: [-12, 12],
+      since: SINCE_T4,
+    },
+  ),
+  control('vglide', ['vglide'], 'number', 'Seconds to slide the vowel from the previous note of the same mono line.', {
+    range: [0, 5],
+    since: SINCE_T4,
+  }),
+  control('ring', ['ring'], 'number', 'Adds a bright resonance near three kilohertz, like a trained singer.', {
+    range: [0, 1],
+    since: SINCE_T4,
+  }),
+  control('breath', ['breath'], 'number', 'How much breath noise is mixed into a voice.', {
+    range: [0, 1],
+    since: SINCE_T4,
+  }),
+  control(
+    'effort',
+    ['effort'],
+    'number',
+    'Vocal effort: soft voices are darker and breathier, strong ones brighter. Defaults to velocity.',
+    {
+      range: [0, 1],
+      since: SINCE_T4,
+    },
+  ),
+  control('jitter', ['jitter'], 'number', 'Small random wobble in the pitch of a voice.', {
+    range: [0, 1],
+    since: SINCE_T4,
+  }),
+  control('shimmer', ['shimmer'], 'number', 'Small random wobble in the loudness of a voice.', {
+    range: [0, 1],
+    since: SINCE_T4,
+  }),
+  control('scoop', ['scoop'], 'number', 'Semitones below the note where a voice starts before rising into it.', {
+    range: [-12, 0],
+    since: SINCE_T4,
+  }),
+  control('vibdel', ['vibdel'], 'number', 'Seconds before vibrato fades in.', { range: [0, 2], since: SINCE_T4 }),
+  control('fry', ['fry'], 'number', 'Adds a rough undertone an octave down, for vocal fry and growls.', {
+    range: [0, 1],
+    since: SINCE_T4,
+  }),
+  control('scatter', ['scatter'], 'number', 'Seconds by which the voices of a choir start apart from each other.', {
+    range: [0, 0.06],
+    since: SINCE_T4,
+  }),
+  control('width', ['width'], 'number', 'Stereo spread of the voices in a choir.', { range: [0, 1], since: SINCE_T4 }),
+  control(
+    'syl',
+    ['syl'],
+    'string',
+    'A sung syllable in the phonetic singing alphabet, such as "la", "shee" or "mi_a_u". A lone "_" holds the previous vowel.',
+    { since: SINCE_T4 },
+  ),
+  control('talk', ['talk'], 'number', 'How strongly a vowel or syllable shapes a non-voice sound, like a talkbox.', {
+    range: [0, 1],
+    since: SINCE_T4,
+  }),
+  control('overtone', ['overtone'], 'number', 'Boosts one harmonic of the note, for overtone-singing whistles.', {
+    range: [4, 16],
+    since: SINCE_T4,
+  }),
   {
     id: 'stack',
     names: ['stack'],
@@ -267,6 +470,14 @@ export const ENTRIES: readonly RegistryEntry[] = [
     [{ name: 'name', type: 'string', patternable: false }],
     'Gives a track a stable name for mixers, diagnostics and diffs.',
   ),
+  t3(
+    'iter',
+    ['iter'],
+    [CONST_NUM('n')],
+    'Starts each cycle one nth further into the pattern, wrapping around after n cycles.',
+  ),
+  t3('iterBack', ['iterBack'], [CONST_NUM('n')], 'Like iter, but each cycle starts one nth earlier instead.'),
+  t3('palindrome', ['palindrome'], [], 'Plays forwards, then backwards, on alternating cycles.'),
   signalEntry('sine', 'A smooth wave from zero up to one and back, once per cycle.'),
   signalEntry('cosine', 'The smooth wave, started a quarter of a cycle later.'),
   signalEntry('saw', 'Climbs from zero to one across each cycle.'),
@@ -416,7 +627,8 @@ export function systemPrompt(reg: Registry = defaultRegistry): string {
     `- Transforms: ${names('transform')}. Combinators: ${names('combinator')}.`,
     `- Signals: ${names('signal')}, as in .lpf(sine.range(200, 2000)).`,
     '- A function argument is a transform name like `rev`, or `x => x.fast(2)`.',
-    '- Drums: bd, sd, hh, oh, cp, rim, lt, mt, ht, cr, rd. Synths: sine, square, triangle, sawtooth.',
+    '- Drums: bd, sd, hh, oh, cp, rim, lt, mt, ht, cr, rd. Synths: sine, square, triangle, sawtooth. Noise: white, pink, brown.',
+    '- Voices: voice, aah, ooh, hum, whisper, choir. syl("la shee _") sings phonetic syllables: up to two consonants, then a vowel (a e i o u ah oo ee); "_" holds.',
     '- Use `const` for reuse. No imports, loops, if, async, window or fetch.',
   ].join('\n');
 }
