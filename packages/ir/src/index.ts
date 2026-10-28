@@ -147,6 +147,8 @@ export interface Diagnostic {
   readonly range: SourceRange;
   readonly node?: NodeId;
   readonly output?: string;
+  /** Name of the function definition the diagnostic is inside, when it is not in a track (TS-50). */
+  readonly definition?: string;
   readonly effect: 'none' | 'subtree-muted' | 'output-muted' | 'program-rejected';
   readonly fixes?: readonly Fix[];
   readonly related?: readonly { readonly range: SourceRange; readonly message: string }[];
@@ -160,6 +162,8 @@ export interface LimitsConfig {
   readonly maxEvalSteps: number;
   readonly maxEventsPerWindow: number;
   readonly maxDenominator: bigint;
+  /** Pattern nodes one statement may produce by expanding function calls (TS-52). */
+  readonly maxExpandedNodes: number;
 }
 export const DEFAULT_LIMITS: LimitsConfig = {
   maxSourceBytes: 65_536,
@@ -169,6 +173,7 @@ export const DEFAULT_LIMITS: LimitsConfig = {
   maxEvalSteps: 200_000,
   maxEventsPerWindow: 2_048,
   maxDenominator: 10n ** 9n,
+  maxExpandedNodes: 10_000,
 };
 export interface QueryBudget {
   steps: number;

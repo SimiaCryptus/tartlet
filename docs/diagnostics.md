@@ -133,3 +133,5 @@ Mini-notation errors mute the whole output.
 - `W-ARG-PHONEME`: a constant syllable outside the singing alphabet. It is sung as `ah`, and a
   fix is offered when one edit makes it valid (TS-45).
 - `W-ARG-VOWEL`: an unknown constant `vowel` or `voicetype`. The default is used.
+- `E-LIMIT-EXPAND`: function calls in a statement expanded to more than `maxExpandedNodes`
+  nodes. Only that output is muted (TS-52).

@@ -42,10 +42,18 @@ export type Expr =
       readonly k: 'lambda';
       readonly param: string | null;
       readonly paramRange: Range;
+      /** All parameters. `param` and `paramRange` repeat the first one (TS-48). */
+      readonly params: readonly LambdaParam[];
       readonly body: Expr;
       readonly block: boolean;
       readonly range: Range;
     };
+/** A lambda parameter, with an optional constant default (`n = 2`). */
+export interface LambdaParam {
+  readonly name: string;
+  readonly range: Range;
+  readonly default?: Expr;
+}
 
 export type Stmt =
   | {

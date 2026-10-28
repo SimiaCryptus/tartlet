@@ -56,6 +56,28 @@ Rejected constructs, with their diagnostics:
 - Spreading anything other than an array literal: `E-LX-SPREAD`.
 - Object literals: `E-NOT-YET` (TS-23).
 
+## Functions
+
+A `const` binding whose value is a lambda names a function (TS-48). Its parameters may have
+constant defaults.
+
+```js
+const chop = (x, n = 2) => x.ply(n).gain(0.8);
+const beat = (k) => s('bd').euclid(k, 8);
+
+$: s('hh*4').every(4, chop(3)); // as a function value; arguments follow the pattern
+$: s('sd*2').apply(chop, 3); // through .apply
+$: s('cp*2').chop(); // as a method
+$: beat(5); // as a pattern builder
+```
+
+- Functions are expanded inline when the document is checked. Nothing runs as JavaScript.
+- A function can only use names declared before it, so recursion is impossible.
+- A parameter can be a function. Call it with `x.apply(f)`, not `f(x)` (`E-LX-CALL`).
+- Names may not shadow built-in names (`E-NAME-SHADOW`).
+- Errors inside a body are reported once at the definition, and every track that calls it is
+  muted. Problems caused by one call are reported at that call.
+
 ## Mini-notation
 
 Inside strings:

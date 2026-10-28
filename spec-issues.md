@@ -213,3 +213,32 @@ oh`.
   - `ring` is a peaking filter at 2.8 kHz, scaled by voice type, with up to +10 dB.
   - Deferred: recorded voice banks (V5), the vocoder, `W-ARG-UNSUPPORTED`, `W-RES-HEAVY`,
     `I-RES-CONSENT` and `I-RES-MODEL`.
+
+## Found while implementing user functions (docs/language_extensions.md Part 1)
+
+- **TS-48: function bindings and call forms.** `const f = (x, n = 2) => body` defines a
+  function. It can be passed where a function is expected (`.every(4, f)`), partially applied
+  (`.every(4, f(3))` fills the parameters after the pattern), called through `.apply(f, …)`,
+  called as a method (`p.f(3)`) or called as a builder (`f(3)`). A named function's body may be
+  any pattern expression. Inline lambdas keep the old rule and take exactly one parameter.
+  Calls are expanded inline at check time, so the IR never contains user functions. A
+  parameter's kind follows its uses: an argument is lowered at each use in the caller's
+  context. Defaults must be constants.
+- **TS-49: call ids and seeds.** A call's id is `hash(receiver or anchor, "user", name,
+defHash)`. `defHash` hashes the definition without layout. Method ids inside the expansion
+  are salted with that call id. Appending at the call site and moving or reformatting the
+  definition keep draws. Renaming the function or editing its body changes them.
+- **TS-50: diagnostics in definitions.** Each definition is checked once with placeholder
+  parameters. Those diagnostics carry `definition` and are reported once. A broken function
+  mutes its callers with `E-NAME-ERRORED`. A diagnostic produced inside a body during
+  expansion is dropped if the definition check already reported it. Otherwise it is moved to
+  the call site, with a `related` range into the body. Identical diagnostics are reported once.
+  The repair payload names the function and summarises tracks muted only by `E-NAME-ERRORED`.
+- **TS-51: names.** No binding, function or pattern, may use a registry name
+  (`E-NAME-SHADOW`). Calling a parameter or a pattern binding is `E-LX-CALL`. A lambda
+  parameter that would collide with an enclosing lambda parameter in the expanded IR is
+  renamed `name$k`, so arguments never capture the body's parameters.
+- **TS-52: expansion budget.** `maxExpandedNodes` (default 10 000) bounds the pattern nodes one
+  statement produces while expanding calls, counting the full size of reused receivers. Going
+  over it gives `E-LIMIT-EXPAND`. On an output, only that output is muted. In a definition,
+  the definition is marked broken.

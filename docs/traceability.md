@@ -27,3 +27,4 @@ Requirement ID → test. CI will fail when a MUST has no test (from T1).
 | R-7.4-ext-binaural (TS-40)          | packages/conformance/test/binaural.test.ts                                                                            |
 | R-7.4-ext-synthesis (TS-41, TS-42)  | packages/conformance/test/synthesis.test.ts, packages/webaudio/test/dsp.test.ts                                       |
 | R-7.4-ext-vocals (TS-43–TS-47)      | packages/conformance/test/vocals.test.ts, packages/registry/test/registry.test.ts, packages/webaudio/test/dsp.test.ts |
+| R-ext-functions (TS-48–TS-52)       | packages/conformance/test/functions.test.ts, packages/syntax/test/parse.test.ts                                       |

@@ -335,6 +335,7 @@ class Decoder {
       ] as const),
       ...(o.node !== undefined ? { node: this.str(o.node, `${p}.node`) } : undefined),
       ...(o.output !== undefined ? { output: this.str(o.output, `${p}.output`) } : undefined),
+      ...(o.definition !== undefined ? { definition: this.str(o.definition, `${p}.definition`) } : undefined),
     };
   }
   program(v: unknown): Program {

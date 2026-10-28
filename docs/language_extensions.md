@@ -1,7 +1,10 @@
 # Extensions: user-defined functions and a richer standard library
 
-**Status: proposals.** Nothing on this page is implemented. Each accepted item needs a `TS-n`
-entry in `spec-issues.md`, registry entries, and tests as described in [testing.md](testing.md).
+**Status: Part 1 is implemented (TS-48 to TS-52); Parts 2 and 3 are proposals.** The
+implementation follows the recommendations below. It lowers calls by inline expansion, salts
+ids with a call id built from name and structural `defHash`, and supports all four call forms,
+including user methods. Each further item needs a `TS-n` entry in `spec-issues.md`, registry
+entries, and tests as described in [testing.md](testing.md).
 
 Today a document can name patterns (`const kick = s("bd*4")`) but not behaviour. Lambdas exist
 only as arguments (`.every(4, x => x.fast(2))`), and the registry covers the core of the

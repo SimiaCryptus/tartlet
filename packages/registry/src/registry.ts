@@ -38,6 +38,7 @@ const SINCE_T1 = '0.1.0';
 const SINCE_T2 = '0.2.0';
 const SINCE_T3 = '0.3.0';
 const SINCE_T4 = '0.4.0';
+const SINCE_T5 = '0.5.0';
 
 function control(
   id: string,
@@ -478,6 +479,15 @@ export const ENTRIES: readonly RegistryEntry[] = [
   ),
   t3('iterBack', ['iterBack'], [CONST_NUM('n')], 'Like iter, but each cycle starts one nth earlier instead.'),
   t3('palindrome', ['palindrome'], [], 'Plays forwards, then backwards, on alternating cycles.'),
+  {
+    ...transform(
+      'apply',
+      ['apply'],
+      [FN],
+      'Hands the pattern to a function, such as a named const function. Further arguments follow the pattern.',
+    ),
+    since: SINCE_T5,
+  },
   signalEntry('sine', 'A smooth wave from zero up to one and back, once per cycle.'),
   signalEntry('cosine', 'The smooth wave, started a quarter of a cycle later.'),
   signalEntry('saw', 'Climbs from zero to one across each cycle.'),

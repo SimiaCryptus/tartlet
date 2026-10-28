@@ -53,7 +53,8 @@ IR types and the codec.
   - `cpsRange`: [0.001, 100];
   - `maxEvalSteps`: 200 000;
   - `maxEventsPerWindow`: 2048;
-  - `maxDenominator`: 10⁹.
+  - `maxDenominator`: 10⁹;
+  - `maxExpandedNodes`: 10 000 (function expansion, TS-52).
 - `encodeProgram(p)` returns `tartlet/1` JSON. `decodeProgram(text)` and
   `validateProgram(value)` validate untrusted input and throw `IngestError` with a JSON path.
 

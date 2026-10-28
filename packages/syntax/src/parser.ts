@@ -1,5 +1,5 @@
 import { lex, type Token } from './lexer';
-import type { Expr, Range, Stmt, SyntaxDiagnostic, SyntaxTree } from './tree';
+import type { Expr, LambdaParam, Range, Stmt, SyntaxDiagnostic, SyntaxTree } from './tree';
 
 class ParseError extends Error {
   constructor(
@@ -249,12 +249,57 @@ class Parser {
     return { items, end };
   }
 
+  /** Whether the bracket group opening at the current token is directly followed by `=>`. */
+  private arrowAhead(): boolean {
+    let nest = 0;
+    for (let j = this.i; j < this.toks.length; j++) {
+      const t = this.toks[j];
+      if (!t || t.kind === 'eof') return false;
+      if (t.kind !== 'punct') continue;
+      if ('([{'.includes(t.text)) nest++;
+      else if (')]}'.includes(t.text) && --nest <= 0) {
+        const n = this.toks[j + 1];
+        return n !== undefined && this.isP(n, '=>');
+      }
+    }
+    return false;
+  }
+
+  /** Parses `(a, b = 2) =>`. Defaults are expressions; the checker requires them to be constant (TS-48). */
+  private arrowParams(): LambdaParam[] {
+    this.expectP('(');
+    const params: LambdaParam[] = [];
+    while (!this.isP(this.peek(), ')')) {
+      const name = this.next();
+      if (name.kind !== 'ident') throw new ParseError(name, 'Expected a parameter name.');
+      const kw = keywordId(name.text);
+      if (kw) throw new ParseError(name, `\`${name.text}\` is not allowed in a Tartlet document.`, kw);
+      let dflt: Expr | undefined;
+      if (this.isP(this.peek(), '=')) {
+        this.next();
+        dflt = this.expr();
+      }
+      params.push({ name: name.text, range: this.r(name, name), ...(dflt ? { default: dflt } : undefined) });
+      if (!this.isP(this.peek(), ',')) break;
+      this.next();
+    }
+    this.expectP(')');
+    this.expectP('=>');
+    return params;
+  }
+
   /** Parses a lambda body after `=>`. Block bodies must be exactly `{ return expr; }`. */
-  private lambdaRest(param: string | null, paramRange: Range, start: number): Expr {
+  private lambdaRest(params: readonly LambdaParam[], start: number): Expr {
+    const first = params[0];
+    const head = {
+      param: first?.name ?? null,
+      paramRange: first?.range ?? { start, end: start + 1 },
+      params,
+    };
     if (this.isP(this.peek(), '{')) {
       const open = this.i;
       try {
-        return this.blockLambda(param, paramRange, start);
+        return this.blockLambda(head, start);
       } catch (e) {
         // Skip the whole block so recovery does not restart inside it.
         if (e instanceof ParseError) this.skipBlock(open);
@@ -262,7 +307,7 @@ class Parser {
       }
     }
     const body = this.expr();
-    return { k: 'lambda', param, paramRange, body, block: false, range: { start, end: body.range.end } };
+    return { k: 'lambda', ...head, body, block: false, range: { start, end: body.range.end } };
   }
   /** Moves past the bracket group opened at token index `open`, or to end of input. */
   private skipBlock(open: number): void {
@@ -275,22 +320,23 @@ class Parser {
       else if (t.kind === 'punct' && ')]}'.includes(t.text) && --nest <= 0) return;
     }
   }
-  private blockLambda(param: string | null, paramRange: Range, start: number): Expr {
-    {
-      this.next();
-      const ret = this.peek();
-      if (!(ret.kind === 'ident' && ret.text === 'return')) {
-        throw new ParseError(ret, 'A function block may contain only a single `return`.', 'E-LX-LAMBDA');
-      }
-      this.next();
-      const body = this.expr();
-      if (this.isP(this.peek(), ';')) this.next();
-      const close = this.peek();
-      if (!this.isP(close, '}'))
-        throw new ParseError(close, 'A function block may contain only a single `return`.', 'E-LX-LAMBDA');
-      this.next();
-      return { k: 'lambda', param, paramRange, body, block: true, range: { start, end: close.end } };
+  private blockLambda(
+    head: { param: string | null; paramRange: Range; params: readonly LambdaParam[] },
+    start: number,
+  ): Expr {
+    this.next();
+    const ret = this.peek();
+    if (!(ret.kind === 'ident' && ret.text === 'return')) {
+      throw new ParseError(ret, 'A function block may contain only a single `return`.', 'E-LX-LAMBDA');
     }
+    this.next();
+    const body = this.expr();
+    if (this.isP(this.peek(), ';')) this.next();
+    const close = this.peek();
+    if (!this.isP(close, '}'))
+      throw new ParseError(close, 'A function block may contain only a single `return`.', 'E-LX-LAMBDA');
+    this.next();
+    return { k: 'lambda', ...head, body, block: true, range: { start, end: close.end } };
   }
 
   private primary(): Expr {
@@ -320,22 +366,14 @@ class Parser {
         if (this.isP(this.peek(1), '=>')) {
           this.next();
           this.next();
-          return this.lambdaRest(t.text, this.r(t, t), t.start);
+          return this.lambdaRest([{ name: t.text, range: this.r(t, t) }], t.start);
         }
         this.next();
         return { k: 'ident', name: t.text, range: this.r(t, t) };
       }
       case 'punct':
         if (t.text === '(') {
-          if (this.isP(this.peek(1), ')') && this.isP(this.peek(2), '=>')) {
-            this.i += 3;
-            return this.lambdaRest(null, this.r(t, t), t.start);
-          }
-          const p1 = this.peek(1);
-          if (p1.kind === 'ident' && this.isP(this.peek(2), ')') && this.isP(this.peek(3), '=>')) {
-            this.i += 4;
-            return this.lambdaRest(p1.text, this.r(p1, p1), t.start);
-          }
+          if (this.arrowAhead()) return this.lambdaRest(this.arrowParams(), t.start);
           this.next();
           const e = this.expr();
           this.expectP(')');

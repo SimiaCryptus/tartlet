@@ -32,6 +32,14 @@ describe('expression parser', () => {
     const c = parse('s("a").every(4, (x) => x.rev())');
     for (const t of [a, b, c]) expect(t.diagnostics).toEqual([]);
   });
+  it('parses multi-parameter lambdas with defaults (TS-48)', () => {
+    const t = parse('const f = (x, n = 2) => x.ply(n)\nconst g = () => s("a")');
+    expect(t.diagnostics).toEqual([]);
+    const st = t.statements[0];
+    expect(st?.k === 'binding' && st.expr.k === 'lambda' && st.expr.params.map((p) => p.name)).toEqual(['x', 'n']);
+    expect(st?.k === 'binding' && st.expr.k === 'lambda' && st.expr.params[1]?.default?.k).toBe('num');
+    expect(parse('(a, b)').diagnostics.length).toBeGreaterThan(0);
+  });
   it('parses constant spreads (X-35)', () => {
     expect(parse('stack(...[s("a"), s("b")])').diagnostics).toEqual([]);
   });

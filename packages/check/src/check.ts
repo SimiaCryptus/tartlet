@@ -15,7 +15,7 @@ import {
   min,
 } from '@tartlet/time';
 import { parseMini, type MiniAst } from '@tartlet/mini';
-import { parse, LineIndex, type Expr, type Range, type SyntaxTree } from '@tartlet/syntax';
+import { parse, LineIndex, type Expr, type Range, type Stmt, type SyntaxTree } from '@tartlet/syntax';
 import type {
   Arg,
   Binding,
@@ -36,6 +36,7 @@ import { DEFAULT_LIMITS } from '@tartlet/ir';
 import {
   VOICE_TYPES,
   defaultRegistry,
+  editDistance,
   normalizeVowel,
   parseScale,
   parseSyllable,
@@ -76,6 +77,18 @@ const PITCH_OK: ReadonlySet<string> = new Set(['note', 'freq']);
 /** String controls whose atoms are checked against closed sets (TS-45). */
 const VOCAL_STRINGS: ReadonlySet<string> = new Set(['syl', 'vowel', 'voicetype']);
 const VOICE_TYPE_SET: ReadonlySet<string> = new Set(VOICE_TYPES);
+/** Stands in for a parameter in a constant position while a definition is checked (TS-50). */
+const PLACEHOLDER: Rational = rat(1);
+const DUMMY_FN: Arg = { kind: 'function', fn: { kind: 'ref', fn: 'rev', args: [] } };
+/** Expr fields that only record formatting, left out of a definition's structural hash (TS-49). */
+const LAYOUT_KEYS: ReadonlySet<string> = new Set([
+  'range',
+  'paramRange',
+  'nameRange',
+  'contentStart',
+  'quote',
+  'block',
+]);
 
 /** Host APIs that a document can never reach (idea.md §7.3, Z-02). */
 export const HOST_NAMES: ReadonlySet<string> = new Set([
@@ -101,6 +114,61 @@ export const HOST_NAMES: ReadonlySet<string> = new Set([
 ]);
 /** Names that could reach a prototype (idea.md §6.2, Z-07). */
 export const PROTO_NAMES: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
+
+type Ident = Extract<Expr, { k: 'ident' }>;
+type Lambda = Extract<Expr, { k: 'lambda' }>;
+type Member = Extract<Expr, { k: 'member' }>;
+type BindingStmt = Extract<Stmt, { k: 'binding' }>;
+
+/**
+ * What a name stands for inside a function body or lambda (TS-48):
+ * - `param`: a lambda parameter, lowered to a `param:<id>` reference;
+ * - `abstract`: a parameter of a definition being checked on its own (TS-50);
+ * - `arg`: a call-site argument, lowered at each use in the caller's context;
+ * - `node`: an already lowered receiver.
+ */
+type Subst =
+  | { readonly k: 'param'; readonly id: string }
+  | { readonly k: 'abstract'; readonly used: { n: number } }
+  | { readonly k: 'arg'; readonly expr: Expr; readonly ctx: Ctx }
+  | { readonly k: 'node'; readonly node: PatternNode };
+
+interface Ctx {
+  readonly scope: ReadonlyMap<string, Subst>;
+  /** The call id of the expansion being lowered, used to salt method ids (TS-49). */
+  readonly salt?: string;
+}
+const ROOT_CTX: Ctx = { scope: new Map<string, Subst>() };
+
+interface FnDef {
+  readonly name: string;
+  readonly lambda: Lambda;
+  /** The whole definition statement. */
+  readonly range: Range;
+  readonly defHash: string;
+  errored: boolean;
+  /** Diagnostics already reported when the definition was checked. */
+  readonly dryKeys: Set<string>;
+}
+
+interface Frame {
+  readonly def: FnDef;
+  readonly callRange: Range;
+}
+
+class ExpandLimit extends Error {
+  constructor() {
+    super('function expansion limit reached');
+  }
+}
+
+function diagKey(id: string, r: Range): string {
+  return `${id}@${String(r.start)}:${String(r.end)}`;
+}
+
+function exprKey(e: Expr): string {
+  return JSON.stringify(e, (k, v: unknown) => (LAYOUT_KEYS.has(k) ? undefined : v));
+}
 
 /** Maps a UTF-16 index in `source` to an Offset. Used by core for provenance. */
 export function locator(source: string): (index: number) => Offset {
@@ -245,8 +313,22 @@ class Lowerer {
   private readonly bindingExprs = new Map<string, PatternNode>();
   private readonly constBindings = new Map<string, Rational>();
   private readonly labels = new Set<string>();
-  /** Lambda parameters in scope, innermost last. */
-  private readonly params: string[] = [];
+  /** User function definitions (TS-48). */
+  private readonly functions = new Map<string, FnDef>();
+  /** The lexical context: what names mean here. */
+  private ctx: Ctx = ROOT_CTX;
+  /** IR lambda parameter ids enclosing the node being lowered, used to keep ids unique (TS-51). */
+  private readonly irParams: string[] = [];
+  /** Function expansions in progress, innermost last. */
+  private readonly frames: Frame[] = [];
+  /** The definition being checked on its own, if any (TS-50). */
+  private dry: FnDef | undefined;
+  private defLabel: string | undefined;
+  private expandCount = 0;
+  /** Set when a constant fold touched a placeholder parameter. */
+  private taint = false;
+  private readonly seenDiags = new Set<string>();
+  private readonly sizes = new WeakMap<PatternNode, number>();
   private tempoSeen = false;
   private outputLabel: string | undefined;
   private errored = false;
@@ -262,30 +344,11 @@ class Lowerer {
     let slot = 0;
     for (const st of tree.statements) {
       this.resetErrored();
-      this.params.length = 0;
+      this.resetState();
       if (st.k === 'error') continue;
       if (st.k === 'binding') {
         this.outputLabel = undefined;
-        if (PROTO_NAMES.has(st.name) || HOST_NAMES.has(st.name)) {
-          this.diag(
-            'E-LX-PROTO',
-            'error',
-            `\`${st.name}\` cannot be used as a binding name.`,
-            st.nameRange,
-            'subtree-muted',
-          );
-          continue;
-        }
-        if (this.bindingIndex.has(st.name)) {
-          this.diag('E-NAME-DUP', 'error', `\`${st.name}\` is already declared.`, st.nameRange, 'subtree-muted');
-          continue;
-        }
-        const expr = this.pattern(st.expr, hash64('bind', st.name));
-        const id = hash64('binding', st.name);
-        this.bindings.push({ id, name: st.name, expr });
-        this.bindingExprs.set(id, expr);
-        this.bindingIndex.set(st.name, { id, errored: this.errored });
-        if (expr.kind === 'pure' && expr.value.t === 'num') this.constBindings.set(st.name, expr.value.v);
+        this.binding(st);
         continue;
       }
       if (st.k === 'expr' && this.directive(st.expr)) continue;
@@ -306,7 +369,7 @@ class Lowerer {
       }
       const anchor = label ?? `$${String(slot++)}`;
       this.outputLabel = anchor;
-      const expr = this.pattern(st.expr, hash64('output', anchor));
+      const expr = this.guarded(st.range, () => this.pattern(st.expr, hash64('output', anchor)));
       this.outputs.push({
         id: hash64('out', anchor),
         label: anchor,
@@ -314,6 +377,7 @@ class Lowerer {
         status: this.errored ? 'muted-error' : 'ok',
       });
     }
+    this.outputLabel = undefined;
   }
   /**
    * Clears the per-statement error flag. A method call keeps TypeScript from narrowing
@@ -322,37 +386,413 @@ class Lowerer {
   private resetErrored(): void {
     this.errored = false;
   }
+  /**
+   * Clears the placeholder taint flag before a constant fold. A method call keeps TypeScript
+   * from narrowing `taint` to `false`, since `fold` may set it.
+   */
+  private resetTaint(): void {
+    this.taint = false;
+  }
+
+  private resetState(): void {
+    this.ctx = ROOT_CTX;
+    this.irParams.length = 0;
+    this.frames.length = 0;
+    this.dry = undefined;
+    this.defLabel = undefined;
+    this.expandCount = 0;
+  }
+
+  private binding(st: BindingStmt): void {
+    if (PROTO_NAMES.has(st.name) || HOST_NAMES.has(st.name)) {
+      this.diag(
+        'E-LX-PROTO',
+        'error',
+        `\`${st.name}\` cannot be used as a binding name.`,
+        st.nameRange,
+        'subtree-muted',
+      );
+      return;
+    }
+    if (this.bindingIndex.has(st.name) || this.functions.has(st.name)) {
+      this.diag('E-NAME-DUP', 'error', `\`${st.name}\` is already declared.`, st.nameRange, 'subtree-muted');
+      return;
+    }
+    if (this.reg.lookup(st.name)) {
+      this.diag(
+        'E-NAME-SHADOW',
+        'error',
+        `\`${st.name}\` is a built-in name. Choose another name.`,
+        st.nameRange,
+        'subtree-muted',
+      );
+      return;
+    }
+    if (st.expr.k === 'lambda') {
+      this.defineFunction(st.name, st.expr, st.range);
+      return;
+    }
+    const expr = this.guarded(st.range, () => this.pattern(st.expr, hash64('bind', st.name)));
+    const id = hash64('binding', st.name);
+    this.bindings.push({ id, name: st.name, expr });
+    this.bindingExprs.set(id, expr);
+    this.bindingIndex.set(st.name, { id, errored: this.errored });
+    if (expr.kind === 'pure' && expr.value.t === 'num') this.constBindings.set(st.name, expr.value.v);
+  }
+
+  /** Runs a lowering, turning an exhausted expansion budget into E-LIMIT-EXPAND (TS-52). */
+  private guarded(range: Range, f: () => PatternNode): PatternNode {
+    try {
+      return f();
+    } catch (e) {
+      if (!(e instanceof ExpandLimit)) throw e;
+      this.frames.length = 0;
+      this.diag(
+        'E-LIMIT-EXPAND',
+        'error',
+        `Function calls here expand to more than ${String(this.limits.maxExpandedNodes)} nodes. Track muted.`,
+        range,
+        'output-muted',
+      );
+      return this.errorNode('E-LIMIT-EXPAND', range);
+    }
+  }
+
+  // ---- user functions (TS-48 to TS-52)
+
+  /** Checks a definition once, with placeholder parameters, and records it (TS-50). */
+  private defineFunction(name: string, lam: Lambda, range: Range): void {
+    this.defLabel = name;
+    const def: FnDef = {
+      name,
+      lambda: lam,
+      range,
+      defHash: hash64('fn', exprKey(lam)),
+      errored: false,
+      dryKeys: new Set<string>(),
+    };
+    const scope = new Map<string, Subst>();
+    const counters: { readonly name: string; readonly range: Range; readonly used: { n: number } }[] = [];
+    for (const p of lam.params) {
+      if (PROTO_NAMES.has(p.name) || HOST_NAMES.has(p.name)) {
+        this.diag('E-LX-PROTO', 'error', `\`${p.name}\` cannot be used as a parameter name.`, p.range, 'subtree-muted');
+        continue;
+      }
+      if (scope.has(p.name)) {
+        this.diag('E-NAME-DUP', 'error', `Parameter \`${p.name}\` appears twice.`, p.range, 'subtree-muted');
+        continue;
+      }
+      const d = p.default;
+      if (d && d.k !== 'str' && d.k !== 'bool' && !this.fold(d)) {
+        this.diag('E-ARG-TYPE', 'error', 'A default must be a constant.', d.range, 'subtree-muted');
+      }
+      const used = { n: 0 };
+      scope.set(p.name, { k: 'abstract', used });
+      counters.push({ name: p.name, range: p.range, used });
+    }
+    this.dry = def;
+    this.guarded(range, () =>
+      this.inCtx({ scope, salt: hash64('dry', name) }, () => this.pattern(lam.body, hash64('fn', name))),
+    );
+    this.dry = undefined;
+    def.errored = this.errored;
+    if (!def.errored) {
+      for (const c of counters) {
+        if (c.used.n === 0)
+          this.diag('W-FN-UNUSED', 'warning', `Parameter \`${c.name}\` of \`${name}\` is never used.`, c.range, 'none');
+      }
+    }
+    this.functions.set(name, def);
+    this.defLabel = undefined;
+  }
+
+  /** Expands a call by lowering the body with its parameters bound (TS-48, TS-49). */
+  private callUser(
+    def: FnDef,
+    recv: Subst | undefined,
+    base: NodeId,
+    args: readonly Subst[],
+    callRange: Range,
+    nameRange: Range,
+  ): PatternNode {
+    if (def.errored) {
+      this.diag(
+        'E-NAME-ERRORED',
+        'error',
+        `\`${def.name}\` has errors, so this output is muted.`,
+        nameRange,
+        'output-muted',
+      );
+      return this.errorNode('E-NAME-ERRORED', callRange);
+    }
+    const params = def.lambda.params;
+    const scope = new Map<string, Subst>();
+    let pi = 0;
+    if (recv) {
+      const p0 = params[0];
+      if (!p0) {
+        this.diag(
+          'E-ARG-TYPE',
+          'error',
+          `\`${def.name}\` takes no pattern, so it cannot be called on one. Call it as \`${def.name}()\`.`,
+          nameRange,
+          'subtree-muted',
+        );
+        return this.errorNode('E-ARG-TYPE', callRange);
+      }
+      scope.set(p0.name, recv);
+      pi = 1;
+    }
+    let ai = 0;
+    for (; pi < params.length; pi++) {
+      const p = params[pi];
+      if (!p) break;
+      const a = args[ai++];
+      if (a) scope.set(p.name, a);
+      else if (p.default) scope.set(p.name, { k: 'arg', expr: p.default, ctx: ROOT_CTX });
+      else {
+        this.diag('E-ARG-MISSING', 'error', `\`${def.name}\` needs \`${p.name}\`.`, callRange, 'subtree-muted');
+        return this.errorNode('E-ARG-MISSING', callRange);
+      }
+    }
+    const extra = args[ai];
+    if (extra) {
+      this.diag(
+        'W-ARG-EXTRA',
+        'warning',
+        `Extra arguments to \`${def.name}\` are ignored.`,
+        extra.k === 'arg' ? extra.expr.range : callRange,
+        'none',
+      );
+    }
+    const id = hash64(base, 'user', def.name, def.defHash);
+    this.frames.push({ def, callRange });
+    try {
+      return this.inCtx({ scope, salt: id }, () => this.pattern(def.lambda.body, id));
+    } finally {
+      this.frames.pop();
+    }
+  }
+
+  /** A user function passed where a function value is expected (`.every(4, chop(3))`). */
+  private userFnValue(
+    def: FnDef,
+    partial: readonly Subst[],
+    anchor: NodeId,
+    callRange: Range,
+    nameRange: Range,
+  ): Arg | null {
+    const p0 = def.lambda.params[0];
+    if (!p0) {
+      this.diag(
+        'E-ARG-FUNCTION',
+        'error',
+        `\`${def.name}\` takes no pattern, so it cannot be used as a function here.`,
+        nameRange,
+        'subtree-muted',
+      );
+      return null;
+    }
+    const id = this.freshParam(p0.name);
+    this.irParams.push(id);
+    try {
+      const body = this.callUser(def, { k: 'param', id }, anchor, partial, callRange, nameRange);
+      return { kind: 'function', fn: { kind: 'lambda', param: id, body } };
+    } finally {
+      this.irParams.pop();
+    }
+  }
+
+  /** `.apply(f, …args)`: lowers `f` applied to the receiver inline (TS-48). */
+  private applyCall(recv: PatternNode, rawArgs: readonly Expr[], range: Range): PatternNode {
+    const args = this.spreads(rawArgs);
+    const f = args[0];
+    if (!f) {
+      this.diag('E-ARG-MISSING', 'error', '`.apply` needs a function.', range, 'subtree-muted');
+      return this.errorNode('E-ARG-MISSING', range, recv);
+    }
+    return this.applyTo(
+      f,
+      this.ctx,
+      recv,
+      args.slice(1).map((a) => this.thunk(a)),
+      range,
+    );
+  }
+
+  private applyTo(f: Expr, ctx: Ctx, recv: PatternNode, extra: readonly Subst[], range: Range): PatternNode {
+    let head: Ident | undefined;
+    let callArgs: readonly Expr[] = [];
+    if (f.k === 'ident') head = f;
+    else if (f.k === 'call' && f.callee.k === 'ident') {
+      head = f.callee;
+      callArgs = f.args;
+    }
+    if (head) {
+      const s = ctx.scope.get(head.name);
+      if (s && f.k === 'ident') {
+        if (s.k === 'arg') return this.applyTo(s.expr, s.ctx, recv, extra, range);
+        if (s.k === 'abstract') {
+          s.used.n++;
+          return recv;
+        }
+      }
+      if (s) {
+        if (s.k === 'abstract') s.used.n++;
+        return this.reject(
+          'E-ARG-FUNCTION',
+          f.k === 'call'
+            ? `\`${head.name}\` is a parameter. Pass its extra arguments to \`.apply\` instead, as in \`.apply(${head.name}, …)\`.`
+            : `\`${head.name}\` is a pattern, not a function.`,
+          head.range,
+          range,
+          recv,
+        );
+      }
+      const partial = this.inCtx(ctx, () => this.thunks(callArgs));
+      const all = [...partial, ...extra];
+      const def = this.functions.get(head.name);
+      if (def) return this.callUser(def, { k: 'node', node: recv }, recv.id, all, range, head.range);
+      const hit = this.reg.lookup(head.name);
+      if (hit && (hit.entry.category === 'transform' || hit.entry.category === 'tonal') && hit.entry.id !== 'apply') {
+        return this.syntheticMethod(recv, head.name, head.range, all, range);
+      }
+      return this.reject('E-ARG-FUNCTION', `\`${head.name}\` is not a known transform.`, head.range, range, recv);
+    }
+    if (f.k === 'lambda') {
+      const scope = new Map(ctx.scope);
+      const bound: Subst[] = [{ k: 'node', node: recv }, ...extra];
+      for (const [i, p] of f.params.entries()) {
+        if (PROTO_NAMES.has(p.name))
+          return this.reject('E-LX-PROTO', `\`${p.name}\` cannot be used as a name.`, p.range, range, recv);
+        const a = bound[i];
+        if (a) scope.set(p.name, a);
+        else if (p.default) scope.set(p.name, { k: 'arg', expr: p.default, ctx });
+        else return this.reject('E-ARG-MISSING', `The function needs \`${p.name}\`.`, f.range, range, recv);
+      }
+      const id = hash64(recv.id, 'apply', hash64(exprKey(f)));
+      return this.inCtx({ scope, salt: id }, () => this.pattern(f.body, id));
+    }
+    return this.reject(
+      'E-ARG-FUNCTION',
+      'Expected a function such as `rev`, a named function, or `x => x.fast(2)`.',
+      f.range,
+      range,
+      recv,
+    );
+  }
+
+  /** Lowers `recv.name(args…)` for a registry transform reached through `.apply`. */
+  private syntheticMethod(
+    recv: PatternNode,
+    name: string,
+    nameRange: Range,
+    args: readonly Subst[],
+    range: Range,
+  ): PatternNode {
+    const scope = new Map<string, Subst>([['#recv', { k: 'node', node: recv }]]);
+    const idents: Expr[] = args.map((a, i) => {
+      const key = `#arg${String(i)}`;
+      scope.set(key, a);
+      return { k: 'ident', name: key, range: a.k === 'arg' ? a.expr.range : range };
+    });
+    const member: Member = { k: 'member', object: { k: 'ident', name: '#recv', range }, name, nameRange, range };
+    return this.inCtx({ ...this.ctx, scope }, () => this.method(member, idents, range, recv.id));
+  }
+
+  private lookup(name: string): Subst | undefined {
+    return this.ctx.scope.get(name);
+  }
+
+  private inCtx<T>(ctx: Ctx, f: () => T): T {
+    const saved = this.ctx;
+    this.ctx = ctx;
+    try {
+      return f();
+    } finally {
+      this.ctx = saved;
+    }
+  }
+
+  private thunk(e: Expr): Subst {
+    return { k: 'arg', expr: e, ctx: this.ctx };
+  }
+
+  private thunks(args: readonly Expr[]): Subst[] {
+    return this.spreads(args).map((a) => this.thunk(a));
+  }
+
+  /** Salts a base id inside an expansion, so each call has its own ids (TS-49). */
+  private salted(id: NodeId): NodeId {
+    return this.ctx.salt === undefined ? id : hash64(id, 'in', this.ctx.salt);
+  }
+
+  /** A lambda parameter id not used by any enclosing lambda in the IR (TS-51). */
+  private freshParam(name: string): string {
+    let id = name;
+    for (let k = 1; this.irParams.includes(id); k++) id = `${name}$${String(k)}`;
+    return id;
+  }
+
+  /** Follows argument substitutions, for checks that inspect the source form. */
+  private resolve(e: Expr | undefined, ctx: Ctx = this.ctx): Expr | 'abstract' | undefined {
+    if (e?.k !== 'ident') return e;
+    const s = ctx.scope.get(e.name);
+    if (s?.k === 'arg') return this.resolve(s.expr, s.ctx);
+    if (s?.k === 'abstract') return 'abstract';
+    return e;
+  }
+
+  private sizeOf(n: PatternNode): number {
+    const hit = this.sizes.get(n);
+    if (hit !== undefined) return hit;
+    let size = 1;
+    const arg = (a: Arg): void => {
+      if (a.kind === 'pattern') size += this.sizeOf(a.node);
+      else if (a.kind === 'function') {
+        if (a.fn.kind === 'lambda') size += this.sizeOf(a.fn.body);
+        else a.fn.args.forEach(arg);
+      }
+    };
+    switch (n.kind) {
+      case 'combine':
+        for (const c of n.children) size += this.sizeOf(c);
+        break;
+      case 'transform':
+        size += this.sizeOf(n.target);
+        n.args.forEach(arg);
+        break;
+      case 'control':
+        if (n.target) size += this.sizeOf(n.target);
+        arg(n.value);
+        break;
+      case 'error':
+        if (n.recovered) size += this.sizeOf(n.recovered);
+        break;
+      default:
+        break;
+    }
+    this.sizes.set(n, size);
+    return size;
+  }
+
+  /** Counts a reused node against the expansion budget (TS-52). */
+  private charge(n: PatternNode): void {
+    if (this.frames.length === 0) return;
+    this.expandCount += this.sizeOf(n);
+    if (this.expandCount > this.limits.maxExpandedNodes) throw new ExpandLimit();
+  }
 
   // ---- diagnostics
   /** Resource diagnostics for every sample name used by an `s` control (idea.md §11.2). */
   checkResources(cat: SoundCatalog): void {
     const seen = new Set<number>();
-    const atoms = (a: MiniAst, out: { text: string; range: readonly [number, number] }[]): void => {
-      switch (a.t) {
-        case 'atom':
-          out.push(a);
-          return;
-        case 'rest':
-          return;
-        case 'seq':
-          for (const s of a.steps) atoms(s.body, out);
-          return;
-        case 'stack':
-        case 'poly':
-          for (const l of a.layers) atoms(l, out);
-          return;
-        case 'alt':
-        case 'choice':
-          for (const i of a.items) atoms(i, out);
-          return;
-      }
-    };
     const walk = (n: PatternNode, inS: boolean): void => {
       switch (n.kind) {
         case 'mini': {
           if (!inS) return;
           const found: { text: string; range: readonly [number, number] }[] = [];
-          atoms(n.ast, found);
+          miniAtoms(n.ast, found);
           for (const a of found) {
             const start = n.textOffset + a.range[0];
             if (seen.has(start)) continue;
@@ -499,6 +939,10 @@ class Lowerer {
     }
   }
 
+  /**
+   * Emits a diagnostic. Inside an expansion, a diagnostic in a function body that was already
+   * reported at the definition is dropped; any other one is moved to the call site (TS-50).
+   */
   private diag(
     id: string,
     severity: Diagnostic['severity'],
@@ -508,14 +952,33 @@ class Lowerer {
     fixes?: Fix[],
   ): void {
     if (severity === 'error' && effect !== 'none') this.errored = true;
+    let r = range;
+    let msg = message;
+    let fx = fixes;
+    const related: { range: SourceRange; message: string }[] = [];
+    for (let i = this.frames.length - 1; i >= 0; i--) {
+      const f = this.frames[i];
+      if (!f || r.start < f.def.range.start || r.end > f.def.range.end) continue;
+      if (f.def.dryKeys.has(diagKey(id, r))) return;
+      related.push({ range: this.sr(r), message: `Inside \`${f.def.name}\`.` });
+      r = f.callRange;
+      msg = `In \`${f.def.name}\`: ${msg}`;
+      fx = undefined;
+    }
+    const key = diagKey(id, r);
+    if (this.dry) this.dry.dryKeys.add(key);
+    if (this.seenDiags.has(key)) return;
+    this.seenDiags.add(key);
     this.diags.push({
       id,
       severity,
-      message,
-      range: this.sr(range),
+      message: msg,
+      range: this.sr(r),
       effect,
       ...(this.outputLabel !== undefined ? { output: this.outputLabel } : undefined),
-      ...(fixes ? { fixes } : undefined),
+      ...(this.outputLabel === undefined && this.defLabel !== undefined ? { definition: this.defLabel } : undefined),
+      ...(fx ? { fixes: fx } : undefined),
+      ...(related.length > 0 ? { related } : undefined),
     });
   }
 
@@ -582,8 +1045,20 @@ class Lowerer {
     switch (e.k) {
       case 'num':
         return parseDecimal(e.text);
-      case 'ident':
-        return this.params.includes(e.name) ? null : (this.constBindings.get(e.name) ?? null);
+      case 'ident': {
+        const s = this.lookup(e.name);
+        if (s?.k === 'arg') {
+          const { expr, ctx } = s;
+          return this.inCtx(ctx, () => this.fold(expr));
+        }
+        if (s?.k === 'abstract') {
+          s.used.n++;
+          this.taint = true;
+          return PLACEHOLDER;
+        }
+        if (s) return null;
+        return this.constBindings.get(e.name) ?? null;
+      }
       case 'unary': {
         const v = this.fold(e.arg);
         return v && (e.op === '-' ? neg(v) : v);
@@ -632,6 +1107,7 @@ class Lowerer {
   }
 
   private pattern(e: Expr, anchor: NodeId): PatternNode {
+    if (this.frames.length > 0 && ++this.expandCount > this.limits.maxExpandedNodes) throw new ExpandLimit();
     switch (e.k) {
       case 'str':
         return this.mini(e, 'string', hash64(anchor, 'mini'));
@@ -662,6 +1138,20 @@ class Lowerer {
               e.callee.range,
               e.range,
             );
+          const s = this.lookup(name);
+          if (s) {
+            if (s.k === 'abstract') s.used.n++;
+            return this.reject(
+              'E-LX-CALL',
+              `\`${name}\` is a parameter, not a function. Use \`.apply(${name})\` to call a function argument.`,
+              e.callee.range,
+              e.range,
+            );
+          }
+          const def = this.functions.get(name);
+          if (def) return this.callUser(def, undefined, anchor, this.thunks(e.args), e.range, e.callee.range);
+          if (this.bindingIndex.has(name))
+            return this.reject('E-LX-CALL', `\`${name}\` is a pattern, not a function.`, e.callee.range, e.range);
           return this.constructorCall(name, e.callee.range, e.args, e.range, anchor);
         }
         if (e.callee.k === 'member') return this.method(e.callee, e.args, e.range, anchor);
@@ -691,19 +1181,37 @@ class Lowerer {
     return this.reject('E-SYN-EXPR', 'This expression is not a pattern.', e.range, e.range);
   }
 
-  private ident(e: Extract<Expr, { k: 'ident' }>, anchor: NodeId): PatternNode {
+  /** Lowers a substituted name in a pattern position. */
+  private substPattern(s: Subst, e: Ident, anchor: NodeId): PatternNode {
+    switch (s.k) {
+      case 'param':
+      case 'abstract': {
+        if (s.k === 'abstract') s.used.n++;
+        const id = s.k === 'param' ? s.id : e.name;
+        return {
+          kind: 'ref',
+          id: hash64(anchor, 'param', e.name),
+          range: this.sr(e.range),
+          type: CONTROLS,
+          name: e.name,
+          binding: `param:${id}`,
+        };
+      }
+      case 'arg': {
+        const { expr, ctx } = s;
+        return this.inCtx(ctx, () => this.pattern(expr, anchor));
+      }
+      case 'node':
+        this.charge(s.node);
+        return s.node;
+    }
+  }
+
+  private ident(e: Ident, anchor: NodeId): PatternNode {
     if (PROTO_NAMES.has(e.name))
       return this.reject('E-LX-PROTO', `\`${e.name}\` cannot be used as a name.`, e.range, e.range);
-    if (this.params.includes(e.name)) {
-      return {
-        kind: 'ref',
-        id: hash64(anchor, 'param', e.name),
-        range: this.sr(e.range),
-        type: CONTROLS,
-        name: e.name,
-        binding: `param:${e.name}`,
-      };
-    }
+    const s = this.lookup(e.name);
+    if (s) return this.substPattern(s, e, anchor);
     if (HOST_NAMES.has(e.name))
       return this.reject('E-LX-HOST', `\`${e.name}\` is a host API. Documents cannot reach it.`, e.range, e.range);
     const b = this.bindingIndex.get(e.name);
@@ -725,6 +1233,13 @@ class Lowerer {
         binding: b.id,
       };
     }
+    if (this.functions.has(e.name))
+      return this.reject(
+        'E-ARG-TYPE',
+        `\`${e.name}\` is a function. Call it, as in \`${e.name}(…)\`, or pass it to a method such as \`.every\`.`,
+        e.range,
+        e.range,
+      );
     const hit = this.reg.lookup(e.name);
     if (hit?.entry.id === 'silence')
       return { kind: 'silence', id: hash64(anchor, 'silence'), range: this.sr(e.range), type: CONTROLS };
@@ -741,7 +1256,7 @@ class Lowerer {
   }
 
   /** Unrolls constant array spreads into ordinary arguments (idea.md §7.3). */
-  private expand(args: readonly Expr[]): Expr[] {
+  private spreads(args: readonly Expr[]): Expr[] {
     const out: Expr[] = [];
     for (const a of args) {
       if (a.k !== 'spread') {
@@ -762,7 +1277,11 @@ class Lowerer {
   }
 
   private unknown(name: string, nameRange: Range, full: Range): { message: string; fixes?: Fix[] } {
-    const s = this.reg.suggest(name);
+    let s = this.reg.suggest(name);
+    for (const fn of this.functions.keys()) {
+      const d = editDistance(name, fn);
+      if (d <= 2 && (!s || d < s.distance)) s = { name: fn, distance: d };
+    }
     if (!s) return { message: `Unknown function \`${name}\`.` };
     return {
       message: `Unknown function \`${name}\`. Did you mean \`${s.name}\`?`,
@@ -790,7 +1309,7 @@ class Lowerer {
       return this.errorNode('E-REG-UNKNOWN', range);
     }
     this.alias(hit, nameRange);
-    const args = this.expand(rawArgs);
+    const args = this.spreads(rawArgs);
     const entry = hit.entry;
     const id = hash64(anchor, entry.id);
     if (entry.category === 'control') {
@@ -823,15 +1342,12 @@ class Lowerer {
     return this.errorNode('E-NOT-YET', range);
   }
 
-  private method(
-    m: Extract<Expr, { k: 'member' }>,
-    rawArgs: readonly Expr[],
-    range: Range,
-    anchor: NodeId,
-  ): PatternNode {
+  private method(m: Member, rawArgs: readonly Expr[], range: Range, anchor: NodeId): PatternNode {
     const recv = this.pattern(m.object, anchor);
     if (PROTO_NAMES.has(m.name))
       return this.reject('E-LX-PROTO', `\`${m.name}\` cannot be used as a name.`, m.nameRange, range, recv);
+    const def = this.functions.get(m.name);
+    if (def) return this.callUser(def, { k: 'node', node: recv }, recv.id, this.thunks(rawArgs), range, m.nameRange);
     const hit = this.reg.lookup(m.name);
     if (!hit || hit.entry.form === 'constructor' || hit.entry.form === 'directive') {
       const u = this.unknown(m.name, m.nameRange, range);
@@ -858,10 +1374,12 @@ class Lowerer {
       );
       return this.errorNode('E-REG-UNKNOWN', range, recv);
     }
+    if (hit.entry.id === 'apply') return this.applyCall(recv, rawArgs, range);
     this.alias(hit, m.nameRange);
-    const args = this.expand(rawArgs);
+    const args = this.spreads(rawArgs);
     const entry = hit.entry;
-    const id = hash64(recv.id, entry.id);
+    const base = this.salted(recv.id);
+    const id = hash64(base, entry.id);
     if (entry.category === 'control') {
       const a0 = args[0];
       const p = entry.params[0];
@@ -869,7 +1387,7 @@ class Lowerer {
         this.diag('E-ARG-MISSING', 'error', `\`.${m.name}\` needs a value.`, range, 'subtree-muted');
         return this.errorNode('E-ARG-MISSING', range, recv);
       }
-      const value = this.arg(a0, p, hash64(recv.id, entry.id, '0'), entry);
+      const value = this.arg(a0, p, hash64(base, entry.id, '0'), entry);
       if (!value) return this.errorNode('E-ARG-TYPE', range, recv);
       return {
         kind: 'control',
@@ -897,8 +1415,8 @@ class Lowerer {
         }
       }
       if (entry.id === 'scale') {
-        const a0 = args[0];
-        if (!(a0?.k === 'str' && parseScale(a0.value))) {
+        const a0 = this.resolve(args[0]);
+        if (a0 !== 'abstract' && !(a0?.k === 'str' && parseScale(a0.value))) {
           this.diag(
             'E-ARG-SCALE',
             'error',
@@ -909,7 +1427,7 @@ class Lowerer {
           return this.errorNode('E-ARG-SCALE', range, recv);
         }
       }
-      const lowered = this.lowerArgs(entry, args, range, recv.id, `.${m.name}`);
+      const lowered = this.lowerArgs(entry, args, range, base, `.${m.name}`);
       if (!lowered) return this.errorNode('E-ARG-TYPE', range, recv);
       // `.label()` only names the output (see chainLabel), so it adds no node and ids stay stable.
       if (entry.id === 'label') return recv;
@@ -965,9 +1483,22 @@ class Lowerer {
   }
 
   private arg(e: Expr, p: ParamSpec, anchor: NodeId, entry: RegistryEntry): Arg | null {
+    if (e.k === 'ident') {
+      const s = this.lookup(e.name);
+      if (s?.k === 'arg') {
+        const { expr, ctx } = s;
+        return this.inCtx(ctx, () => this.arg(expr, p, anchor, entry));
+      }
+      if (s?.k === 'abstract') {
+        if (p.patternable) return { kind: 'pattern', node: this.substPattern(s, e, anchor) };
+        s.used.n++;
+        return { kind: 'const', value: { t: 'num', v: PLACEHOLDER } };
+      }
+    }
+    this.resetTaint();
     const v = this.fold(e);
     if (v) {
-      if (p.range) {
+      if (p.range && !this.taint) {
         const x = toNumber(v);
         if (x < p.range[0] || x > p.range[1]) {
           this.diag(
@@ -1006,16 +1537,53 @@ class Lowerer {
     return { kind: 'pattern', node: this.pattern(e, anchor) };
   }
 
-  /** Lowers a function argument: a registered transform, a partial application, or a restricted lambda. */
+  /**
+   * Lowers a function argument: a registered transform, a partial application, a user function
+   * (TS-48) or a restricted lambda.
+   */
   private fnArg(e: Expr, anchor: NodeId): Arg | null {
+    if (e.k === 'ident') {
+      const s = this.lookup(e.name);
+      if (s?.k === 'arg') {
+        const { expr, ctx } = s;
+        return this.inCtx(ctx, () => this.fnArg(expr, anchor));
+      }
+      if (s?.k === 'abstract') {
+        s.used.n++;
+        return DUMMY_FN;
+      }
+      if (s) {
+        this.diag('E-ARG-FUNCTION', 'error', `\`${e.name}\` is a pattern, not a function.`, e.range, 'subtree-muted');
+        return null;
+      }
+      const def = this.functions.get(e.name);
+      if (def) return this.userFnValue(def, [], anchor, e.range, e.range);
+    }
+    if (e.k === 'call' && e.callee.k === 'ident') {
+      const name = e.callee.name;
+      const s = this.lookup(name);
+      if (s) {
+        if (s.k === 'abstract') s.used.n++;
+        this.diag(
+          'E-LX-CALL',
+          'error',
+          `\`${name}\` is a parameter, not a function. Use \`.apply(${name})\` to call a function argument.`,
+          e.callee.range,
+          'subtree-muted',
+        );
+        return null;
+      }
+      const def = this.functions.get(name);
+      if (def) return this.userFnValue(def, this.thunks(e.args), anchor, e.range, e.callee.range);
+    }
     const transformRef = (name: string, nameRange: Range, args: readonly Expr[], range: Range): Arg | null => {
       const hit = this.reg.lookup(name);
-      if (!hit || (hit.entry.category !== 'transform' && hit.entry.category !== 'tonal')) {
+      if (!hit || (hit.entry.category !== 'transform' && hit.entry.category !== 'tonal') || hit.entry.id === 'apply') {
         this.diag('E-ARG-FUNCTION', 'error', `\`${name}\` is not a known transform.`, nameRange, 'subtree-muted');
         return null;
       }
       this.alias(hit, nameRange);
-      const lowered = this.lowerArgs(hit.entry, this.expand(args), range, anchor, name);
+      const lowered = this.lowerArgs(hit.entry, this.spreads(args), range, anchor, name);
       return lowered ? { kind: 'function', fn: { kind: 'ref', fn: hit.entry.id, args: lowered } } : null;
     };
     if (e.k === 'ident') return transformRef(e.name, e.range, [], e.range);
@@ -1029,23 +1597,27 @@ class Lowerer {
         e.body.callee.k === 'ident' &&
         root.k === 'ident' &&
         !HOST_NAMES.has(root.name) &&
-        this.reg.lookup(root.name) !== undefined;
-      if (param === null || PROTO_NAMES.has(param) || !(startsFromParam || registryCall)) {
+        (this.reg.lookup(root.name) !== undefined || this.functions.has(root.name));
+      const oneParam = e.params.length === 1 && e.params[0]?.default === undefined;
+      if (param === null || !oneParam || PROTO_NAMES.has(param) || !(startsFromParam || registryCall)) {
         this.diag(
           'E-LX-LAMBDA',
           'error',
-          'A function must transform its parameter, as in `x => x.fast(2)`.',
+          'A function must take one parameter and transform it, as in `x => x.fast(2)`.',
           e.range,
           'subtree-muted',
         );
         return null;
       }
-      this.params.push(param);
+      const id = this.freshParam(param);
+      const scope = new Map(this.ctx.scope);
+      scope.set(param, { k: 'param', id });
+      this.irParams.push(id);
       try {
-        const body = this.pattern(e.body, hash64(anchor, 'lambda'));
-        return { kind: 'function', fn: { kind: 'lambda', param, body } };
+        const body = this.inCtx({ ...this.ctx, scope }, () => this.pattern(e.body, hash64(anchor, 'lambda')));
+        return { kind: 'function', fn: { kind: 'lambda', param: id, body } };
       } finally {
-        this.params.pop();
+        this.irParams.pop();
       }
     }
     this.diag(
