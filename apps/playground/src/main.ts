@@ -6,16 +6,25 @@ import type { Problem } from './assistant';
 import { initShare } from './share';
 import { initRingtone } from './ringtone';
 import { initLibrary, slugify } from './library';
+import { initPanels } from './panels';
 // Must run before the player builds its audio graph so ringtone recording can hear it.
 installCaptureTap();
-
-defineTartletPlayer();
 
 function el(id: string): HTMLElement {
   const e = document.getElementById(id);
   if (!e) throw new Error(`missing #${id}`);
   return e;
 }
+
+// Restore the window layout before the player is defined, so it is not moved after it connects.
+const panels = initPanels({
+  desk: el('desk'),
+  windowsButton: el('windows-btn') as HTMLButtonElement,
+  tabbar: el('tabbar'),
+  defaultActive: 'player',
+});
+
+defineTartletPlayer();
 
 const player = el('player') as TartletPlayerElement;
 const editor = el('editor') as HTMLTextAreaElement;
@@ -25,6 +34,7 @@ const seedInput = el('seed') as HTMLInputElement;
 const diagBadge = el('diag-badge');
 const counts = el('counts');
 const toast = el('toast');
+const fab = el('fab-play') as HTMLButtonElement;
 
 let current: Preset = PRESETS[0];
 let fileStem = current.id;
@@ -101,6 +111,8 @@ function presetButton(p: Preset): HTMLButtonElement {
   b.append(name, blurb, tags);
   b.addEventListener('click', () => {
     loadPreset(p);
+    // On phones the preset list fills the screen; jump to the player so the sketch can be heard.
+    if (panels.isMobile()) panels.show('player');
   });
   return b;
 }
@@ -140,9 +152,22 @@ player.addEventListener('diagnostics', () => {
   );
 });
 
-player.addEventListener('statechange', () => {
-  document.body.classList.toggle('is-playing', player.playing);
+// ---- transport state (logo pulse and the phone play button)
+
+function updateTransport(): void {
+  const playing = player.playing;
+  document.body.classList.toggle('is-playing', playing);
+  fab.textContent = playing ? '■' : '▶';
+  fab.setAttribute('aria-label', playing ? 'Stop' : 'Play');
+  fab.classList.toggle('is-playing', playing);
+}
+player.addEventListener('statechange', updateTransport);
+fab.addEventListener('click', () => {
+  if (player.playing) player.stop();
+  else void player.play();
 });
+updateTransport();
+
 // ---- pulse warning (TS-61): shown once per session before playing steady 3–30 Hz pulsing
 const pulseDialog = el('pulse-dialog') as HTMLDialogElement;
 const pulseRates = el('pulse-rates');
@@ -197,7 +222,7 @@ editor.addEventListener('keydown', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.code !== 'Space' || e.repeat) return;
   const t = e.target;
-  if (t instanceof Element && t.closest('dialog')) return;
+  if (t instanceof Element && t.closest('dialog, [role="menu"], [role="separator"]')) return;
   if (
     t instanceof HTMLTextAreaElement ||
     t instanceof HTMLInputElement ||
@@ -234,6 +259,10 @@ el('copy-btn').addEventListener('click', () => {
       flash('Copy failed');
     },
   );
+});
+
+el('help-btn').addEventListener('click', () => {
+  panels.show('cheatsheet');
 });
 
 function encode(s: string): string {
@@ -354,10 +383,11 @@ const library = initLibrary(el('library'), {
     markActive(undefined);
     seedInput.value = sketch.seed ?? '';
     applySeed(); // sets or clears the seed, then applies the source
+    if (panels.isMobile()) panels.show('player');
   },
   flash,
 });
-// ---- optional AI assistant (loaded on first open)
+// ---- optional AI assistant (loaded the first time its window is shown)
 function describeDiagnostic(d: object): string {
   const r = d as Record<string, unknown>;
   const severity = typeof r.severity === 'string' ? r.severity : 'issue';
@@ -392,10 +422,10 @@ function setSourceAndCheck(source: string, title?: string): Promise<Problem[]> {
     apply();
   });
 }
-const assistantRoot = el('assistant') as HTMLDetailsElement;
+const assistantRoot = el('assistant');
 let assistantLoaded = false;
-assistantRoot.addEventListener('toggle', () => {
-  if (!assistantRoot.open || assistantLoaded) return;
+function loadAssistant(): void {
+  if (assistantLoaded) return;
   assistantLoaded = true;
   import('./assistant').then(
     ({ initAssistant }) => {
@@ -411,7 +441,9 @@ assistantRoot.addEventListener('toggle', () => {
       flash('Could not load the assistant');
     },
   );
-});
+}
+assistantRoot.addEventListener('panelshow', loadAssistant);
+if (panels.isVisible('assistant')) loadAssistant();
 
 // ---- startup
 

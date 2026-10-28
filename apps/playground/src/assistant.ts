@@ -1,5 +1,5 @@
 // Optional AI assistant: generates and edits sketches through a Cognotik API proxy.
-// Loaded lazily by main.ts the first time the assistant panel is opened.
+// Loaded lazily by main.ts the first time the assistant window is shown (see the panelshow event).
 
 import {
   CognotikClient,

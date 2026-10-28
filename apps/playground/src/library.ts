@@ -439,7 +439,8 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     if (file) void importFile(file);
   });
   clearBtn.addEventListener('click', clearAll);
-  root.addEventListener('toggle', render);
+  // The window manager fires panelshow when this window becomes visible (shown, expanded or tabbed to).
+  root.addEventListener('panelshow', render);
 
   // Ctrl/Cmd+S saves the current sketch to the library.
   document.addEventListener('keydown', (e) => {
