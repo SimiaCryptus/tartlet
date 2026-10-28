@@ -387,3 +387,221 @@ export function unisonOffsets(n: number, cents: number): number[] {
   if (n <= 1) return [0];
   return Array.from({ length: n }, (_, i) => (i / (n - 1) - 0.5) * cents);
 }
+// ---- Space and environment (TS-69 to TS-72)
+/** The character of one reverb space. */
+export interface SpaceSpec {
+  /** Tail length in seconds at size 0, and how much size 1 adds. */
+  readonly base: number;
+  readonly span: number;
+  /** Seconds of silence before the tail starts. */
+  readonly predelay: number;
+  /** How much darker the tail grows as it decays, 0–1. */
+  readonly damping: number;
+  /** Share of non-zero samples; below one the tail is a sparse set of echoes. */
+  readonly density: number;
+  /** Wet level of the bus. */
+  readonly wet: number;
+}
+const ROOM_SPACE: SpaceSpec = { base: 0.3, span: 1.2, predelay: 0.004, damping: 0.6, density: 1, wet: 0.5 };
+export const SPACES: ReadonlyMap<string, SpaceSpec> = new Map<string, SpaceSpec>([
+  ['room', ROOM_SPACE],
+  ['hall', { base: 1.2, span: 2.8, predelay: 0.02, damping: 0.4, density: 1, wet: 0.5 }],
+  ['plate', { base: 0.8, span: 2.2, predelay: 0, damping: 0.15, density: 1, wet: 0.55 }],
+  ['church', { base: 2.5, span: 4.5, predelay: 0.04, damping: 0.55, density: 1, wet: 0.45 }],
+  ['outdoor', { base: 0.15, span: 0.6, predelay: 0.01, damping: 0.8, density: 0.08, wet: 0.35 }],
+]);
+/** Impulse length in seconds for a space and a size in [0, 1]. */
+export function spaceSeconds(space: string, size: number): number {
+  const s = SPACES.get(space) ?? ROOM_SPACE;
+  return s.base + s.span * clamp(size, 0, 1);
+}
+/**
+ * Fills `out` with a seeded impulse response for a named space: predelay, then noise that decays
+ * by 60 dB over the buffer while a one-pole low-pass closes, so the tail darkens.
+ */
+export function spaceImpulse(out: Float32Array, sampleRate: number, space: string, seed: number): void {
+  const spec = SPACES.get(space) ?? ROOM_SPACE;
+  const rnd = seededRandom(seed);
+  const n = out.length;
+  const pre = Math.min(n, Math.round(spec.predelay * sampleRate));
+  let y = 0;
+  for (let i = 0; i < n; i++) {
+    if (i < pre) {
+      out[i] = 0;
+      continue;
+    }
+    const p = (i - pre) / Math.max(1, n - pre);
+    let x = rnd();
+    if (spec.density < 1 && Math.abs(rnd()) > spec.density) x = 0;
+    else if (spec.density < 1) x /= Math.sqrt(spec.density);
+    y += (1 - spec.damping * 0.9 * p) * (x - y);
+    out[i] = y * Math.exp(-6.9 * p);
+  }
+}
+interface TapSpec {
+  readonly count: number;
+  readonly min: number;
+  readonly max: number;
+  readonly gain: number;
+}
+const EARLY_ROOM: TapSpec = { count: 6, min: 0.004, max: 0.025, gain: 0.5 };
+const EARLY: ReadonlyMap<string, TapSpec> = new Map<string, TapSpec>([
+  ['room', EARLY_ROOM],
+  ['hall', { count: 6, min: 0.012, max: 0.07, gain: 0.4 }],
+  ['plate', { count: 0, min: 0, max: 0, gain: 0 }],
+  ['church', { count: 8, min: 0.02, max: 0.12, gain: 0.35 }],
+  ['outdoor', { count: 2, min: 0.06, max: 0.25, gain: 0.25 }],
+]);
+/** One early reflection: delay in seconds, level, pan in [-1, 1] and low-pass cutoff. */
+export interface Tap {
+  readonly delay: number;
+  readonly gain: number;
+  readonly pan: number;
+  readonly cutoff: number;
+}
+/** Early reflections for a space, spread wider as size grows. Delays are increasing (TS-70). */
+export function earlyTaps(space: string, size: number, seed: number): Tap[] {
+  const spec = EARLY.get(space) ?? EARLY_ROOM;
+  const rnd = seededRandom(seed);
+  const scale = 0.5 + clamp(size, 0, 1);
+  const out: Tap[] = [];
+  for (let i = 0; i < spec.count; i++) {
+    const x = (i + 0.5 + 0.4 * rnd()) / spec.count;
+    const side = i % 2 === 0 ? -1 : 1;
+    out.push({
+      delay: Math.min(0.5, (spec.min + (spec.max - spec.min) * x) * scale),
+      gain: spec.gain * 0.75 ** i,
+      pan: side * (0.3 + 0.6 * Math.abs(rnd())),
+      cutoff: 6000 * 0.8 ** i,
+    });
+  }
+  return out;
+}
+/** Air absorption: a low-pass cutoff that falls with distance beyond 1 (TS-70). */
+export function airCutoff(distance: number): number {
+  if (!(distance > 1)) return 20000;
+  return clamp(20000 * distance ** -0.65, 1200, 20000);
+}
+/** Extra reverb send for a distant source, 0 at distance 1 and 0.5 at 50 (TS-70). */
+export function distanceWet(distance: number): number {
+  if (!(distance > 1)) return 0;
+  return Math.min(0.5, (0.5 * Math.log(distance)) / Math.log(50));
+}
+/** Low-pass cutoff and level for an occluded sound, `amount` in [0, 1] (TS-72). */
+export function occlusion(amount: number): { cutoff: number; gain: number } {
+  const o = clamp(amount, 0, 1);
+  return { cutoff: 20000 * 0.02 ** o, gain: 1 - 0.5 * o };
+}
+// ---- Textures (TS-73 to TS-76)
+/** A small event inside a texture: time in seconds from the onset and two draws in [0, 1). */
+export interface MicroEvent {
+  readonly at: number;
+  readonly v: number;
+  readonly w: number;
+}
+/**
+ * Seeded event times with exponential gaps (about `rate` per second), at least `minGap` apart,
+ * before `dur`, and at most `max` of them.
+ */
+export function microEvents(seed: number, dur: number, rate: number, max: number, minGap = 0.02): MicroEvent[] {
+  const out: MicroEvent[] = [];
+  if (!(rate > 0) || !(dur > 0)) return out;
+  const rnd = seededRandom(seed);
+  const u = (): number => Math.min(0.999999, (rnd() + 1) / 2);
+  let at = 0;
+  while (out.length < max) {
+    at += Math.max(minGap, -Math.log(1 - u()) / rate);
+    if (at >= dur) break;
+    out.push({ at, v: u(), w: u() });
+  }
+  return out;
+}
+/** `n` values in [0, 1] eased between `knots` seeded random levels. */
+export function smoothCurve(seed: number, n: number, knots: number): Float32Array<ArrayBuffer> {
+  const len = Math.max(2, Math.round(n));
+  const k = Math.max(1, Math.round(knots));
+  const rnd = seededRandom(seed);
+  const levels = Array.from({ length: k + 1 }, () => clamp((rnd() + 1) / 2, 0, 1));
+  const out = new Float32Array(len);
+  for (let i = 0; i < len; i++) {
+    const x = (i / (len - 1)) * k;
+    const j = Math.min(k - 1, Math.floor(x));
+    const f = x - j;
+    const s = (1 - Math.cos(Math.PI * f)) / 2;
+    const a = levels[j] ?? 0;
+    const b = levels[j + 1] ?? a;
+    out[i] = a + (b - a) * s;
+  }
+  return out;
+}
+/** Slow swells in [0, 1] at about `rate` per second over `seconds`, with seeded drift (surf). */
+export function swellCurve(seed: number, n: number, seconds: number, rate: number): Float32Array<ArrayBuffer> {
+  const len = Math.max(2, Math.round(n));
+  const out = new Float32Array(len);
+  const drift = smoothCurve(seed ^ 0x5bd1e995, len, Math.max(1, Math.min(len / 2, seconds * rate)));
+  const rnd = seededRandom(seed);
+  let phase = (rnd() + 1) / 2;
+  const dt = seconds / (len - 1);
+  for (let i = 0; i < len; i++) {
+    out[i] = ((1 - Math.cos(2 * Math.PI * phase)) / 2) ** 1.5;
+    phase += rate * dt * (0.75 + 0.5 * (drift[i] ?? 0.5));
+  }
+  return out;
+}
+/** One grain: start in seconds from the onset, source offset in seconds and length. */
+export interface Grain {
+  readonly at: number;
+  readonly offset: number;
+  readonly len: number;
+}
+/**
+ * A seeded grain schedule (TS-75). Grains start every 1/density seconds, moved by up to half a
+ * step with `jitter`; offsets sit at `pos` of the source, moved by up to half the source with
+ * `jitter`, and always fit inside it.
+ */
+export function grainSchedule(
+  seed: number,
+  dur: number,
+  density: number,
+  size: number,
+  pos: number,
+  jitter: number,
+  bufferDur: number,
+  max: number,
+): Grain[] {
+  const out: Grain[] = [];
+  if (!(density > 0) || !(dur > 0) || !(size > 0) || !(bufferDur > 0)) return out;
+  const rnd = seededRandom(seed);
+  const len = Math.min(size, bufferDur);
+  const room = Math.max(0, bufferDur - len);
+  const step = 1 / density;
+  const j = clamp(jitter, 0, 1);
+  const p = clamp(pos, 0, 1);
+  for (let i = 0; out.length < max; i++) {
+    const at = i * step + j * step * 0.5 * rnd();
+    if (at >= dur) break;
+    out.push({ at: Math.max(0, at), offset: clamp(p * room + j * room * 0.5 * rnd(), 0, room), len });
+  }
+  return out;
+}
+/** A band-limited buffer of a basic waveform at `freq`, peaking at 0.9 (source for grains). */
+export function renderPeriodic(
+  type: string,
+  freq: number,
+  sampleRate: number,
+  seconds = 0.5,
+): Float32Array<ArrayBuffer> {
+  const amps = partialTable(type) ?? [1];
+  const n = Math.max(1, Math.round(seconds * sampleRate));
+  const out = new Float32Array(n);
+  const w = (2 * Math.PI * freq) / sampleRate;
+  amps.forEach((a, i) => {
+    const h = i + 1;
+    if (a === 0 || h * freq >= sampleRate / 2) return;
+    for (let k = 0; k < n; k++) out[k] = (out[k] ?? 0) + a * Math.sin(h * w * k);
+  });
+  let peak = 0;
+  for (const v of out) peak = Math.max(peak, Math.abs(v));
+  if (peak > 0) for (let k = 0; k < n; k++) out[k] = ((out[k] ?? 0) * 0.9) / peak;
+  return out;
+}

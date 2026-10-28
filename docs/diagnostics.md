@@ -143,4 +143,5 @@ Mini-notation errors mute the whole output.
 - `W-ARG-UNSUPPORTED`: a control that the track's sounds ignore. Examples are `iphase`, `irate`
   or `earsplit("harmonics")` on noise or drums, and `dichotic` or `icorr` on oscillators. It is
   reported only when every sound in the track is known (TS-68).
-- `W-ARG-MODE`: an unknown constant `earsplit` mode. `none` is used.
+- `W-ARG-MODE`: an unknown constant `earsplit` mode, where `none` is used, or an unknown
+  constant `space`, where the plain reverb is used (TS-69).

@@ -1,19 +1,31 @@
-import { DRUMS, NOISES, OSCILLATORS, VOICES, resolveSound } from '@tartlet/resources';
+import { AMBIENCES, CREATURES, DRUMS, FOLEY, NOISES, OSCILLATORS, VOICES, resolveSound } from '@tartlet/resources';
 import { normalizeVowel, parseSyllable } from '@tartlet/registry';
 import {
+  SPACES,
+  airCutoff,
   CONSONANT_SPECS,
   crushCurve,
+  distanceWet,
+  earlyTaps,
   envelope,
   fillNoise,
   formantBank,
   glottalWave,
+  grainSchedule,
   impulseResponse,
+  microEvents,
   nasalBank,
+  occlusion,
   partialTable,
   pulseWave,
+  renderPeriodic,
   shapeCurve,
+  smoothCurve,
   softSquareWave,
+  spaceImpulse,
+  spaceSeconds,
   splitWaves,
+  swellCurve,
   TIMBRES,
   timbreWave,
   unisonOffsets,
@@ -32,6 +44,11 @@ const NOISE_SET = new Set<string>(NOISES);
 const DRUM_SET = new Set<string>(DRUMS);
 const VOICE_SET = new Set<string>(VOICES);
 const isNoise = (name: string): name is NoiseKind => NOISE_SET.has(name);
+const AMBIENCE_SET = new Set<string>(AMBIENCES);
+const FOLEY_SET = new Set<string>(FOLEY);
+const CREATURE_SET = new Set<string>(CREATURES);
+/** At most this many grains play per note (TS-75). */
+const MAX_GRAINS = 256;
 
 /** Voice cost budget: each running oscillator or buffer source costs one (TS-42). */
 const MAX_COST = 64;
@@ -66,7 +83,8 @@ interface Voice {
   cut?: (at: number) => void;
 }
 
-type Starts = ReadonlyMap<AudioScheduledSourceNode, readonly [number, number]>;
+/** Start time, buffer offset and optional stop time per source. */
+type Starts = ReadonlyMap<AudioScheduledSourceNode, readonly [number, number, number?]>;
 /** Per-ear settings for two-ear voices (TS-40, TS-62, TS-64 to TS-67). */
 interface EarShift {
   /** Binaural beat in hertz, including any `irate` rotation. */
@@ -98,6 +116,41 @@ interface Spec {
   readonly end: number;
   /** Start time and buffer offset per source, when not the onset (TS-43, TS-46). */
   readonly starts?: Starts;
+  /** Voice cost when it differs from the number of sources, for grains (TS-75). */
+  readonly cost?: number;
+}
+/** Shared state while building a texture voice (TS-73, TS-76). */
+interface Frame {
+  readonly t: number;
+  readonly amp: GainNode;
+  readonly end: number;
+  readonly span: number;
+  readonly points: number;
+  readonly rnd: () => number;
+  readonly intensity: number;
+  readonly density: number | undefined;
+  readonly sources: AudioScheduledSourceNode[];
+  readonly starts: Map<AudioScheduledSourceNode, readonly [number, number]>;
+}
+function rateOf(f: Frame, dflt: number): number {
+  return clamp(f.density ?? dflt, 0.1, 200);
+}
+function seedOf(rnd: () => number): number {
+  return Math.floor(((rnd() + 1) / 2) * 0x7ffffffe) + 1;
+}
+function mapCurve(values: Float32Array, lo: number, hi: number): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(values.length);
+  for (let i = 0; i < values.length; i++) out[i] = lo + (hi - lo) * (values[i] ?? 0);
+  return out;
+}
+function shape(param: AudioParam, f: Frame, values: Float32Array, lo: number, hi: number): void {
+  param.setValueCurveAtTime(mapCurve(values, lo, hi), f.t, f.span);
+}
+/** A short exponential burst on a gain parameter. */
+function blip(param: AudioParam, at: number, peak: number, a: number, d: number): void {
+  param.setValueAtTime(0.0001, at);
+  param.linearRampToValueAtTime(Math.max(peak, 0.0002), at + a);
+  param.exponentialRampToValueAtTime(0.0001, at + a + d);
 }
 
 interface Chain {
@@ -163,6 +216,12 @@ export class AudioEngine {
   private readonly reverbs = new Map<string, AudioNode>();
   private readonly delays = new Map<number, DelayBus>();
   private readonly lines = new Map<string, Line>();
+  private readonly earlies = new Map<string, AudioNode>();
+  private readonly positions = new Map<
+    string,
+    { readonly pos: readonly [number, number, number]; readonly at: number }
+  >();
+  private readonly periodic = new Map<string, AudioBuffer>();
 
   private constructor(
     readonly ctx: AudioContext,
@@ -222,7 +281,10 @@ export class AudioEngine {
     const osc = OSC_SET.has(name);
     const noise = isNoise(name);
     const vocal = VOICE_SET.has(name);
-    if (!osc && !noise && !vocal && !DRUM_SET.has(name)) {
+    const amb = AMBIENCE_SET.has(name);
+    const foley = FOLEY_SET.has(name);
+    const creature = CREATURE_SET.has(name);
+    if (!osc && !noise && !vocal && !amb && !foley && !creature && !DRUM_SET.has(name)) {
       this.unknownSounds.add(sound);
       return;
     }
@@ -241,10 +303,11 @@ export class AudioEngine {
     const dual = twoEar(ear);
     const post = ctx.createGain();
     const sink = this.earStage(c);
-    post.connect(dual ? sink : this.placer(c, sink));
+    post.connect(dual ? sink : this.air(c, this.placer(c, sink, t)));
     this.sends(c, post, t);
-    const attack = clamp(fin(c.attack, vocal ? 0.03 : 0.005), 0.001, 5);
-    const release = clamp(fin(c.release, vocal ? 0.12 : 0.08), 0.01, 8);
+    const textured = amb || creature;
+    const attack = clamp(fin(c.attack, vocal ? 0.03 : textured ? 0.3 : 0.005), 0.001, 5);
+    const release = clamp(fin(c.release, vocal ? 0.12 : textured ? 0.6 : 0.08), 0.01, 8);
 
     // Mono lines: a new note ends the previous one on the same line (TS-42).
     const mono = num(c.mono);
@@ -266,28 +329,45 @@ export class AudioEngine {
     const fx = this.effects(c, t, t + Math.max(dur, attack), release, post, plan, freq);
     const gate = ctx.createGain();
     gate.connect(fx.input);
+    const env: Adsr = {
+      a: attack,
+      d: clamp(fin(c.decay, 0.05), 0.001, 5),
+      s: clamp(fin(c.sustain, 1), 0, 1),
+      r: release,
+    };
+    const grain = num(c.grain);
+    const sp = clamp(Math.abs(fin(c.speed, 1)), 0.125, 8);
 
     let spec: Spec | undefined;
-    if (pitched) {
+    if ((osc || noise) && grain !== undefined && grain > 0) {
+      spec = this.granular(name, c, env, freq, t, dur, gain, gate);
+    } else if (pitched) {
       const from =
         (osc || vocal) && prev !== undefined && Number.isFinite(prev.freq) && glideTime > 0 ? prev.freq : undefined;
       const glide = from === undefined ? undefined : { from, time: glideTime };
-      const env: Adsr = {
-        a: attack,
-        d: clamp(fin(c.decay, 0.05), 0.001, 5),
-        s: clamp(fin(c.sustain, 1), 0, 1),
-        r: release,
-      };
       spec = vocal
         ? this.vocal(name, c, env, freq, glide, t, dur, gain, gate, post, plan)
         : this.synth(name, c, env, freq, ear, glide, t, dur, gain, gate);
+    } else if (amb) {
+      spec = this.ambience(name, c, env, t, dur, gain, gate);
+    } else if (creature) {
+      const cf = hz ?? (Number.isFinite(midi) ? 440 * 2 ** ((midi - 69) / 12) : undefined);
+      spec = this.creature(name, c, env, cf, t, dur, gain, gate);
+    } else if (foley) {
+      spec = this.foley(name, c, t, gain, sp, gate);
     } else {
-      const sp = clamp(Math.abs(fin(c.speed, 1)), 0.125, 8);
       spec = this.drum(name, t, gain, sp, gate);
     }
     if (!spec) return;
 
-    const voice = this.voice([...spec.sources, ...fx.lfos], t, spec.end, gate, spec.starts);
+    const voice = this.voice(
+      [...spec.sources, ...fx.lfos],
+      t,
+      spec.end,
+      gate,
+      spec.starts,
+      spec.cost === undefined ? undefined : spec.cost + fx.lfos.length,
+    );
     this.admit(voice, now);
     if (key !== undefined) {
       this.lines.set(key, {
@@ -301,6 +381,7 @@ export class AudioEngine {
   stopAll(): void {
     for (const v of this.voices.splice(0)) v.stop();
     this.lines.clear();
+    this.positions.clear();
     const now = this.ctx.currentTime;
     for (const bus of this.delays.values()) {
       bus.feedback.gain.cancelScheduledValues(now);
@@ -309,18 +390,26 @@ export class AudioEngine {
   }
 
   /** Starts the sources and wraps them as one voice that can be stopped or faded out. */
-  private voice(sources: AudioScheduledSourceNode[], t: number, end: number, gate: GainNode, starts?: Starts): Voice {
+  private voice(
+    sources: AudioScheduledSourceNode[],
+    t: number,
+    end: number,
+    gate: GainNode,
+    starts?: Starts,
+    cost?: number,
+  ): Voice {
     for (const s of sources) {
       const st = starts?.get(s);
       const when = st?.[0] ?? t;
       const offset = st?.[1] ?? 0;
+      const stopAt = st?.[2];
       if (offset > 0 && s instanceof AudioBufferSourceNode) s.start(when, offset);
       else s.start(when);
-      s.stop(Math.max(end, when + 0.01));
+      s.stop(stopAt !== undefined ? Math.max(stopAt, when + 0.005) : Math.max(end, when + 0.01));
     }
     return {
       end,
-      cost: sources.length,
+      cost: cost ?? sources.length,
       stop: () => {
         for (const s of sources) safeStop(s);
       },
@@ -352,9 +441,10 @@ export class AudioEngine {
 
   /**
    * The node a voice feeds, already connected to `out`. Any of azimuth, elevation or
-   * distance selects HRTF placement; otherwise a stereo panner reads `pan` (TS-40).
+   * distance selects HRTF placement; otherwise a stereo panner reads `pan` (TS-40). A placed
+   * voice glides from the position of the previous note of the same sound and orbit (TS-71).
    */
-  private placer(c: ControlMap, out: AudioNode): AudioNode {
+  private placer(c: ControlMap, out: AudioNode, t: number): AudioNode {
     const spatial = typeof c.azimuth === 'number' || typeof c.elevation === 'number' || typeof c.distance === 'number';
     if (!spatial) {
       const pan = this.ctx.createStereoPanner();
@@ -372,11 +462,41 @@ export class AudioEngine {
     const el = clamp(fin(c.elevation, 0), -90, 90) * DEG;
     const d = clamp(fin(c.distance, 1), 0.5, 50);
     // The default listener faces -z with +y up, so azimuth 90° lies on +x (the right).
-    p.positionX.value = Math.sin(az) * Math.cos(el) * d;
-    p.positionY.value = Math.sin(el) * d;
-    p.positionZ.value = -Math.cos(az) * Math.cos(el) * d;
+    const target: readonly [number, number, number] = [
+      Math.sin(az) * Math.cos(el) * d,
+      Math.sin(el) * d,
+      -Math.cos(az) * Math.cos(el) * d,
+    ];
+    const key = `${String(clamp(Math.round(fin(c.orbit, 0)), 0, 15))}:${typeof c.s === 'string' ? c.s : ''}`;
+    const prev = this.positions.get(key);
+    const glide = clamp(fin(c.posglide, 0.05), 0, 2);
+    const from = prev !== undefined && glide > 0 && t >= prev.at && t - prev.at < 2 ? prev.pos : undefined;
+    const params = [p.positionX, p.positionY, p.positionZ];
+    for (const [i, a] of params.entries()) {
+      const to = target[i] ?? 0;
+      if (from) {
+        const start = from[i] ?? 0;
+        a.value = start;
+        a.setValueAtTime(start, t);
+        a.linearRampToValueAtTime(to, t + glide);
+      } else {
+        a.value = to;
+      }
+    }
+    this.positions.set(key, { pos: target, at: t });
     p.connect(out);
     return p;
+  }
+  /** Air absorption for distant placed voices (TS-70). Returns the node the dry path feeds. */
+  private air(c: ControlMap, dest: AudioNode): AudioNode {
+    const d = num(c.distance);
+    if (d === undefined || d <= 1) return dest;
+    const f = this.ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = airCutoff(clamp(d, 0.5, 50));
+    f.Q.value = 0.5;
+    f.connect(dest);
+    return f;
   }
   /**
    * Interaural time and level differences, per-ear filters, the band split and the ear swap,
@@ -438,15 +558,29 @@ export class AudioEngine {
     return split;
   }
 
-  /** Sends to the shared reverb and delay of the event's orbit (TS-41). */
+  /**
+   * Sends to the shared reverb, early reflections and delay of the event's orbit (TS-41, TS-69,
+   * TS-70). Distant placed voices send more to the reverb.
+   */
   private sends(c: ControlMap, post: AudioNode, t: number): void {
     const orbit = clamp(Math.round(fin(c.orbit, 0)), 0, 15);
-    const room = clamp(fin(c.room, 0), 0, 1);
+    const space = typeof c.space === 'string' && SPACES.has(c.space) ? c.space : undefined;
+    const spatial = typeof c.azimuth === 'number' || typeof c.elevation === 'number' || typeof c.distance === 'number';
+    const far = spatial ? distanceWet(clamp(fin(c.distance, 1), 0.5, 50)) : 0;
+    const room = clamp(fin(c.room, 0) + far, 0, 1);
     if (room > 0) {
+      const size = clamp(fin(c.size, 0.3), 0, 1);
       const s = this.ctx.createGain();
       s.gain.value = room;
       post.connect(s);
-      s.connect(this.reverb(orbit, clamp(fin(c.size, 0.3), 0, 1)));
+      s.connect(this.reverb(orbit, size, space));
+      const er = this.early(orbit, size, space ?? 'room');
+      if (er) {
+        const e = this.ctx.createGain();
+        e.gain.value = room * 0.6;
+        post.connect(e);
+        e.connect(er);
+      }
     }
     const delay = clamp(fin(c.delay, 0), 0, 1);
     if (delay > 0) {
@@ -460,26 +594,60 @@ export class AudioEngine {
     }
   }
 
-  private reverb(orbit: number, size: number): AudioNode {
+  private reverb(orbit: number, size: number, space?: string): AudioNode {
     const step = Math.round(size * 10);
-    const key = `${String(orbit)}:${String(step)}`;
+    const key = `${String(orbit)}:${space ?? ''}:${String(step)}`;
     const hit = this.reverbs.get(key);
     if (hit) return hit;
     if (this.reverbs.size >= MAX_REVERBS) {
       const first = this.reverbs.values().next();
       if (!first.done) return first.value;
     }
-    const seconds = 0.4 + step * 0.4;
+    const seconds = space ? spaceSeconds(space, step / 10) : 0.4 + step * 0.4;
     const sr = this.ctx.sampleRate;
     const buf = this.ctx.createBuffer(2, Math.max(1, Math.round(seconds * sr)), sr);
-    for (let ch = 0; ch < 2; ch++) impulseResponse(buf.getChannelData(ch), 0x1234567 + ch * 7919 + step);
+    const salt = space ? [...SPACES.keys()].indexOf(space) * 131 + 17 : 0;
+    for (let ch = 0; ch < 2; ch++) {
+      const seed = 0x1234567 + ch * 7919 + step + salt;
+      if (space) spaceImpulse(buf.getChannelData(ch), sr, space, seed);
+      else impulseResponse(buf.getChannelData(ch), seed);
+    }
     const conv = this.ctx.createConvolver();
     conv.buffer = buf;
     const wet = this.ctx.createGain();
-    wet.gain.value = 0.5;
+    wet.gain.value = space ? (SPACES.get(space)?.wet ?? 0.5) : 0.5;
     conv.connect(wet).connect(this.input);
     this.reverbs.set(key, conv);
     return conv;
+  }
+  /** A shared early-reflection bus: delayed, filtered, panned taps (TS-70). */
+  private early(orbit: number, size: number, space: string): AudioNode | undefined {
+    const step = Math.round(size * 10);
+    const key = `${String(orbit)}:${space}:${String(step)}`;
+    const hit = this.earlies.get(key);
+    if (hit) return hit;
+    if (this.earlies.size >= MAX_REVERBS) {
+      const first = this.earlies.values().next();
+      if (!first.done) return first.value;
+    }
+    const taps = earlyTaps(space, step / 10, 0x2c1b3c6d + step);
+    if (taps.length === 0) return undefined;
+    const ctx = this.ctx;
+    const input = ctx.createGain();
+    for (const tap of taps) {
+      const d = ctx.createDelay(0.6);
+      d.delayTime.value = tap.delay;
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = tap.cutoff;
+      const g = ctx.createGain();
+      g.gain.value = tap.gain;
+      const p = ctx.createStereoPanner();
+      p.pan.value = clamp(tap.pan, -1, 1);
+      input.connect(d).connect(f).connect(g).connect(p).connect(this.input);
+    }
+    this.earlies.set(key, input);
+    return input;
   }
 
   private delayBus(orbit: number): DelayBus {
@@ -608,6 +776,19 @@ export class AudioEngine {
       n.connect(head);
       head = n;
     };
+    // Occlusion sits closest to the sink, so the sends hear the muffled sound too (TS-72).
+    const occ = clamp(fin(c.occlude, 0), 0, 1);
+    if (occ > 0) {
+      const o = occlusion(occ);
+      const g = ctx.createGain();
+      g.gain.value = o.gain;
+      link(g);
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = o.cutoff;
+      f.Q.value = 0.5;
+      link(f);
+    }
 
     const trem = clamp(fin(c.trem, 0), 0, 30);
     if (trem > 0) {
@@ -1329,6 +1510,7 @@ export class AudioEngine {
 
   private env(t: number, peak: number, decay: number): GainNode {
     const g = this.ctx.createGain();
+    g.gain.value = 0.0001;
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + 0.002);
     g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(decay, 0.005));
@@ -1396,6 +1578,360 @@ export class AudioEngine {
     o.frequency.setValueAtTime(clamp(1700 * sp, 1, 20000), t);
     o.connect(this.env(t, gain * 0.5, 0.03 / sp)).connect(out);
     return { sources: [o], end: t + Math.max(0.01, 0.05 / sp) };
+  }
+  // ---- Textures (TS-73 to TS-76)
+  private frame(c: ControlMap, env: Adsr, t: number, dur: number, peak: number, out: AudioNode): Frame {
+    const pts = envelope(t, dur, env, peak);
+    const amp = this.ctx.createGain();
+    amp.gain.setValueAtTime(0, t);
+    for (const [time, v] of pts.slice(1)) amp.gain.linearRampToValueAtTime(v, time);
+    amp.connect(out);
+    const end = (pts[pts.length - 1]?.[0] ?? t) + 0.02;
+    const span = Math.max(0.05, end - t);
+    return {
+      t,
+      amp,
+      end,
+      span,
+      points: Math.min(2000, Math.max(2, Math.ceil(span * 20))),
+      rnd: seededFrom(fin(c.tseed, 0)),
+      intensity: clamp(fin(c.intensity, 0.5), 0, 1),
+      density: num(c.density),
+      sources: [],
+      starts: new Map(),
+    };
+  }
+  /** A looping noise bed starting at a seeded offset, so overlapping notes never phase-cancel. */
+  private bed(f: Frame, kind: NoiseKind): AudioBufferSourceNode {
+    const s = this.ctx.createBufferSource();
+    s.buffer = this.noiseBed(kind);
+    s.loop = true;
+    f.sources.push(s);
+    f.starts.set(s, [f.t, ((f.rnd() + 1) / 2) * 1.9]);
+    return s;
+  }
+  private biquad(type: BiquadFilterType, freq: number, q = 0.7): BiquadFilterNode {
+    const b = this.ctx.createBiquadFilter();
+    b.type = type;
+    b.frequency.value = clamp(freq, 20, 20000);
+    b.Q.value = q;
+    return b;
+  }
+  private level(g: number): GainNode {
+    const n = this.ctx.createGain();
+    n.gain.value = g;
+    return n;
+  }
+  private wander(f: Frame, perSecond: number): Float32Array<ArrayBuffer> {
+    return smoothCurve(seedOf(f.rnd), f.points, Math.max(1, Math.min(f.points / 2, f.span * perSecond)));
+  }
+  /** Procedural ambiences: noise beds plus seeded micro-events (TS-73). */
+  private ambience(name: string, c: ControlMap, env: Adsr, t: number, dur: number, gain: number, out: AudioNode): Spec {
+    const ctx = this.ctx;
+    const f = this.frame(c, env, t, dur, gain * 0.4, out);
+    const k = f.intensity;
+    switch (name) {
+      case 'rain': {
+        this.bed(f, 'pink')
+          .connect(this.biquad('highpass', 700))
+          .connect(this.level(0.5 + 0.5 * k))
+          .connect(f.amp);
+        const drop = ctx.createOscillator();
+        const dg = this.level(0);
+        drop.connect(dg).connect(f.amp);
+        for (const e of microEvents(seedOf(f.rnd), f.span, rateOf(f, 4 + 40 * k), 240, 0.03)) {
+          const at = t + e.at;
+          const f0 = 900 + 2600 * e.v;
+          drop.frequency.setValueAtTime(f0, at);
+          drop.frequency.exponentialRampToValueAtTime(f0 * 1.7, at + 0.018);
+          blip(dg.gain, at, 0.06 + 0.2 * e.w, 0.001, 0.02);
+        }
+        f.sources.push(drop);
+        break;
+      }
+      case 'wind': {
+        const rate = rateOf(f, 0.3 + k);
+        const bp = this.biquad('bandpass', 600, 1 + 3 * k);
+        shape(bp.frequency, f, this.wander(f, rate), 250, 700 + 1800 * k);
+        const gust = this.level(0);
+        shape(gust.gain, f, this.wander(f, rate), 0.15, 0.6 + 0.8 * k);
+        this.bed(f, 'pink').connect(bp).connect(this.level(2)).connect(gust).connect(f.amp);
+        this.bed(f, 'brown').connect(this.biquad('lowpass', 250)).connect(this.level(0.5)).connect(f.amp);
+        break;
+      }
+      case 'fire': {
+        this.bed(f, 'brown').connect(this.biquad('lowpass', 400)).connect(this.level(0.7)).connect(f.amp);
+        this.bed(f, 'white')
+          .connect(this.biquad('bandpass', 3000))
+          .connect(this.level(0.05 + 0.1 * k))
+          .connect(f.amp);
+        const cg = this.level(0);
+        this.bed(f, 'white').connect(this.biquad('highpass', 1800)).connect(cg).connect(f.amp);
+        for (const e of microEvents(seedOf(f.rnd), f.span, rateOf(f, 2 + 25 * k), 400, 0.012)) {
+          blip(cg.gain, t + e.at, 0.2 + 0.7 * e.w, 0.0005, 0.002 + 0.008 * e.v);
+        }
+        break;
+      }
+      case 'stream': {
+        const rate = rateOf(f, 3 + 4 * k);
+        const src = this.bed(f, 'white');
+        for (let i = 0; i < 3; i++) {
+          const bp = this.biquad('bandpass', 1000, 6 + 2 * i);
+          shape(bp.frequency, f, this.wander(f, rate), 300 + 300 * i, 1200 + 900 * i);
+          src
+            .connect(bp)
+            .connect(this.level(1.5 / (i + 1)))
+            .connect(f.amp);
+        }
+        this.bed(f, 'pink')
+          .connect(this.biquad('lowpass', 500))
+          .connect(this.level(0.25 + 0.3 * k))
+          .connect(f.amp);
+        break;
+      }
+      case 'surf': {
+        const sw = swellCurve(seedOf(f.rnd), f.points, f.span, rateOf(f, 0.08 + 0.1 * k));
+        const lp = this.biquad('lowpass', 800, 0.5);
+        shape(lp.frequency, f, sw, 300, 1500 + 2500 * k);
+        const g = this.level(0);
+        shape(g.gain, f, sw, 0.15, 1);
+        this.bed(f, 'pink').connect(lp).connect(g).connect(f.amp);
+        break;
+      }
+      case 'crowd': {
+        const rate = rateOf(f, 2 + 6 * k);
+        const src = this.bed(f, 'pink');
+        const bands: readonly (readonly [number, number])[] = [
+          [350, 2],
+          [1000, 3],
+          [2300, 4],
+        ];
+        for (const [freq, q] of bands) {
+          const g = this.level(0);
+          shape(g.gain, f, this.wander(f, rate), 0.3, 1.5 + k);
+          src
+            .connect(this.biquad('bandpass', freq, q))
+            .connect(g)
+            .connect(f.amp);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    return { sources: f.sources, end: f.end, starts: f.starts };
+  }
+  /** Creature and machine models (TS-76). `hz` comes from `note` or `freq` when given. */
+  private creature(
+    name: string,
+    c: ControlMap,
+    env: Adsr,
+    hz: number | undefined,
+    t: number,
+    dur: number,
+    gain: number,
+    out: AudioNode,
+  ): Spec {
+    const ctx = this.ctx;
+    const f = this.frame(c, env, t, dur, gain * 0.4, out);
+    const k = f.intensity;
+    switch (name) {
+      case 'bird': {
+        const carrier = ctx.createOscillator();
+        const mod = ctx.createOscillator();
+        const mg = this.level(0);
+        mod.connect(mg).connect(carrier.frequency);
+        const cg = this.level(0);
+        carrier.connect(cg).connect(f.amp);
+        const base = clamp(hz ?? 2600, 200, 10000);
+        for (const e of microEvents(seedOf(f.rnd), f.span, rateOf(f, 2 + 5 * k), 96, 0.15)) {
+          const at = t + e.at;
+          const cd = 0.05 + 0.1 * e.v;
+          const f0 = clamp(base * (0.75 + 0.5 * e.w), 200, 12000);
+          const f1 = clamp(f0 * (f.rnd() > 0 ? 1.6 : 0.6), 100, 16000);
+          carrier.frequency.setValueAtTime(f0, at);
+          carrier.frequency.exponentialRampToValueAtTime(f1, at + cd);
+          mod.frequency.setValueAtTime(f0 * 0.5, at);
+          mod.frequency.exponentialRampToValueAtTime(f1 * 0.5, at + cd);
+          mg.gain.setValueAtTime(f0 * (0.1 + 0.4 * k), at);
+          mg.gain.setValueAtTime(0, at + cd);
+          cg.gain.setValueAtTime(0.0001, at);
+          cg.gain.linearRampToValueAtTime(0.6, at + 0.006);
+          cg.gain.linearRampToValueAtTime(0.4, at + cd * 0.7);
+          cg.gain.exponentialRampToValueAtTime(0.0001, at + cd);
+        }
+        f.sources.push(carrier, mod);
+        break;
+      }
+      case 'insect': {
+        const am = this.level(0.5);
+        const lfo1 = ctx.createOscillator();
+        lfo1.frequency.value = 30 + 60 * k;
+        lfo1.connect(this.level(0.5)).connect(am.gain);
+        const pulse = this.level(0.5);
+        const lfo2 = ctx.createOscillator();
+        lfo2.setPeriodicWave(this.isochronicWave());
+        lfo2.frequency.value = rateOf(f, 2.5);
+        lfo2.connect(this.level(0.5)).connect(pulse.gain);
+        this.bed(f, 'white')
+          .connect(this.biquad('bandpass', clamp(hz ?? 4500, 500, 12000), 12))
+          .connect(am)
+          .connect(pulse)
+          .connect(this.level(3))
+          .connect(f.amp);
+        f.sources.push(lfo1, lfo2);
+        break;
+      }
+      case 'engine': {
+        const r = clamp(hz ?? 25 + 40 * k, 5, 400);
+        const osc = ctx.createOscillator();
+        osc.setPeriodicWave(this.pulse(0.1));
+        shape(osc.frequency, f, this.wander(f, rateOf(f, 0.5)), r * 0.96, r * 1.04);
+        const bands: readonly (readonly [number, number, number])[] = [
+          [120, 4, 1],
+          [380, 5, 0.6],
+          [900, 6, 0.3 + 0.4 * k],
+        ];
+        for (const [freq, q, g] of bands) {
+          osc
+            .connect(this.biquad('bandpass', freq, q))
+            .connect(this.level(g * 2))
+            .connect(f.amp);
+        }
+        this.bed(f, 'brown').connect(this.biquad('lowpass', 180)).connect(this.level(0.4)).connect(f.amp);
+        f.sources.push(osc);
+        break;
+      }
+      default:
+        break;
+    }
+    return { sources: f.sources, end: f.end, starts: f.starts };
+  }
+  private pulse(d: number): PeriodicWave {
+    const key = `pw:${String(d)}`;
+    let w = this.waves.get(key);
+    if (!w) {
+      const wave = pulseWave(d);
+      w = this.ctx.createPeriodicWave(wave.real, wave.imag);
+      this.waves.set(key, w);
+    }
+    return w;
+  }
+  /** Foley one-shots (TS-74). `sp` is the `speed` ratio; `tseed` varies each hit slightly. */
+  private foley(name: string, c: ControlMap, t: number, gain: number, sp: number, out: AudioNode): Spec | undefined {
+    const ctx = this.ctx;
+    const rnd = seededFrom(fin(c.tseed, 0));
+    const vary = 1 + 0.06 * rnd();
+    const hz = (f: number): number => clamp(f * vary * sp, 1, 20000);
+    switch (name) {
+      case 'drip': {
+        const o = ctx.createOscillator();
+        o.frequency.setValueAtTime(hz(650), t);
+        o.frequency.exponentialRampToValueAtTime(hz(1900), t + 0.035 / sp);
+        o.connect(this.env(t, gain * 0.6, 0.07 / sp)).connect(out);
+        return { sources: [o], end: t + 0.1 / sp };
+      }
+      case 'click': {
+        const n = this.noiseSource(sp);
+        n.connect(this.biquad('bandpass', hz(3500), 1.2))
+          .connect(this.env(t, gain * 0.7, 0.006 / sp))
+          .connect(out);
+        return { sources: [n], end: t + 0.02 / sp };
+      }
+      case 'tick': {
+        const o = ctx.createOscillator();
+        o.frequency.value = hz(4200);
+        o.connect(this.env(t, gain * 0.35, 0.015 / sp)).connect(out);
+        const n = this.noiseSource(sp);
+        n.connect(this.biquad('bandpass', hz(7000), 2))
+          .connect(this.env(t, gain * 0.3, 0.004 / sp))
+          .connect(out);
+        return { sources: [o, n], end: t + 0.04 / sp };
+      }
+      case 'creak': {
+        const len = 0.45 / sp;
+        const o = ctx.createOscillator();
+        o.type = 'square';
+        const base = hz(42);
+        o.frequency.setValueCurveAtTime(mapCurve(smoothCurve(seedOf(rnd), 32, 4), base * 0.6, base * 1.5), t, len);
+        const g = ctx.createGain();
+        g.gain.value = 0;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain * 0.45, t + 0.03 / sp);
+        g.gain.setValueAtTime(gain * 0.45, t + len * 0.7);
+        g.gain.linearRampToValueAtTime(0, t + len);
+        o.connect(this.biquad('bandpass', hz(900), 4)).connect(g);
+        o.connect(this.biquad('bandpass', hz(2300), 6)).connect(g);
+        g.connect(out);
+        return { sources: [o], end: t + len + 0.02 };
+      }
+      case 'step': {
+        const heel = this.noiseSource(sp);
+        heel
+          .connect(this.biquad('lowpass', hz(380)))
+          .connect(this.env(t, gain * 0.9, 0.09 / sp))
+          .connect(out);
+        const toe = this.noiseSource(sp);
+        toe
+          .connect(this.biquad('bandpass', hz(1800), 1))
+          .connect(this.env(t + 0.03 / sp, gain * 0.25, 0.04 / sp))
+          .connect(out);
+        return { sources: [heel, toe], end: t + 0.16 / sp };
+      }
+      default:
+        return undefined;
+    }
+  }
+  /** A cached band-limited buffer of an oscillator at one pitch, the source for grains (TS-75). */
+  private periodicBuffer(type: string, freq: number): AudioBuffer {
+    const f = Math.round(clamp(freq, 20, 8000) * 4) / 4;
+    const key = `${type}:${String(f)}`;
+    let b = this.periodic.get(key);
+    if (!b) {
+      if (this.periodic.size >= 32) this.periodic.clear();
+      const sr = this.ctx.sampleRate;
+      const data = renderPeriodic(type, f, sr, 0.5);
+      b = this.ctx.createBuffer(1, data.length, sr);
+      b.copyToChannel(data, 0);
+      this.periodic.set(key, b);
+    }
+    return b;
+  }
+  /** Granular playback of oscillator and noise sounds (TS-75). Grain positions come from `tseed`. */
+  private granular(
+    name: string,
+    c: ControlMap,
+    env: Adsr,
+    freq: number,
+    t: number,
+    dur: number,
+    gain: number,
+    out: AudioNode,
+  ): Spec {
+    const ctx = this.ctx;
+    const buf = isNoise(name) ? this.noiseBed(name) : this.periodicBuffer(name, freq);
+    const size = clamp(fin(c.grain, 50), 5, 500) / 1000;
+    const density = clamp(fin(c.gdensity, 20), 1, 200);
+    const jitter = clamp(fin(c.gjitter, 0.2), 0, 1);
+    const pos = clamp(fin(c.gpos, 0), 0, 1);
+    const f = this.frame(c, env, t, dur, gain * 0.3, out);
+    const grains = grainSchedule(seedOf(f.rnd), f.span, density, size, pos, jitter, buf.duration, MAX_GRAINS);
+    const sources: AudioScheduledSourceNode[] = [];
+    const starts = new Map<AudioScheduledSourceNode, readonly [number, number, number]>();
+    for (const g of grains) {
+      const at = t + g.at;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const w = ctx.createGain();
+      w.gain.value = 0;
+      w.gain.setValueAtTime(0, at);
+      w.gain.linearRampToValueAtTime(1, at + g.len / 2);
+      w.gain.linearRampToValueAtTime(0, at + g.len);
+      src.connect(w).connect(f.amp);
+      sources.push(src);
+      starts.set(src, [at, g.offset, at + g.len]);
+    }
+    return { sources, end: f.end, starts, cost: Math.min(sources.length, Math.ceil(size * density) + 1) };
   }
 }
 

@@ -29,7 +29,7 @@ import type {
   Provenance,
 } from '@tartlet/ir';
 import { DEFAULT_LIMITS } from '@tartlet/ir';
-import { VOCAL_SOUNDS, degreeToMidi, noteToMidi, parseScale } from '@tartlet/registry';
+import { TEXTURE_SOUNDS, VOCAL_SOUNDS, degreeToMidi, noteToMidi, parseScale } from '@tartlet/registry';
 import { draw, hash64, rootSeed } from '@tartlet/random';
 import {
   appLeft,
@@ -137,6 +137,7 @@ const SIGNALS = new Map<string, (t: Rational, st: QueryState, salt: string) => n
   ],
 ]);
 const VOCAL_SET: ReadonlySet<string> = new Set(VOCAL_SOUNDS);
+const TEXTURE_SET: ReadonlySet<string> = new Set(TEXTURE_SOUNDS);
 /** Shares used by the probability shorthands (TS-56). */
 const SHARES: ReadonlyMap<string, number> = new Map([
   ['often', 0.75],
@@ -157,7 +158,8 @@ const MAX_ECHO = 64;
 const ACCENT = 1.3;
 /**
  * Adds `vseed`, a counter-based draw in [0, 1), to vocal events (TS-44), and `iseed` to events
- * with interaural correlation (TS-64). The audio adapter derives every variation from them, so
+ * with interaural correlation (TS-64), and `tseed` to texture sounds and granular events (TS-73,
+ * TS-75). The audio adapter derives every variation from them, so
  * it never rolls its own dice. Draws are keyed by the output, the whole's start and the sound
  * (plus the note for voices), so fragments agree.
  */
@@ -168,7 +170,8 @@ function withEventSeeds(pat: Pattern<ControlMap>, id: string): Pattern<ControlMa
       const s = typeof v.s === 'string' ? v.s : '';
       const vocal = VOCAL_SET.has(s) || typeof v.syl === 'string';
       const ears = typeof v.icorr === 'number';
-      if (!vocal && !ears) return ev;
+      const textured = TEXTURE_SET.has(s) || typeof v.grain === 'number';
+      if (!vocal && !ears && !textured) return ev;
       const at = ratStr((ev.whole ?? ev.part).begin);
       const out = dict();
       Object.assign(out, v);
@@ -178,6 +181,7 @@ function withEventSeeds(pat: Pattern<ControlMap>, id: string): Pattern<ControlMa
         out.vseed = draw(st.seed, id, 'vseed', at, pitch, s);
       }
       if (ears) out.iseed = draw(st.seed, id, 'iseed', at, s);
+      if (textured) out.tseed = draw(st.seed, id, 'tseed', at, s);
       return { ...ev, value: out };
     }),
   );

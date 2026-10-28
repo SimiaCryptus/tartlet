@@ -39,6 +39,7 @@ import {
   DRUM_SOUNDS,
   NOISE_SOUNDS,
   OSCILLATOR_SOUNDS,
+  SPACE_NAMES,
   VOICE_TYPES,
   defaultRegistry,
   editDistance,
@@ -80,8 +81,9 @@ const SAMPLE_IDS: ReadonlySet<string> = new Set(['s']);
 const SCALE_OK: ReadonlySet<string> = new Set(['n', 'note', 'freq']);
 const PITCH_OK: ReadonlySet<string> = new Set(['note', 'freq']);
 /** String controls whose atoms are checked against closed sets (TS-45, TS-68). */
-const VOCAL_STRINGS: ReadonlySet<string> = new Set(['syl', 'vowel', 'voicetype', 'earsplit']);
+const VOCAL_STRINGS: ReadonlySet<string> = new Set(['syl', 'vowel', 'voicetype', 'earsplit', 'space']);
 const EARSPLIT_MODES: ReadonlySet<string> = new Set(['none', 'harmonics', 'bands']);
+const SPACE_SET: ReadonlySet<string> = new Set(SPACE_NAMES);
 const VOICE_TYPE_SET: ReadonlySet<string> = new Set(VOICE_TYPES);
 /** Stands in for a parameter in a constant position while a definition is checked (TS-50). */
 const PLACEHOLDER: Rational = rat(1);
@@ -954,6 +956,15 @@ class Lowerer {
               'W-ARG-MODE',
               'warning',
               `Unknown earsplit mode \`${a.text}\`; use none, harmonics or bands. \`none\` is used.`,
+              range,
+              'none',
+            );
+        } else if (control === 'space') {
+          if (!SPACE_SET.has(a.text))
+            this.diag(
+              'W-ARG-MODE',
+              'warning',
+              `Unknown space \`${a.text}\`; use room, hall, plate, church or outdoor. The plain reverb is used.`,
               range,
               'none',
             );

@@ -42,6 +42,7 @@ const SINCE_T5 = '0.5.0';
 const SINCE_T6 = '0.6.0';
 const SINCE_T7 = '0.7.0';
 const SINCE_T8 = '0.8.0';
+const SINCE_T9 = '0.9.0';
 
 function control(
   id: string,
@@ -132,6 +133,18 @@ function earControl(
 ): RegistryEntry {
   return {
     ...control(id, [id], kind, description, { since: SINCE_T8, ...(range ? { range } : undefined) }),
+    level: 'L3',
+  };
+}
+/** Space and texture extensions from docs/instruments.md Tiers 5 and 7 (TS-69 to TS-76). L3. */
+function envControl(
+  id: string,
+  kind: ValueKind,
+  description: string,
+  range?: readonly [number, number],
+): RegistryEntry {
+  return {
+    ...control(id, [id], kind, description, { since: SINCE_T9, ...(range ? { range } : undefined) }),
     level: 'L3',
   };
 }
@@ -488,6 +501,56 @@ export const ENTRIES: readonly RegistryEntry[] = [
     ),
     level: 'L3',
   },
+  // Space and environment (TS-69 to TS-72).
+  envControl(
+    'space',
+    'string',
+    'The kind of space the reverb on this orbit imitates: room, hall, plate, church or outdoor. room and size still set how much and how long.',
+  ),
+  envControl(
+    'occlude',
+    'number',
+    'Muffles and softens a sound as if it were behind a wall or in the next room, from zero for none to one for fully hidden.',
+    [0, 1],
+  ),
+  envControl(
+    'posglide',
+    'number',
+    'Seconds a placed sound takes to travel from where the previous note of the same sound and orbit was, so sweeps glide instead of jumping.',
+    [0, 2],
+  ),
+  // Sound textures (TS-73 to TS-76).
+  envControl(
+    'intensity',
+    'number',
+    'How strong an ambience or creature sound is: lighter or heavier rain, calmer or wilder wind, a smaller or bigger fire.',
+    [0, 1],
+  ),
+  envControl(
+    'density',
+    'number',
+    'How many small events per second happen inside an ambience or creature sound: drops, crackles, gusts or chirps.',
+    [0.1, 200],
+  ),
+  envControl(
+    'grain',
+    'number',
+    'Grain length in milliseconds. Setting it plays an oscillator or noise sound as a cloud of short overlapping grains.',
+    [5, 500],
+  ),
+  envControl('gdensity', 'number', 'How many grains start each second.', [1, 200]),
+  envControl(
+    'gjitter',
+    'number',
+    'How far the grains wander in time and in source position, from zero for none to one.',
+    [0, 1],
+  ),
+  envControl(
+    'gpos',
+    'number',
+    'Where in the source the grains are read from, from zero for the start to one for the end.',
+    [0, 1],
+  ),
   {
     id: 'stack',
     names: ['stack'],

@@ -307,3 +307,43 @@ defHash)`. `defHash` hashes the definition without layout. Method ids inside the
   - `W-ARG-MODE` fires for an unknown constant `earsplit` mode; `none` is used.
   - The checker reads sound kinds from `@tartlet/registry`. A conformance test keeps them in
     step with `@tartlet/resources`.
+
+## Found while implementing space and textures (docs/instruments.md Tiers 5 and 7)
+
+- **TS-69: space presets.** `space` names a reverb character: `room`, `hall`, `plate`, `church`
+  or `outdoor`. Each space has its own impulse length, predelay, darkening tail and density
+  (`outdoor` is sparse echoes). Impulses are seeded and generated once per (orbit, space, size
+  step). Without `space`, the TS-41 reverb is unchanged. An unknown constant space gives
+  `W-ARG-MODE`.
+- **TS-70: distance and early reflections.** With `distance` above 1 the dry path gains an air
+  low-pass from 20 kHz down to about 1.6 kHz at 50, and the reverb send rises by up to 0.5. Any
+  reverb send also feeds a shared early-reflection bus of delayed, filtered, panned taps,
+  spread by `size`. The bus uses the `room` taps when no space is set; `plate` has none.
+- **TS-71: movement smoothing.** The audio adapter keeps the last position per (orbit, sound
+  name). A new placed voice that starts less than 2 s later ramps from that position to its own
+  over `posglide` seconds (default 0.05). The ramp is a straight line between Cartesian
+  positions, not an arc. Positions reset on stop.
+- **TS-72: occlusion.** `occlude` adds a low-pass (20 kHz × 0.02^o) and a level drop
+  (1 − o/2) closest to the bus, so sends are muffled too.
+- **TS-73: ambiences.** `rain`, `wind`, `fire`, `stream`, `surf` and `crowd` are kit sounds of
+  kind `ambience`. They are built from fixed-seed noise beds and seeded micro-event schedules.
+  - Events are automation on a few long-running sources, so each costs one to three voices.
+  - `intensity` (0–1, default 0.5) scales strength. `density` overrides the event or gust rate
+    per second.
+  - They default to attack 0.3 s and release 0.6 s, so long notes become beds.
+  - Core adds `tseed` to texture events and to events with `grain`. It is keyed by (scope
+    seed, output id, `whole.begin`, `s`) at the output level, like `vseed`.
+- **TS-74: foley.** `drip`, `click`, `tick`, `creak` and `step` are one-shots of kind `foley`.
+  Like drums they respond to `speed`, and `tseed` varies each hit by up to ±6 %. `click` is no
+  longer a fallback for `rim`.
+- **TS-75: granular playback.**
+  - `grain` (ms), `gdensity`, `gjitter` and `gpos` apply to oscillator and noise sounds only,
+    since no recorded banks exist yet. Oscillators are rendered once per pitch as a
+    band-limited buffer.
+  - Grains use triangular windows, with positions and times drawn from `tseed`. At most 256
+    grains play per note.
+  - A voice costs its expected overlap, not its grain count.
+  - On drums, voices and textures, `grain` is ignored without a warning.
+- **TS-76: creatures and machines.** `bird` plays FM chirps with seeded pitch sweeps, `insect`
+  a noise band pulsing at two rates, and `engine` a pulse train through three resonant bands.
+  `note` or `freq` sets the chirp pitch, band centre or pulse rate when given.

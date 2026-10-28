@@ -392,6 +392,27 @@ $: s("whisper*4").syl("<sha ha>").gain(.3)
 $: note("c2*8").s("sawtooth").syl("wa wa wo wi").talk(1).gain(.4)
 `,
   },
+  {
+    id: 'field-recording',
+    name: 'Field recording',
+    group: 'Sound and signals',
+    blurb: 'Rain and a fire as beds, seeded foley, a circling bird, rooms, walls and grains.',
+    tags: ['ambience', 'space'],
+    source: `setcpm(70/4)
+// procedural ambiences: long notes become beds
+$: s("rain").slow(4).intensity(.6).gain(.5)
+$: s("fire").slow(4).intensity(.4).density(12).gain(.4)
+// foley one-shots, seeded like any pattern, in a church
+$: s("drip*16?0.6").pan(rand).gain(rand.range(.2, .6)).space("church").room(.4)
+// footsteps in the next room, and a clock that creaks now and then
+$: s("step ~ step ~").occlude(.5)
+$: s("tick*4, ~ ~ ~ creak").gain(.5)
+// a bird circling far away, gliding between positions
+$: s("bird").slow(2).azimuth(saw.range(-180, 180).slow(4)).distance(4).posglide(.2)
+// a saw tone played as a cloud of grains
+$: note("c3").s("sawtooth").grain(40).gdensity(30).gjitter(.4).slow(2).gain(.3)
+`,
+  },
 
   // ---- Language
   {

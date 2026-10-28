@@ -8,7 +8,7 @@ export type Resolution =
 
 export interface KitEntry {
   readonly name: string;
-  readonly kind: 'drum' | 'oscillator' | 'noise' | 'voice';
+  readonly kind: 'drum' | 'oscillator' | 'noise' | 'voice' | 'ambience' | 'foley' | 'creature';
   readonly license: 'Apache-2.0';
   readonly provenance: string;
 }
@@ -19,6 +19,12 @@ export const DRUMS: readonly string[] = ['bd', 'sd', 'hh', 'oh', 'cp', 'rim', 'l
 export const NOISES: readonly string[] = ['white', 'pink', 'brown'];
 /** Vocal model sounds (TS-43). */
 export const VOICES: readonly string[] = ['voice', 'aah', 'ooh', 'hum', 'whisper', 'choir'];
+/** Procedural ambiences (TS-73). */
+export const AMBIENCES: readonly string[] = ['rain', 'wind', 'fire', 'stream', 'surf', 'crowd'];
+/** Foley one-shots (TS-74). */
+export const FOLEY: readonly string[] = ['drip', 'click', 'tick', 'creak', 'step'];
+/** Creature and machine models (TS-76). */
+export const CREATURES: readonly string[] = ['bird', 'insect', 'engine'];
 
 /** License manifest for the general kit. Every sound is procedurally synthesized (TS-38). */
 export const GENERAL_KIT: readonly KitEntry[] = [
@@ -45,6 +51,24 @@ export const GENERAL_KIT: readonly KitEntry[] = [
     kind: 'voice',
     license: 'Apache-2.0',
     provenance: 'glottal source and formant filters synthesized in @tartlet/webaudio',
+  })),
+  ...AMBIENCES.map((name): KitEntry => ({
+    name,
+    kind: 'ambience',
+    license: 'Apache-2.0',
+    provenance: 'filtered fixed-seed noise and seeded micro-events synthesized in @tartlet/webaudio',
+  })),
+  ...FOLEY.map((name): KitEntry => ({
+    name,
+    kind: 'foley',
+    license: 'Apache-2.0',
+    provenance: 'synthesized in @tartlet/webaudio',
+  })),
+  ...CREATURES.map((name): KitEntry => ({
+    name,
+    kind: 'creature',
+    license: 'Apache-2.0',
+    provenance: 'FM, noise-band and pulse-train models synthesized in @tartlet/webaudio',
   })),
 ];
 
@@ -110,6 +134,29 @@ const ALIASES = new Map<string, string>([
   ['singer', 'voice'],
   ['chorus', 'choir'],
   ['whisp', 'whisper'],
+  ['chatter', 'crowd'],
+  ['people', 'crowd'],
+  ['ocean', 'surf'],
+  ['waves', 'surf'],
+  ['sea', 'surf'],
+  ['river', 'stream'],
+  ['brook', 'stream'],
+  ['water', 'stream'],
+  ['storm', 'rain'],
+  ['breeze', 'wind'],
+  ['campfire', 'fire'],
+  ['crackle', 'fire'],
+  ['footstep', 'step'],
+  ['footsteps', 'step'],
+  ['clock', 'tick'],
+  ['door', 'creak'],
+  ['drop', 'drip'],
+  ['clicks', 'click'],
+  ['birdsong', 'bird'],
+  ['chirp', 'bird'],
+  ['cricket', 'insect'],
+  ['cicada', 'insect'],
+  ['motor', 'engine'],
 ]);
 
 const HEURISTICS: readonly (readonly [RegExp, string])[] = [
@@ -122,7 +169,8 @@ const HEURISTICS: readonly (readonly [RegExp, string])[] = [
   [/crash/, 'cr'],
   [/ride/, 'rd'],
   [/tom/, 'mt'],
-  [/perc|wood|block|click/, 'rim'],
+  [/perc|wood|block/, 'rim'],
+  [/click/, 'click'],
   [/piano|keys|rhodes|organ|pluck|bell|marimba|vibe|harp/, 'triangle'],
   [/choir/, 'choir'],
   [/whisper/, 'whisper'],
@@ -130,6 +178,19 @@ const HEURISTICS: readonly (readonly [RegExp, string])[] = [
   [/bass|pad|string|lead|brass/, 'sawtooth'],
   [/sine|sub/, 'sine'],
   [/square|chip/, 'square'],
+  [/rain|storm|drizzle/, 'rain'],
+  [/wind|breeze|gust/, 'wind'],
+  [/fire|crackl|flame/, 'fire'],
+  [/stream|river|brook|creek|water/, 'stream'],
+  [/crowd|murmur|people/, 'crowd'],
+  [/bird|chirp|tweet|gull/, 'bird'],
+  [/surf|wave|ocean|sea|beach|tide/, 'surf'],
+  [/insect|cricket|cicada|bug/, 'insect'],
+  [/engine|motor|truck/, 'engine'],
+  [/drip|drop/, 'drip'],
+  [/step|foot/, 'step'],
+  [/tick|clock/, 'tick'],
+  [/creak|door|squeak/, 'creak'],
   [/pink/, 'pink'],
   [/brown|rumble/, 'brown'],
   [/noise|hiss|static/, 'white'],

@@ -265,3 +265,19 @@ with no `s` plays on `triangle`.
       between the ears;
     - `isochronic` (0–40 Hz) and `isodepth` (0–1): loudness pulses, also heard on speakers;
     - `irate` (0–10 Hz, oscillators only): rotates the phase between the ears.
+
+## Space and textures (Tartlet extensions, TS-69 to TS-76)
+
+- `space`: `room`, `hall`, `plate`, `church` or `outdoor`. It picks the reverb character for
+  the `orbit`; `room` and `size` still set the amount and length.
+- `occlude` (0–1): muffles and softens a sound behind a wall.
+- `distance` above 1 also darkens the sound and sends more of it to the reverb.
+- `posglide` (0–2 s): a placed sound glides from the previous note's position.
+- Ambiences: `rain wind fire stream surf crowd`, controlled by `intensity` (0–1) and `density`
+  (events per second). Use long notes for beds, for example `s("rain").slow(8)`.
+- Foley: `drip click tick creak step`. Creatures and machines: `bird insect engine`.
+- Granular playback on oscillators and noise:
+  - `grain`: grain length in ms;
+  - `gdensity`: grains per second;
+  - `gjitter`: how far grains wander, 0–1;
+  - `gpos`: where grains are read from, 0–1.

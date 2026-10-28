@@ -1,22 +1,34 @@
 // Pure DSP helpers behind Tier 0 and Tier 1 (TS-41, TS-42). Expectations come from the maths.
 import { describe, expect, it } from 'vitest';
-import { CONSONANTS, VOWELS } from '@tartlet/registry';
+import { CONSONANTS, SPACE_NAMES, VOWELS } from '@tartlet/registry';
 import {
   CONSONANT_SPECS,
   FORMANTS,
+  SPACES,
   TIMBRES,
+  airCutoff,
   crushCurve,
+  distanceWet,
+  earlyTaps,
   envelope,
   fillNoise,
   formantBank,
   glottalWave,
+  grainSchedule,
+  microEvents,
   nasalBank,
+  occlusion,
   partialTable,
   pulseWave,
+  renderPeriodic,
   seededRandom,
   shapeCurve,
+  smoothCurve,
   softSquareWave,
+  spaceImpulse,
+  spaceSeconds,
   splitWaves,
+  swellCurve,
   timbreWave,
   unisonOffsets,
 } from '../src/dsp';
@@ -149,5 +161,96 @@ describe('dsp helpers', () => {
       expect(x).toBe(b());
       expect(x >= -1 && x < 1).toBe(true);
     }
+  });
+});
+describe('space and environment helpers (TS-69 to TS-72)', () => {
+  it('every space name has a table', () => {
+    expect(new Set(SPACES.keys())).toEqual(new Set(SPACE_NAMES));
+  });
+  it('space lengths follow the character of each space and grow with size', () => {
+    expect(spaceSeconds('hall', 0.5)).toBeGreaterThan(spaceSeconds('room', 0.5));
+    expect(spaceSeconds('church', 0.5)).toBeGreaterThan(spaceSeconds('hall', 0.5));
+    expect(spaceSeconds('outdoor', 0.5)).toBeLessThan(spaceSeconds('room', 0.5));
+    expect(spaceSeconds('room', 1)).toBeGreaterThan(spaceSeconds('room', 0));
+  });
+  it('impulses are deterministic, finite, delayed and decaying', () => {
+    const a = new Float32Array(48000);
+    const b = new Float32Array(48000);
+    spaceImpulse(a, 48000, 'church', 7);
+    spaceImpulse(b, 48000, 'church', 7);
+    expect(a).toEqual(b);
+    for (const v of a) expect(Number.isFinite(v)).toBe(true);
+    expect(a.slice(0, 1900).every((v) => v === 0)).toBe(true);
+    const energy = (x: Float32Array) => x.reduce((s, v) => s + v * v, 0);
+    expect(energy(a.slice(2000, 14000))).toBeGreaterThan(energy(a.slice(36000)));
+  });
+  it('early reflections are ordered, bounded and deterministic', () => {
+    expect(earlyTaps('plate', 0.5, 1)).toEqual([]);
+    const room = earlyTaps('room', 0.5, 3);
+    expect(room).toHaveLength(6);
+    for (let i = 1; i < room.length; i++) expect(room[i]!.delay).toBeGreaterThanOrEqual(room[i - 1]!.delay);
+    for (const t of room) {
+      expect(t.delay).toBeGreaterThan(0);
+      expect(t.delay).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(t.pan)).toBeLessThanOrEqual(1);
+    }
+    expect(earlyTaps('room', 0.5, 3)).toEqual(room);
+    expect(earlyTaps('room', 1, 3)[5]!.delay).toBeGreaterThan(earlyTaps('room', 0, 3)[5]!.delay);
+  });
+  it('distance darkens and adds reverb; occlusion muffles and softens', () => {
+    expect(airCutoff(1)).toBe(20000);
+    expect(airCutoff(10)).toBeLessThan(airCutoff(2));
+    expect(airCutoff(50)).toBeGreaterThanOrEqual(1200);
+    expect(distanceWet(1)).toBe(0);
+    expect(distanceWet(10)).toBeGreaterThan(distanceWet(2));
+    expect(distanceWet(50)).toBeCloseTo(0.5, 9);
+    expect(occlusion(0)).toEqual({ cutoff: 20000, gain: 1 });
+    expect(occlusion(1).cutoff).toBeCloseTo(400, 6);
+    expect(occlusion(1).gain).toBe(0.5);
+  });
+});
+describe('texture helpers (TS-73 to TS-75)', () => {
+  it('micro-events are seeded, ordered, spaced and capped', () => {
+    const a = microEvents(11, 10, 10, 1000, 0.02);
+    expect(microEvents(11, 10, 10, 1000, 0.02)).toEqual(a);
+    expect(a.length).toBeGreaterThan(60);
+    expect(a.length).toBeLessThan(140);
+    for (let i = 1; i < a.length; i++) expect(a[i]!.at - a[i - 1]!.at).toBeGreaterThanOrEqual(0.02 - 1e-12);
+    for (const e of a) {
+      expect(e.at).toBeLessThan(10);
+      expect(e.v >= 0 && e.v < 1 && e.w >= 0 && e.w < 1).toBe(true);
+    }
+    expect(microEvents(11, 10, 10, 5)).toHaveLength(5);
+    expect(microEvents(11, 10, 0, 5)).toEqual([]);
+  });
+  it('curves stay in [0, 1] and are deterministic', () => {
+    const s = smoothCurve(5, 200, 8);
+    expect(s).toHaveLength(200);
+    expect(smoothCurve(5, 200, 8)).toEqual(s);
+    for (const v of s) expect(v >= 0 && v <= 1).toBe(true);
+    const w = swellCurve(5, 600, 30, 0.1);
+    for (const v of w) expect(v >= 0 && v <= 1).toBe(true);
+    expect(Math.min(...w)).toBeLessThan(0.1);
+    expect(Math.max(...w)).toBeGreaterThan(0.9);
+  });
+  it('grains fit their source and follow density', () => {
+    const g = grainSchedule(3, 2, 20, 0.05, 0.5, 0.5, 1, 1000);
+    expect(g.length).toBeGreaterThan(35);
+    expect(g.length).toBeLessThanOrEqual(41);
+    for (const x of g) {
+      expect(x.offset).toBeGreaterThanOrEqual(0);
+      expect(x.offset + x.len).toBeLessThanOrEqual(1 + 1e-9);
+    }
+    const steady = grainSchedule(3, 1, 10, 0.05, 0.25, 0, 1, 1000);
+    steady.forEach((x, i) => {
+      expect(x.at).toBeCloseTo(i / 10, 9);
+      expect(x.offset).toBeCloseTo(0.25 * 0.95, 9);
+    });
+    expect(grainSchedule(3, 100, 200, 0.05, 0, 0, 1, 256)).toHaveLength(256);
+  });
+  it('periodic buffers repeat every period and stay below full scale', () => {
+    const b = renderPeriodic('sawtooth', 480, 48000, 0.01);
+    for (let i = 0; i < 300; i++) expect(b[i + 100]).toBeCloseTo(b[i]!, 4);
+    expect(Math.max(...b.map(Math.abs))).toBeCloseTo(0.9, 5);
   });
 });

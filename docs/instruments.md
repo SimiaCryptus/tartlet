@@ -157,6 +157,12 @@ Many real-world instruments are not 12-tone equal tempered.
 
 ## Tier 5: space and environment
 
+**Status: implemented (TS-69 to TS-72).**
+
+- Early reflections use the `room` taps when no `space` is set.
+- Movement smoothing applies to placed voices of the same sound and `orbit`, with `posglide`
+  setting the ramp time.
+
 TS-40 already places voices with HRTF. Realism also depends on the room and the air.
 
 - **Space presets.** `space("room" | "hall" | "plate" | "church" | "outdoor")` choosing a
@@ -189,6 +195,11 @@ but nothing is fetched.
   `I-RES-FALLBACK` work for sample names exactly as they do for kit names.
 
 ## Tier 7: real-world sound textures
+
+**Status: implemented (TS-73 to TS-76).**
+
+- Granular playback works on oscillator and noise sounds until host sample banks exist.
+- The creature models are `bird`, `insect` and `engine`.
 
 Ambient sound is mostly shaped noise plus sparse random events, which fits Tartlet's seeded
 patterns well.
