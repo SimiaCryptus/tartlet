@@ -412,17 +412,6 @@ function setSourceAndCheck(source: string, title?: string): Promise<Problem[]> {
     apply();
   });
 }
-/** Example sketches included in the assistant's system prompt. */
-function assistantExamples(): { name: string; description: string; source: string }[] {
-  const picks = ['groove', 'layers', 'function-args']
-    .map((id) => catalog.byId(id))
-    .filter((s): s is CatalogSketch => s !== undefined);
-  return (picks.length > 0 ? picks : catalog.sketches.slice(0, 3)).map((s) => ({
-    name: s.name,
-    description: s.description,
-    source: s.source,
-  }));
-}
 const assistantRoot = el('assistant');
 let assistantLoaded = false;
 function loadAssistant(): void {
