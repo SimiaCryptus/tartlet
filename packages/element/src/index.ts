@@ -203,6 +203,9 @@ export class TartletPlayerElement extends HTMLElement {
   async play(): Promise<void> {
     const result = this.#result;
     if (!result || this.#scheduler?.running) return;
+    // Hosts may cancel this to show a warning first, for example for steady pulsing (TS-61).
+    const detail = { advisories: result.program.advisories ?? [] };
+    if (!this.dispatchEvent(new CustomEvent('beforeplay', { cancelable: true, detail }))) return;
     try {
       this.#engine ??= await AudioEngine.create();
     } catch (e) {
@@ -223,7 +226,7 @@ export class TartletPlayerElement extends HTMLElement {
       cps: result.program.settings.cps,
     });
     this.#scheduler.start();
-    this.#status.textContent = 'Playing';
+    this.#status.textContent = `Playing${this.#hint()}`;
     this.#play.disabled = true;
     this.#stop.disabled = false;
     this.toggleAttribute('playing', true);
@@ -260,9 +263,13 @@ export class TartletPlayerElement extends HTMLElement {
     const r = this.#result;
     if (!r) return;
     const ok = r.program.outputs.filter((o) => o.status === 'ok').length;
-    this.#status.textContent = `Ready: ${String(ok)} of ${String(r.program.outputs.length)} tracks playable`;
+    this.#status.textContent = `Ready: ${String(ok)} of ${String(r.program.outputs.length)} tracks playable${this.#hint()}`;
     this.#play.disabled = ok === 0;
     this.#renderList();
+  }
+  /** A status suffix when some output depends on headphones (TS-61). */
+  #hint(): string {
+    return this.#result?.program.advisories?.some((a) => a.headphones) === true ? ' · Best on headphones' : '';
   }
 
   #renderList(): void {

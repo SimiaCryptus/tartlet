@@ -125,6 +125,14 @@ export interface ResourceDecl {
   readonly spec: string;
   readonly range: SourceRange;
 }
+/** Facts about one output that hosts use to show warnings before playback (TS-61). */
+export interface Advisory {
+  readonly output: string;
+  /** The output uses controls whose effect needs headphones. */
+  readonly headphones: boolean;
+  /** The lowest and highest constant pulse rates in hertz, when there are any. */
+  readonly pulse?: readonly [number, number];
+}
 export interface Program {
   readonly irVersion: 'tartlet/1';
   readonly source?: SourceRef;
@@ -133,6 +141,7 @@ export interface Program {
   readonly outputs: readonly Output[];
   readonly resources: readonly ResourceDecl[];
   readonly diagnostics: readonly Diagnostic[];
+  readonly advisories?: readonly Advisory[];
 }
 
 export interface Fix {

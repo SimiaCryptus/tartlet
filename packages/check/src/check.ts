@@ -17,8 +17,10 @@ import {
 import { parseMini, type MiniAst } from '@tartlet/mini';
 import { parse, LineIndex, type Expr, type Range, type Stmt, type SyntaxTree } from '@tartlet/syntax';
 import type {
+  Advisory,
   Arg,
   Binding,
+  ControlNode,
   Diagnostic,
   Fix,
   LimitsConfig,
@@ -34,6 +36,9 @@ import type {
 } from '@tartlet/ir';
 import { DEFAULT_LIMITS } from '@tartlet/ir';
 import {
+  DRUM_SOUNDS,
+  NOISE_SOUNDS,
+  OSCILLATOR_SOUNDS,
   VOICE_TYPES,
   defaultRegistry,
   editDistance,
@@ -74,8 +79,9 @@ const ERR: PatternType = { kind: 'error' };
 const SAMPLE_IDS: ReadonlySet<string> = new Set(['s']);
 const SCALE_OK: ReadonlySet<string> = new Set(['n', 'note', 'freq']);
 const PITCH_OK: ReadonlySet<string> = new Set(['note', 'freq']);
-/** String controls whose atoms are checked against closed sets (TS-45). */
-const VOCAL_STRINGS: ReadonlySet<string> = new Set(['syl', 'vowel', 'voicetype']);
+/** String controls whose atoms are checked against closed sets (TS-45, TS-68). */
+const VOCAL_STRINGS: ReadonlySet<string> = new Set(['syl', 'vowel', 'voicetype', 'earsplit']);
+const EARSPLIT_MODES: ReadonlySet<string> = new Set(['none', 'harmonics', 'bands']);
 const VOICE_TYPE_SET: ReadonlySet<string> = new Set(VOICE_TYPES);
 /** Stands in for a parameter in a constant position while a definition is checked (TS-50). */
 const PLACEHOLDER: Rational = rat(1);
@@ -114,6 +120,45 @@ export const HOST_NAMES: ReadonlySet<string> = new Set([
 ]);
 /** Names that could reach a prototype (idea.md §6.2, Z-07). */
 export const PROTO_NAMES: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
+/** Controls whose effect needs headphones (TS-40, TS-61, TS-62, TS-64 to TS-67). */
+const HEADPHONE_CONTROLS: ReadonlySet<string> = new Set([
+  'binaural',
+  'azimuth',
+  'elevation',
+  'distance',
+  'earsh',
+  'itd',
+  'ild',
+  'iphase',
+  'earswap',
+  'lcutoff',
+  'rcutoff',
+  'lhcutoff',
+  'rhcutoff',
+  'icorr',
+  'earsplit',
+  'dichotic',
+  'irate',
+]);
+/** Controls whose value is a steady pulse rate in hertz (TS-61, TS-67). */
+const PULSE_CONTROLS: ReadonlySet<string> = new Set(['binaural', 'isochronic', 'irate']);
+/** Constant pulse rates in this range get I-EXT-PULSE. */
+const PULSE_RANGE: readonly [number, number] = [3, 30];
+/** A constant `iphase` at or above this many degrees gets I-EXT-MONO (TS-68). */
+const MONO_PHASE = 150;
+/** Controls that only affect oscillator voices, and ones that only affect noise voices (TS-68). */
+const OSC_ONLY: ReadonlySet<string> = new Set(['iphase', 'irate']);
+const NOISE_ONLY: ReadonlySet<string> = new Set(['dichotic', 'icorr']);
+type SoundKind = 'osc' | 'noise' | 'drum' | 'other';
+const OSC_SET: ReadonlySet<string> = new Set(OSCILLATOR_SOUNDS);
+const NOISE_SET: ReadonlySet<string> = new Set(NOISE_SOUNDS);
+const DRUM_SET: ReadonlySet<string> = new Set(DRUM_SOUNDS);
+function soundKind(name: string): SoundKind {
+  if (OSC_SET.has(name)) return 'osc';
+  if (NOISE_SET.has(name)) return 'noise';
+  if (DRUM_SET.has(name)) return 'drum';
+  return 'other';
+}
 
 type Ident = Extract<Expr, { k: 'ident' }>;
 type Lambda = Extract<Expr, { k: 'lambda' }>;
@@ -235,6 +280,31 @@ function miniAtoms(a: MiniAst, out: { text: string; range: readonly [number, num
       return;
   }
 }
+/** Constant numbers in a control argument: a constant, or the atoms of a mini-notation string. */
+function constRates(a: Arg): number[] {
+  if (a.kind === 'const') return a.value.t === 'num' ? [toNumber(a.value.v)] : [];
+  if (a.kind !== 'pattern') return [];
+  const n = a.node;
+  if (n.kind === 'pure') return n.value.t === 'num' ? [toNumber(n.value.v)] : [];
+  if (n.kind !== 'mini') return [];
+  const found: { text: string; range: readonly [number, number] }[] = [];
+  miniAtoms(n.ast, found);
+  return found.flatMap((x) => {
+    const v = parseDecimal(x.text);
+    return v ? [toNumber(v)] : [];
+  });
+}
+/** Constant strings in a control argument: a constant, or the atoms of a mini-notation string. */
+function constStrings(a: Arg): string[] {
+  if (a.kind === 'const') return a.value.t === 'str' ? [a.value.v] : [];
+  if (a.kind !== 'pattern') return [];
+  const n = a.node;
+  if (n.kind === 'pure') return n.value.t === 'str' ? [n.value.v] : [];
+  if (n.kind !== 'mini') return [];
+  const found: { text: string; range: readonly [number, number] }[] = [];
+  miniAtoms(n.ast, found);
+  return found.map((x) => x.text);
+}
 
 export function check(source: string, opts: CheckOptions): CheckResult {
   const limits = { ...DEFAULT_LIMITS, ...opts.limits };
@@ -266,6 +336,7 @@ export function check(source: string, opts: CheckOptions): CheckResult {
   lw.run(tree);
   lw.checkVocal();
   if (opts.catalog) lw.checkResources(opts.catalog);
+  lw.checkAdvisories();
 
   if (!lw.outputs.some((o) => o.status === 'ok') && diagnostics.some((d) => d.severity === 'error')) {
     diagnostics.push({
@@ -288,6 +359,7 @@ export function check(source: string, opts: CheckOptions): CheckResult {
     bindings: lw.bindings,
     outputs: lw.outputs,
     resources: lw.resources,
+    ...(lw.advisories.length > 0 ? { advisories: lw.advisories } : undefined),
     diagnostics,
   };
   return { program, diagnostics, tree };
@@ -309,6 +381,7 @@ class Lowerer {
   readonly bindings: Binding[] = [];
   readonly outputs: Output[] = [];
   readonly resources: ResourceDecl[] = [];
+  readonly advisories: Advisory[] = [];
   private readonly bindingIndex = new Map<string, { id: NodeId; errored: boolean }>();
   private readonly bindingExprs = new Map<string, PatternNode>();
   private readonly constBindings = new Map<string, Rational>();
@@ -875,6 +948,15 @@ class Lowerer {
         } else if (control === 'vowel') {
           if (normalizeVowel(a.text) === undefined)
             this.diag('W-ARG-VOWEL', 'warning', `Unknown vowel \`${a.text}\`; \`ah\` is used.`, range, 'none');
+        } else if (control === 'earsplit') {
+          if (!EARSPLIT_MODES.has(a.text))
+            this.diag(
+              'W-ARG-MODE',
+              'warning',
+              `Unknown earsplit mode \`${a.text}\`; use none, harmonics or bands. \`none\` is used.`,
+              range,
+              'none',
+            );
         } else if (!VOICE_TYPE_SET.has(a.text.toLowerCase())) {
           this.diag('W-ARG-VOWEL', 'warning', `Unknown voice type \`${a.text}\`; \`tenor\` is used.`, range, 'none');
         }
@@ -915,6 +997,109 @@ class Lowerer {
       walk(o.expr);
     }
     this.outputLabel = undefined;
+  }
+  /** Headphone, pulse and mono facts per playable output, for hosts to show warnings (TS-61, TS-68). */
+  checkAdvisories(): void {
+    for (const o of this.outputs) {
+      if (o.status !== 'ok') continue;
+      const phones: PatternNode[] = [];
+      const pulsing: PatternNode[] = [];
+      const rates: number[] = [];
+      const mono: PatternNode[] = [];
+      const sounds = new Set<string>();
+      const needOsc: ControlNode[] = [];
+      const needNoise: ControlNode[] = [];
+      const seen = new Set<string>();
+      const walkArg = (a: Arg): void => {
+        if (a.kind === 'pattern') walk(a.node);
+        else if (a.kind === 'function') {
+          if (a.fn.kind === 'lambda') walk(a.fn.body);
+          else a.fn.args.forEach(walkArg);
+        }
+      };
+      const walk = (n: PatternNode): void => {
+        switch (n.kind) {
+          case 'control':
+            if (HEADPHONE_CONTROLS.has(n.control)) phones.push(n);
+            if (PULSE_CONTROLS.has(n.control)) {
+              for (const r of constRates(n.value)) {
+                if (r <= 0) continue;
+                rates.push(r);
+                if (r >= PULSE_RANGE[0] && r <= PULSE_RANGE[1]) pulsing.push(n);
+              }
+            }
+            if (n.control === 's') for (const x of constStrings(n.value)) sounds.add(x);
+            if (n.control === 'iphase' && constRates(n.value).some((r) => r >= MONO_PHASE)) mono.push(n);
+            if (OSC_ONLY.has(n.control) || (n.control === 'earsplit' && constStrings(n.value).includes('harmonics')))
+              needOsc.push(n);
+            if (NOISE_ONLY.has(n.control)) needNoise.push(n);
+            if (n.target) walk(n.target);
+            walkArg(n.value);
+            return;
+          case 'transform':
+            walk(n.target);
+            n.args.forEach(walkArg);
+            return;
+          case 'combine':
+            n.children.forEach(walk);
+            return;
+          case 'ref': {
+            if (n.binding.startsWith('param:') || seen.has(n.binding)) return;
+            seen.add(n.binding);
+            const b = this.bindingExprs.get(n.binding);
+            if (b) walk(b);
+            return;
+          }
+          case 'error':
+            if (n.recovered) walk(n.recovered);
+            return;
+          default:
+            return;
+        }
+      };
+      walk(o.expr);
+      const output = o.label ?? o.id;
+      const hp = phones[0];
+      if (hp) this.advise('I-EXT-HEADPHONES', 'This track uses controls that only work on headphones.', hp, output);
+      const pulse = pulsing[0];
+      if (pulse) this.advise('I-EXT-PULSE', 'This track pulses at a steady rate between 3 and 30 Hz.', pulse, output);
+      const m = mono[0];
+      if (m)
+        this.advise(
+          'I-EXT-MONO',
+          'The two ears are in opposite phase, so this track nearly cancels on speakers or in mono.',
+          m,
+          output,
+        );
+      // Only when every sound of the track is known and of the wrong kind (TS-68).
+      const kinds = [...sounds].map(soundKind);
+      const only = (...ks: readonly SoundKind[]): boolean => kinds.length > 0 && kinds.every((k) => ks.includes(k));
+      if (only('noise', 'drum'))
+        for (const n of needOsc)
+          this.unsupported(n, 'needs an oscillator voice; it has no effect on noise or drums.', output);
+      if (only('osc'))
+        for (const n of needNoise)
+          this.unsupported(n, 'works on noise sounds only; it has no effect on oscillators.', output);
+      if (!hp && rates.length === 0) continue;
+      this.advisories.push({
+        output,
+        headphones: hp !== undefined,
+        ...(rates.length > 0 ? { pulse: [Math.min(...rates), Math.max(...rates)] as const } : undefined),
+      });
+    }
+  }
+  private advise(id: string, message: string, n: PatternNode, output: string): void {
+    this.diags.push({ id, severity: 'info', message, range: n.range, effect: 'none', output });
+  }
+  private unsupported(n: ControlNode, rest: string, output: string): void {
+    this.diags.push({
+      id: 'W-ARG-UNSUPPORTED',
+      severity: 'warning',
+      message: `\`${n.control}\` ${rest}`,
+      range: n.range,
+      effect: 'none',
+      output,
+    });
   }
   /** Whether a subtree sets any of `ids`. Lambda parameters are assumed to (idea.md §11.1). */
   private hasControl(n: PatternNode, ids: ReadonlySet<string>, depth = 0): boolean {
@@ -1241,6 +1426,8 @@ class Lowerer {
         e.range,
       );
     const hit = this.reg.lookup(e.name);
+    if (hit?.entry.id === 'run' || hit?.entry.id === 'irand')
+      return this.reject('E-ARG-MISSING', `\`${e.name}\` needs a count, as in \`${e.name}(8)\`.`, e.range, e.range);
     if (hit?.entry.id === 'silence')
       return { kind: 'silence', id: hash64(anchor, 'silence'), range: this.sr(e.range), type: CONTROLS };
     if (hit?.entry.category === 'signal') {
@@ -1332,6 +1519,21 @@ class Lowerer {
         value,
       };
     }
+    if (entry.id === 'run') return this.runCall(args, range, anchor, id);
+    if (entry.id === 'irand') {
+      // TS-58: irand(n) lowers onto the rand signal, so the IR gains no new node kind.
+      const lowered = this.lowerArgs(entry, args, range, anchor, name);
+      if (!lowered) return this.errorNode('E-ARG-TYPE', range);
+      const sig: PatternType = { kind: 'signal', of: 'number' };
+      const target: PatternNode = {
+        kind: 'signal',
+        id: hash64(anchor, 'signal', 'rand'),
+        range: this.sr(range),
+        type: sig,
+        fn: 'rand',
+      };
+      return { kind: 'transform', id, range: this.sr(range), type: sig, fn: 'irand', target, args: lowered };
+    }
     if (entry.category === 'combinator') {
       const op = entry.id as 'stack' | 'slowcat' | 'fastcat';
       const children = args.map((a, i) => this.pattern(a, hash64(anchor, entry.id, String(i))));
@@ -1340,6 +1542,38 @@ class Lowerer {
     if (entry.id === 'silence') return { kind: 'silence', id, range: this.sr(range), type: CONTROLS };
     this.diag('E-NOT-YET', 'error', `\`${name}\` cannot start a pattern.`, range, 'subtree-muted');
     return this.errorNode('E-NOT-YET', range);
+  }
+  /** `run(n)` lowers to a fastcat of the constants 0 … n−1 (TS-58). */
+  private runCall(args: readonly Expr[], range: Range, anchor: NodeId, id: NodeId): PatternNode {
+    const a = args[0];
+    const v = a ? this.fold(a) : null;
+    const k = v ? toNumber(v) : NaN;
+    const cap = this.limits.maxStepMultiplier;
+    if (!Number.isInteger(k) || k < 1 || k > cap) {
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        `\`run\` needs a whole number from 1 to ${String(cap)}.`,
+        a?.range ?? range,
+        'subtree-muted',
+      );
+      return this.errorNode('E-ARG-TYPE', range);
+    }
+    const extra = args[1];
+    if (extra) this.diag('W-ARG-EXTRA', 'warning', 'Extra arguments to `run` are ignored.', extra.range, 'none');
+    if (this.frames.length > 0) {
+      this.expandCount += k;
+      if (this.expandCount > this.limits.maxExpandedNodes) throw new ExpandLimit();
+    }
+    const type: PatternType = { kind: 'pattern', of: 'number' };
+    const children = Array.from({ length: k }, (_, i): PatternNode => ({
+      kind: 'pure',
+      id: hash64(anchor, 'run', String(i)),
+      range: this.sr(range),
+      type,
+      value: { t: 'num', v: rat(i) },
+    }));
+    return { kind: 'combine', id, range: this.sr(range), type, op: 'fastcat', children };
   }
 
   private method(m: Member, rawArgs: readonly Expr[], range: Range, anchor: NodeId): PatternNode {
@@ -1401,7 +1635,7 @@ class Lowerer {
       };
     }
     if (entry.category === 'transform' || entry.category === 'tonal') {
-      if (entry.id === 'scale' || entry.id === 'transpose') {
+      if (entry.id === 'scale' || entry.id === 'transpose' || entry.id === 'octave') {
         // Q-03 / TS-35: only a samples-only receiver is nonsense for pitch operations.
         const ok = entry.id === 'scale' ? SCALE_OK : PITCH_OK;
         if (this.hasControl(recv, SAMPLE_IDS) && !this.hasControl(recv, ok)) {

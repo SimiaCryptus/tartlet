@@ -3,6 +3,7 @@
 import { type Rational, fromJson, isRational, toJson } from '@tartlet/time';
 import type { MiniAst, MiniOp, MiniStep } from '@tartlet/mini';
 import type {
+  Advisory,
   Arg,
   Binding,
   ConstValue,
@@ -338,6 +339,19 @@ class Decoder {
       ...(o.definition !== undefined ? { definition: this.str(o.definition, `${p}.definition`) } : undefined),
     };
   }
+  advisory(v: unknown, p: string): Advisory {
+    const o = this.obj(v, p);
+    if (typeof o.headphones !== 'boolean') fail(`${p}.headphones`, 'expected a boolean');
+    let pulse: readonly [number, number] | undefined;
+    if (o.pulse !== undefined) {
+      const a = this.arr(o.pulse, `${p}.pulse`);
+      const [lo, hi] = a;
+      if (a.length !== 2 || typeof lo !== 'number' || typeof hi !== 'number' || !(lo <= hi))
+        fail(`${p}.pulse`, 'expected [min, max] in order');
+      pulse = [lo, hi];
+    }
+    return { output: this.str(o.output, `${p}.output`), headphones: o.headphones, ...(pulse ? { pulse } : undefined) };
+  }
   program(v: unknown): Program {
     const o = this.obj(v, '$');
     if (o.irVersion !== 'tartlet/1') fail('$.irVersion', 'unsupported IR version');
@@ -387,6 +401,10 @@ class Decoder {
     const diagnostics = this.arr(o.diagnostics, '$.diagnostics').map((x, i) =>
       this.diagnostic(x, `$.diagnostics[${String(i)}]`),
     );
+    let advisories: Advisory[] | undefined;
+    if (o.advisories !== undefined) {
+      advisories = this.arr(o.advisories, '$.advisories').map((x, i) => this.advisory(x, `$.advisories[${String(i)}]`));
+    }
     let source: SourceRef | undefined;
     if (o.source !== undefined) {
       const so = this.obj(o.source, '$.source');
@@ -400,6 +418,7 @@ class Decoder {
       outputs,
       resources,
       diagnostics,
+      ...(advisories ? { advisories } : undefined),
     };
   }
   private checkAcyclic(): void {

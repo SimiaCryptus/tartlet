@@ -135,3 +135,12 @@ Mini-notation errors mute the whole output.
 - `W-ARG-VOWEL`: an unknown constant `vowel` or `voicetype`. The default is used.
 - `E-LIMIT-EXPAND`: function calls in a statement expanded to more than `maxExpandedNodes`
   nodes. Only that output is muted (TS-52).
+- `I-EXT-HEADPHONES`: an output uses controls that only work on headphones (TS-61).
+- `I-EXT-PULSE`: an output pulses at a constant rate between 3 and 30 Hz. It is benign and
+  exists so hosts can warn before playback (TS-61).
+  `binaural`, `isochronic` and `irate` all count (TS-67).
+- `I-EXT-MONO`: a constant `iphase` of 150° or more, which nearly cancels in mono (TS-68).
+- `W-ARG-UNSUPPORTED`: a control that the track's sounds ignore. Examples are `iphase`, `irate`
+  or `earsplit("harmonics")` on noise or drums, and `dichotic` or `icorr` on oscillators. It is
+  reported only when every sound in the track is known (TS-68).
+- `W-ARG-MODE`: an unknown constant `earsplit` mode. `none` is used.

@@ -242,3 +242,68 @@ defHash)`. `defHash` hashes the definition without layout. Method ids inside the
   statement produces while expanding calls, counting the full size of reused receivers. Going
   over it gives `E-LIMIT-EXPAND`. On an output, only that output is muted. In a definition,
   the definition is marked broken.
+
+## Found while adding headphone safety and per-ear controls (docs/binaural.md)
+
+- **TS-61: advisories.** The checker records, per playable output, whether it uses
+  headphone-only controls (`binaural`, `azimuth`, `elevation`, `distance`, `earsh`, `itd`,
+  `ild`, `iphase`, `earswap`) and the lowest and highest constant pulse rates. Only `binaural`
+  counts as a pulse today. Rates come from constants and from the number atoms of mini-notation
+  strings; signals are not counted. Bindings are followed. The facts go in the optional
+  `Program.advisories`, which the codec decodes as untrusted input. `I-EXT-HEADPHONES` and
+  `I-EXT-PULSE` (a rate in 3–30 Hz) are info notes, hidden from the repair payload. The element
+  fires a cancelable `beforeplay` event; the playground cancels it to show a warning once per
+  session, and stops its logo animation while a pulsing sketch is loaded.
+- **TS-62: per-ear controls.** `itd`, `ild` and `earswap` act in an ear stage after the panner
+  or HRTF, using a splitter, per-ear delay and gain, and a merger. `ild` keeps total power
+  constant and is capped at 12 dB; `itd` is capped at 40 ms. `earswap` swaps the ears when it is
+  at least one half. `earsh` and `iphase` apply to oscillator voices only and make them two-tone
+  voices like `binaural`, which bypass pan and HRTF. `iphase` delays the right ear by that
+  fraction of the right ear's period, which is exact for steady tones and approximate under glide
+  or vibrato. The controls are L3, so they stay out of the system prompt.
+- **TS-63: swing correction.** `swingBy` worked on `fast(n)` and squeezed back with `slow(n)`,
+  which is backwards. It now works on `slow(n)`, so each slice is one inner cycle.
+
+## Found while completing docs/binaural.md (Tiers B1–B4)
+
+- **TS-64: per-ear filters, band split and correlation.**
+  - `lcutoff`, `rcutoff`, `lhcutoff` and `rhcutoff` are biquads (Q 0.7) on one channel of the ear
+    stage, after the panner and before `itd`.
+  - `earsplit("bands")` puts a Linkwitz–Riley crossover in the ear stage at `splitfreq` (default
+    1000 Hz, clamped to 100–8000): low-pass on the left, high-pass on the right. Any source works.
+  - `icorr` (default 1) applies to noise voices. Each ear mixes a shared bed and its own bed with
+    gains √icorr and √(1 − icorr). The beds are offsets of one third of the buffer apart in the
+    fixed-seed noise buffer, starting at an offset drawn from `iseed`.
+  - Core adds `iseed` to events that carry `icorr`. It is keyed by (scope seed, output id,
+    `whole.begin`, `s`) and added at the output level, like `vseed` (TS-44).
+  - Noise voices with `icorr` below 1 or with `dichotic` are two-ear voices. Like `binaural`
+    voices, they bypass `pan` and HRTF, because panning a stereo input mixes the ears. The ear
+    stage still applies.
+- **TS-65: `earsplit("harmonics")`.** Applies to oscillator voices. Alternate _non-zero_ partials
+  of the voice's partial table go left and right, instead of strictly odd and even, so
+  `square`, `triangle` and `sine` do not leave one ear silent. For `sawtooth` this is odd and
+  even. The table is the `timbre` table when one is set, and otherwise the basic waveform. `pw`
+  is ignored. Both halves share one scale, so the fused sound has the level of the whole wave.
+  It combines with `binaural`, `earsh`, `iphase`, `irate` and `unison`.
+- **TS-66: dichotic pitch.** The right ear of a noise voice passes through an all-pass biquad
+  at `dichotic` Hz with Q `dichoticq` (default 10). Non-zero values below 100 are raised to 100,
+  and values are capped at 2000. The `note`-driven variant is deferred.
+- **TS-67: pulses.**
+  - `isochronic` (0–40 Hz) multiplies any voice by a softened square: four odd harmonics with a
+    sinc roll-off, swinging between 1 − `isodepth` and 1. `isodepth` defaults to 1. It is not a
+    headphone control.
+  - `irate` (0–10 Hz) is added to the binaural beat of oscillator voices, so a full rotation per
+    second equals a 1 Hz beat. It does not apply to noise or dichotic voices. This resolves the
+    conflict in docs/binaural.md in favour of the W-ARG-UNSUPPORTED rule.
+  - `binaural`, `isochronic` and `irate` all count as pulse rates for advisories (TS-61).
+  - In-note sweeps remain patterns of short notes, using `segment` (TS-55).
+- **TS-68: new notes and warnings.**
+  - `I-EXT-MONO` fires when a constant `iphase` is at least 150°. "Sustained" is not checked.
+  - `W-ARG-UNSUPPORTED` fires only when every sound name in the track is known and of the wrong
+    kind:
+    - `iphase`, `irate` or a constant `earsplit("harmonics")` on tracks with only noise and drums;
+    - `dichotic` or `icorr` on tracks with only oscillators.
+      Fallback names, voices and tracks without `s` are not judged.
+  - `W-ARG-MODE` fires for an unknown constant `earsplit` mode; `none` is used.
+  - The checker reads sound kinds from `@tartlet/registry`. A conformance test keeps them in
+    step with `@tartlet/resources`.

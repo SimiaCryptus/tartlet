@@ -39,6 +39,9 @@ const SINCE_T2 = '0.2.0';
 const SINCE_T3 = '0.3.0';
 const SINCE_T4 = '0.4.0';
 const SINCE_T5 = '0.5.0';
+const SINCE_T6 = '0.6.0';
+const SINCE_T7 = '0.7.0';
+const SINCE_T8 = '0.8.0';
 
 function control(
   id: string,
@@ -107,6 +110,30 @@ function t2(
 }
 function t3(id: string, names: readonly string[], params: readonly ParamSpec[], description: string): RegistryEntry {
   return { ...transform(id, names, params, description), since: SINCE_T3 };
+}
+/** Standard-library transforms (docs/language_extensions.md Part 2). They are L3 (TS-53). */
+function lib(
+  id: string,
+  names: readonly string[],
+  params: readonly ParamSpec[],
+  description: string,
+  deterministic: 'pure' | 'seeded' = 'pure',
+): RegistryEntry {
+  return { ...transform(id, names, params, description, deterministic), level: 'L3', since: SINCE_T6 };
+}
+const UNIT = (name: string): ParamSpec => ({ name, type: 'number', patternable: false, range: [0, 1] });
+const AMOUNT: ParamSpec = { name: 'amount', type: 'number', patternable: true };
+/** Headphone extensions from docs/binaural.md Tiers B1–B3 (TS-64 to TS-67). L3, so they stay out of the prompt. */
+function earControl(
+  id: string,
+  kind: ValueKind,
+  description: string,
+  range?: readonly [number, number],
+): RegistryEntry {
+  return {
+    ...control(id, [id], kind, description, { since: SINCE_T8, ...(range ? { range } : undefined) }),
+    level: 'L3',
+  };
 }
 function signalEntry(id: string, description: string): RegistryEntry {
   return {
@@ -186,6 +213,94 @@ export const ENTRIES: readonly RegistryEntry[] = [
     'number',
     'How far the sound is from the listener. One is the reference distance; farther sounds are quieter.',
     { range: [0.5, 50], since: SINCE_T3 },
+  ),
+  // Per-ear extensions (TS-62). L3, so they stay out of the system prompt.
+  {
+    ...control(
+      'earsh',
+      ['earsh'],
+      'number',
+      'Detunes the ears in opposite directions, in cents: the right ear is raised and the left lowered by half each.',
+      { range: [-100, 100], since: SINCE_T7 },
+    ),
+    level: 'L3',
+  },
+  {
+    ...control(
+      'itd',
+      ['itd'],
+      'number',
+      'Delays one ear by up to 40 milliseconds. Positive values delay the left ear, so the sound leans to the right.',
+      { range: [-40, 40], since: SINCE_T7 },
+    ),
+    level: 'L3',
+  },
+  {
+    ...control(
+      'ild',
+      ['ild'],
+      'number',
+      'Level difference between the ears in decibels. Positive is louder on the right; total loudness stays the same.',
+      { range: [-12, 12], since: SINCE_T7 },
+    ),
+    level: 'L3',
+  },
+  {
+    ...control(
+      'iphase',
+      ['iphase'],
+      'number',
+      'Phase offset between the ears for oscillator voices, in degrees. Near 180 the tone seems to sit inside the head.',
+      { range: [0, 180], since: SINCE_T7 },
+    ),
+    level: 'L3',
+  },
+  {
+    ...control(
+      'earswap',
+      ['earswap'],
+      'number',
+      'Swaps the left and right ears when set to one. Patterned, it makes the sound hop from ear to ear.',
+      { range: [0, 1], since: SINCE_T7 },
+    ),
+    level: 'L3',
+  },
+  // Per-ear filters, correlation, spectral splits, dichotic pitch and pulses (TS-64 to TS-67).
+  earControl('lcutoff', 'number', 'A low-pass filter on the left ear only, in hertz.', [20, 20000]),
+  earControl('rcutoff', 'number', 'A low-pass filter on the right ear only, in hertz.', [20, 20000]),
+  earControl('lhcutoff', 'number', 'A high-pass filter on the left ear only, in hertz.', [20, 20000]),
+  earControl('rhcutoff', 'number', 'A high-pass filter on the right ear only, in hertz.', [20, 20000]),
+  earControl(
+    'icorr',
+    'number',
+    'How alike the two ears are for noise sounds: one gives the same noise in both, zero gives unrelated noise in each.',
+    [0, 1],
+  ),
+  earControl(
+    'earsplit',
+    'string',
+    'Splits a sound between the ears: "harmonics" sends alternate harmonics of an oscillator to each ear, "bands" sends the lows left and the highs right, "none" turns it off.',
+  ),
+  earControl('splitfreq', 'number', 'Crossover frequency in hertz for earsplit "bands".', [100, 8000]),
+  earControl(
+    'dichotic',
+    'number',
+    'On noise sounds, shifts the phase of one ear in a narrow band at this frequency, so headphones hear a faint pitch that neither ear hears alone. Zero turns it off.',
+    [0, 2000],
+  ),
+  earControl('dichoticq', 'number', 'How narrow the dichotic band is; higher gives a clearer pitch.', [1, 50]),
+  earControl(
+    'isochronic',
+    'number',
+    'Pulses the loudness at this rate in hertz. Unlike a binaural beat, it can be heard on speakers too.',
+    [0, 40],
+  ),
+  earControl('isodepth', 'number', 'How deep the isochronic pulses are, from zero for none to one for full.', [0, 1]),
+  earControl(
+    'irate',
+    'number',
+    'Rotates the phase between the ears of an oscillator voice at this rate in hertz, like a slow binaural beat.',
+    [0, 10],
   ),
   // Synthesis extensions (TS-42).
   control(
@@ -352,6 +467,27 @@ export const ENTRIES: readonly RegistryEntry[] = [
     range: [4, 16],
     since: SINCE_T4,
   }),
+  // Library controls (TS-59).
+  {
+    ...control(
+      'legato',
+      ['legato', 'clip'],
+      'number',
+      'How long each note sounds, as a share of its step: below one is detached, above one overlaps.',
+      { range: [0, 8], since: SINCE_T6 },
+    ),
+    level: 'L3',
+  },
+  {
+    ...control(
+      'nudge',
+      ['nudge'],
+      'number',
+      'Moves each note by a small number of seconds of real time without changing the pattern; negative is earlier.',
+      { range: [-0.05, 0.25], since: SINCE_T6 },
+    ),
+    level: 'L3',
+  },
   {
     id: 'stack',
     names: ['stack'],
@@ -487,6 +623,185 @@ export const ENTRIES: readonly RegistryEntry[] = [
       'Hands the pattern to a function, such as a named const function. Further arguments follow the pattern.',
     ),
     since: SINCE_T5,
+  },
+  // ---- Standard library (TS-53 to TS-59)
+  lib(
+    'within',
+    ['within'],
+    [UNIT('begin'), UNIT('end'), FN],
+    'Applies a function, keeping only what it plays between two points of each cycle; the rest of the cycle is left as it was.',
+  ),
+  lib(
+    'chunk',
+    ['chunk'],
+    [CONST_NUM('n'), FN],
+    'Splits each cycle into n parts and applies a function to one of them, moving one part later each cycle.',
+  ),
+  lib(
+    'chunkBack',
+    ['chunkBack'],
+    [CONST_NUM('n'), FN],
+    'Like chunk, but the transformed part moves one part earlier each cycle.',
+  ),
+  lib('lastOf', ['lastOf'], [CONST_NUM('n'), FN], 'Applies a function on the last cycle of every group of n cycles.'),
+  lib(
+    'zoom',
+    ['zoom'],
+    [CONST_NUM('begin'), CONST_NUM('end')],
+    'Plays only the stretch of each cycle between begin and end, stretched to fill the whole cycle.',
+  ),
+  lib(
+    'compress',
+    ['compress'],
+    [UNIT('begin'), UNIT('end')],
+    'Squeezes each cycle into the stretch between begin and end, leaving the rest silent.',
+  ),
+  lib(
+    'fastGap',
+    ['fastGap'],
+    [CONST_NUM('factor')],
+    'Plays each cycle faster by a factor, then rests until the next cycle begins.',
+  ),
+  lib('linger', ['linger'], [UNIT('fraction')], 'Repeats the opening fraction of each cycle until the cycle is full.'),
+  lib(
+    'segment',
+    ['segment'],
+    [CONST_NUM('n')],
+    'Samples the pattern at n evenly spaced steps per cycle, turning a signal into separate events.',
+  ),
+  lib('hurry', ['hurry'], [FACTOR], 'Speeds the pattern up and raises sample playback speed by the same factor.'),
+  lib(
+    'swingBy',
+    ['swingBy'],
+    [CONST_NUM('amount'), CONST_NUM('n')],
+    'Divides each cycle into n slices and delays the events in the second half of each slice by a share of a slice.',
+  ),
+  lib('swing', ['swing'], [CONST_NUM('n')], 'A light swing: swingBy with a third of a slice.'),
+  lib('brak', ['brak'], [], 'On every other cycle, squeezes the cycle into its middle half for a syncopated break.'),
+  lib('press', ['press'], [], 'Moves every event into the second half of its own duration.'),
+  lib(
+    'pressBy',
+    ['pressBy'],
+    [{ name: 'amount', type: 'number', patternable: true, range: [0, 1] }],
+    'Delays the start of every event by a share of its own duration, keeping its end.',
+  ),
+  lib('superimpose', ['superimpose'], [FN], 'Plays the pattern together with a transformed copy of itself.'),
+  lib(
+    'echo',
+    ['echo'],
+    [CONST_NUM('times'), CONST_NUM('time'), UNIT('feedback')],
+    'Adds delayed copies, each one later by the given time and quieter by the feedback factor.',
+  ),
+  lib(
+    'often',
+    ['often'],
+    [FN],
+    'Applies a function to about three quarters of the events, chosen by a seeded draw.',
+    'seeded',
+  ),
+  lib(
+    'rarely',
+    ['rarely'],
+    [FN],
+    'Applies a function to about a quarter of the events, chosen by a seeded draw.',
+    'seeded',
+  ),
+  lib(
+    'almostNever',
+    ['almostNever'],
+    [FN],
+    'Applies a function to about one event in ten, chosen by a seeded draw.',
+    'seeded',
+  ),
+  lib(
+    'almostAlways',
+    ['almostAlways'],
+    [FN],
+    'Applies a function to about nine events in ten, chosen by a seeded draw.',
+    'seeded',
+  ),
+  lib('always', ['always'], [FN], 'Applies a function to every event.'),
+  lib('never', ['never'], [FN], 'Ignores the function and plays the pattern unchanged.'),
+  lib(
+    'someCyclesBy',
+    ['someCyclesBy'],
+    [UNIT('amount'), FN],
+    'Decides once per cycle, with a seeded draw, whether to apply a function to the whole cycle.',
+    'seeded',
+  ),
+  lib(
+    'someCycles',
+    ['someCycles'],
+    [FN],
+    'Applies a function to about half of the cycles, decided once per cycle by a seeded draw.',
+    'seeded',
+  ),
+  lib(
+    'shuffle',
+    ['shuffle'],
+    [CONST_NUM('n')],
+    'Cuts each cycle into n slices and plays every slice once, in a seeded random order.',
+    'seeded',
+  ),
+  lib(
+    'scramble',
+    ['scramble'],
+    [CONST_NUM('n')],
+    'Cuts each cycle into n slices and fills each slot with a slice picked by a seeded draw, so slices may repeat.',
+    'seeded',
+  ),
+  lib(
+    'undegradeBy',
+    ['undegradeBy'],
+    [{ name: 'amount', type: 'number', patternable: true, range: [0, 1] }],
+    'Keeps only a seeded random share of the events. The share is between zero and one.',
+    'seeded',
+  ),
+  lib('sub', ['sub'], [AMOUNT], 'Subtracts a number from notes, degrees or plain numbers.'),
+  lib('mul', ['mul'], [AMOUNT], 'Multiplies notes, degrees or plain numbers by a number.'),
+  lib('div', ['div'], [AMOUNT], 'Divides notes, degrees or plain numbers by a number; zero leaves them unchanged.'),
+  lib('mod', ['mod'], [AMOUNT], 'Wraps notes, degrees or plain numbers into the range from zero up to a number.'),
+  lib('round', ['round'], [], 'Rounds notes, degrees or plain numbers to the nearest whole number.'),
+  lib('floor', ['floor'], [], 'Rounds notes, degrees or plain numbers down to a whole number.'),
+  lib('ceil', ['ceil'], [], 'Rounds notes, degrees or plain numbers up to a whole number.'),
+  lib('toBipolar', ['toBipolar'], [], 'Maps values between zero and one onto values between minus one and one.'),
+  lib('fromBipolar', ['fromBipolar'], [], 'Maps values between minus one and one onto values between zero and one.'),
+  lib(
+    'octave',
+    ['octave'],
+    [{ name: 'octaves', type: 'number', patternable: true }],
+    'Moves notes up or down by whole octaves.',
+  ),
+  lib('accent', ['accent'], [RHYTHM], 'Makes events louder wherever the rhythm is true at their start.'),
+  {
+    id: 'run',
+    names: ['run'],
+    form: 'constructor',
+    params: [CONST_NUM('n')],
+    returns: { kind: 'pattern', of: 'number' },
+    level: 'L3',
+    deterministic: 'pure',
+    since: SINCE_T6,
+    description: 'Counts from zero up to n minus one, spread evenly over each cycle.',
+    category: 'constant',
+  },
+  {
+    id: 'irand',
+    names: ['irand'],
+    form: 'constructor',
+    params: [CONST_NUM('n')],
+    returns: { kind: 'signal', of: 'number' },
+    level: 'L3',
+    deterministic: 'seeded',
+    since: SINCE_T6,
+    description: 'A seeded random whole number from zero up to, but not including, n.',
+    category: 'signal',
+  },
+  {
+    ...signalEntry('perlin', 'A seeded value between zero and one that drifts smoothly from cycle to cycle.'),
+    level: 'L3',
+    deterministic: 'seeded',
+    since: SINCE_T6,
   },
   signalEntry('sine', 'A smooth wave from zero up to one and back, once per cycle.'),
   signalEntry('cosine', 'The smooth wave, started a quarter of a cycle later.'),
@@ -625,7 +940,7 @@ export const defaultRegistry: Registry = new Registry(ENTRIES);
 export function systemPrompt(reg: Registry = defaultRegistry): string {
   const names = (c: Category): string =>
     [...reg.entries()]
-      .filter((e) => e.category === c)
+      .filter((e) => e.category === c && e.level !== 'L3')
       .map((e) => e.names[0] ?? e.id)
       .join(', ');
   return [
@@ -636,6 +951,7 @@ export function systemPrompt(reg: Registry = defaultRegistry): string {
     `- Controls: ${names('control')}.`,
     `- Transforms: ${names('transform')}. Combinators: ${names('combinator')}.`,
     `- Signals: ${names('signal')}, as in .lpf(sine.range(200, 2000)).`,
+    '- Also: often, rarely, superimpose, echo, swing, chunk, run(n).',
     '- A function argument is a transform name like `rev`, or `x => x.fast(2)`.',
     '- Drums: bd, sd, hh, oh, cp, rim, lt, mt, ht, cr, rd. Synths: sine, square, triangle, sawtooth. Noise: white, pink, brown.',
     '- Voices: voice, aah, ooh, hum, whisper, choir. syl("la shee _") sings phonetic syllables: up to two consonants, then a vowel (a e i o u ah oo ee); "_" holds.',

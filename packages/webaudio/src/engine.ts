@@ -9,8 +9,12 @@ import {
   glottalWave,
   impulseResponse,
   nasalBank,
+  partialTable,
   pulseWave,
   shapeCurve,
+  softSquareWave,
+  splitWaves,
+  TIMBRES,
   timbreWave,
   unisonOffsets,
   voiceTypeScale,
@@ -33,6 +37,14 @@ const isNoise = (name: string): name is NoiseKind => NOISE_SET.has(name);
 const MAX_COST = 64;
 /** Upper bound for the binaural beat rate in hertz (TS-40). */
 const MAX_BEAT = 40;
+/** Interaural time difference bound in milliseconds (TS-62). */
+const MAX_ITD = 40;
+/** Interaural level difference bound in decibels; large imbalances are uncomfortable (TS-62). */
+const MAX_ILD = 12;
+/** Upper bound for the interaural phase rotation rate in hertz (TS-67). */
+const MAX_IRATE = 10;
+/** Range of the dichotic band centre in hertz; zero turns it off (TS-66). */
+const DICHOTIC_RANGE: readonly [number, number] = [100, 2000];
 /** At most this many reverb buses exist at once (TS-41). */
 const MAX_REVERBS = 8;
 /** Onset consonants start at most this many seconds before the beat (TS-46). */
@@ -55,6 +67,30 @@ interface Voice {
 }
 
 type Starts = ReadonlyMap<AudioScheduledSourceNode, readonly [number, number]>;
+/** Per-ear settings for two-ear voices (TS-40, TS-62, TS-64 to TS-67). */
+interface EarShift {
+  /** Binaural beat in hertz, including any `irate` rotation. */
+  readonly beat: number;
+  /** Detune between the ears in cents. */
+  readonly cents: number;
+  /** Phase offset of the right ear in degrees. */
+  readonly phase: number;
+  /** Alternate partials go to alternate ears (TS-65). */
+  readonly harmonics: boolean;
+  /** Interaural correlation of a noise voice, 0–1 (TS-64). */
+  readonly icorr: number;
+  /** Centre of the phase-shifted band of a noise voice in hertz; 0 is off (TS-66). */
+  readonly dichotic: number;
+  readonly dichoticq: number;
+}
+/** Oscillator voices built from one tone per ear. */
+function twoTone(e: EarShift): boolean {
+  return e.beat > 0 || e.cents !== 0 || e.phase > 0 || e.harmonics;
+}
+/** Voices with their own stereo image, which bypass pan and HRTF (TS-40, TS-64). */
+function twoEar(e: EarShift): boolean {
+  return twoTone(e) || e.icorr < 1 || e.dichotic > 0;
+}
 
 /** What a sound generator produced: sources still to be started, and when they end. */
 interface Spec {
@@ -121,6 +157,8 @@ export class AudioEngine {
   private readonly jitters = new Map<number, AudioBuffer>();
   private readonly waves = new Map<string, PeriodicWave>();
   private readonly glottals = new Map<number, PeriodicWave>();
+  private readonly splits = new Map<string, readonly [PeriodicWave, PeriodicWave]>();
+  private isoWave: PeriodicWave | undefined;
   private readonly curves = new Map<string, Float32Array<ArrayBuffer>>();
   private readonly reverbs = new Map<string, AudioNode>();
   private readonly delays = new Map<number, DelayBus>();
@@ -163,9 +201,11 @@ export class AudioEngine {
   play(c: ControlMap, time: number, duration: number): void {
     const ctx = this.ctx;
     const now = ctx.currentTime;
-    if (!Number.isFinite(time) || time < now - 0.05) return;
-    const t = Math.max(time, now);
-    const dur = Math.max(0, fin(duration, 0));
+    // nudge moves the onset in seconds; legato scales the held duration (TS-59).
+    const at = time + clamp(fin(c.nudge, 0), -0.05, 0.25);
+    if (!Number.isFinite(at) || at < now - 0.05) return;
+    const t = Math.max(at, now);
+    const dur = Math.max(0, fin(duration, 0)) * clamp(fin(c.legato, 1), 0.01, 8);
     const gain = clamp(fin(c.gain, 1), 0, 1.5) * clamp(fin(c.velocity, 1), 0, 1);
     if (gain <= 0) return;
     const note = c.note as { kind?: string; value?: unknown } | undefined;
@@ -187,10 +227,21 @@ export class AudioEngine {
       return;
     }
 
-    // Binaural beats need an untouched stereo image, so they bypass all panning (TS-40).
-    const beat = osc ? clamp(fin(c.binaural, 0), 0, MAX_BEAT) : 0;
+    // Two-ear voices need an untouched stereo image, so they bypass pan and HRTF (TS-40, TS-62, TS-64).
+    const dich = noise ? clamp(fin(c.dichotic, 0), 0, DICHOTIC_RANGE[1]) : 0;
+    const ear: EarShift = {
+      beat: osc ? clamp(fin(c.binaural, 0), 0, MAX_BEAT) + clamp(fin(c.irate, 0), 0, MAX_IRATE) : 0,
+      cents: osc ? clamp(fin(c.earsh, 0), -100, 100) : 0,
+      phase: osc ? clamp(fin(c.iphase, 0), 0, 180) : 0,
+      harmonics: osc && c.earsplit === 'harmonics',
+      icorr: noise ? clamp(fin(c.icorr, 1), 0, 1) : 1,
+      dichotic: dich > 0 ? Math.max(dich, DICHOTIC_RANGE[0]) : 0,
+      dichoticq: clamp(fin(c.dichoticq, 10), 1, 50),
+    };
+    const dual = twoEar(ear);
     const post = ctx.createGain();
-    post.connect(beat > 0 ? this.input : this.placer(c));
+    const sink = this.earStage(c);
+    post.connect(dual ? sink : this.placer(c, sink));
     this.sends(c, post, t);
     const attack = clamp(fin(c.attack, vocal ? 0.03 : 0.005), 0.001, 5);
     const release = clamp(fin(c.release, vocal ? 0.12 : 0.08), 0.01, 8);
@@ -229,7 +280,7 @@ export class AudioEngine {
       };
       spec = vocal
         ? this.vocal(name, c, env, freq, glide, t, dur, gain, gate, post, plan)
-        : this.synth(name, c, env, freq, beat, glide, t, dur, gain, gate);
+        : this.synth(name, c, env, freq, ear, glide, t, dur, gain, gate);
     } else {
       const sp = clamp(Math.abs(fin(c.speed, 1)), 0.125, 8);
       spec = this.drum(name, t, gain, sp, gate);
@@ -300,15 +351,15 @@ export class AudioEngine {
   }
 
   /**
-   * The node a voice feeds, already connected to the bus. Any of azimuth, elevation or
+   * The node a voice feeds, already connected to `out`. Any of azimuth, elevation or
    * distance selects HRTF placement; otherwise a stereo panner reads `pan` (TS-40).
    */
-  private placer(c: ControlMap): AudioNode {
+  private placer(c: ControlMap, out: AudioNode): AudioNode {
     const spatial = typeof c.azimuth === 'number' || typeof c.elevation === 'number' || typeof c.distance === 'number';
     if (!spatial) {
       const pan = this.ctx.createStereoPanner();
       pan.pan.value = clamp(fin(c.pan, 0.5), 0, 1) * 2 - 1;
-      pan.connect(this.input);
+      pan.connect(out);
       return pan;
     }
     const p = this.ctx.createPanner();
@@ -324,8 +375,67 @@ export class AudioEngine {
     p.positionX.value = Math.sin(az) * Math.cos(el) * d;
     p.positionY.value = Math.sin(el) * d;
     p.positionZ.value = -Math.cos(az) * Math.cos(el) * d;
-    p.connect(this.input);
+    p.connect(out);
     return p;
+  }
+  /**
+   * Interaural time and level differences, per-ear filters, the band split and the ear swap,
+   * after any panner (TS-62, TS-64). Returns the node a placed voice feeds; without these
+   * controls it is the bus itself.
+   */
+  private earStage(c: ControlMap): AudioNode {
+    const itd = clamp(fin(c.itd, 0), -MAX_ITD, MAX_ITD);
+    const ild = clamp(fin(c.ild, 0), -MAX_ILD, MAX_ILD);
+    const swap = fin(c.earswap, 0) >= 0.5;
+    const lows = [num(c.lcutoff), num(c.rcutoff)];
+    const highs = [num(c.lhcutoff), num(c.rhcutoff)];
+    const bands = c.earsplit === 'bands';
+    const crossover = clamp(fin(c.splitfreq, 1000), 100, 8000);
+    const filtered = bands || [...lows, ...highs].some((x) => x !== undefined);
+    if (itd === 0 && ild === 0 && !swap && !filtered) return this.input;
+    const ctx = this.ctx;
+    const split = ctx.createChannelSplitter(2);
+    const merge = ctx.createChannelMerger(2);
+    // Equal total power: gL² + gR² = 2, with gR / gL set by ild in decibels.
+    const ratio = 10 ** (ild / 20);
+    const left = Math.sqrt(2 / (1 + ratio * ratio));
+    const gains = [left, left * ratio];
+    // Positive itd delays the left ear, so the sound leans right.
+    const delays = [Math.max(0, itd) / 1000, Math.max(0, -itd) / 1000];
+    for (let ch = 0; ch < 2; ch++) {
+      const g = ctx.createGain();
+      g.gain.value = gains[ch] ?? 1;
+      split.connect(g, ch);
+      let out: AudioNode = g;
+      const filter = (type: BiquadFilterType, f: number, q: number): void => {
+        const b = ctx.createBiquadFilter();
+        b.type = type;
+        b.frequency.value = clamp(f, 20, 20000);
+        b.Q.value = q;
+        out.connect(b);
+        out = b;
+      };
+      if (bands) {
+        // Two cascaded Butterworth sections per side form a Linkwitz–Riley crossover, which sums flat in mono.
+        const type: BiquadFilterType = ch === 0 ? 'lowpass' : 'highpass';
+        filter(type, crossover, Math.SQRT1_2);
+        filter(type, crossover, Math.SQRT1_2);
+      }
+      const lo = lows[ch];
+      if (lo !== undefined) filter('lowpass', lo, 0.7);
+      const hi = highs[ch];
+      if (hi !== undefined) filter('highpass', hi, 0.7);
+      const d = delays[ch] ?? 0;
+      if (d > 0) {
+        const dl = ctx.createDelay(MAX_ITD / 1000 + 0.01);
+        dl.delayTime.value = d;
+        g.connect(dl);
+        out = dl;
+      }
+      out.connect(merge, 0, swap ? 1 - ch : ch);
+    }
+    merge.connect(this.input);
+    return split;
   }
 
   /** Sends to the shared reverb and delay of the event's orbit (TS-41). */
@@ -512,6 +622,21 @@ export class AudioEngine {
       link(g);
       lfos.push(lfo);
     }
+    // Isochronic pulses: a softened square on the amplitude, heard on speakers too (TS-67).
+    const iso = clamp(fin(c.isochronic, 0), 0, 40);
+    if (iso > 0) {
+      const depth = clamp(fin(c.isodepth, 1), 0, 1);
+      const g = ctx.createGain();
+      g.gain.value = 1 - depth / 2;
+      const lfo = ctx.createOscillator();
+      lfo.setPeriodicWave(this.isochronicWave());
+      lfo.frequency.value = iso;
+      const lg = ctx.createGain();
+      lg.gain.value = depth / 2;
+      lfo.connect(lg).connect(g.gain);
+      link(g);
+      lfos.push(lfo);
+    }
 
     // The singer's ring and overtone whistles (TS-47).
     const ring = clamp(fin(c.ring, 0), 0, 1);
@@ -649,6 +774,29 @@ export class AudioEngine {
       this.waves.set(key, w);
     }
     return w;
+  }
+  /** The two halves of a voice's partial table for `earsplit("harmonics")` (TS-65). */
+  private splitPair(type: string, c: ControlMap): readonly [PeriodicWave, PeriodicWave] | undefined {
+    const timbre = typeof c.timbre === 'string' ? c.timbre.toLowerCase() : '';
+    const named = timbre ? TIMBRES.get(timbre) : undefined;
+    const amps = named ?? partialTable(type);
+    if (!amps) return undefined;
+    const key = named ? `timbre:${timbre}` : type;
+    let hit = this.splits.get(key);
+    if (!hit) {
+      const s = splitWaves(amps);
+      const mk = (w: Wave): PeriodicWave => this.ctx.createPeriodicWave(w.real, w.imag, { disableNormalization: true });
+      hit = [mk(s.left), mk(s.right)];
+      this.splits.set(key, hit);
+    }
+    return hit;
+  }
+  private isochronicWave(): PeriodicWave {
+    if (!this.isoWave) {
+      const w = softSquareWave();
+      this.isoWave = this.ctx.createPeriodicWave(w.real, w.imag);
+    }
+    return this.isoWave;
   }
 
   private glottal(effort: number): PeriodicWave {
@@ -948,7 +1096,7 @@ export class AudioEngine {
     c: ControlMap,
     env: Adsr,
     freq: number,
-    beat: number,
+    ear: EarShift,
     glide: { readonly from: number; readonly time: number } | undefined,
     t: number,
     dur: number,
@@ -965,6 +1113,10 @@ export class AudioEngine {
     const end = (pts[pts.length - 1]?.[0] ?? t) + 0.02;
 
     if (isNoise(name)) {
+      if (ear.icorr < 1 || ear.dichotic > 0) {
+        const two = this.noiseEars(name, c, ear, amp, t);
+        return { sources: two.sources, end, starts: two.starts };
+      }
       const src = ctx.createBufferSource();
       src.buffer = this.noiseBed(name);
       src.loop = true;
@@ -978,23 +1130,40 @@ export class AudioEngine {
     const copies = clamp(Math.round(fin(c.unison, 1)), 1, 8);
     const offsets = unisonOffsets(copies, clamp(fin(c.detune, 12), 0, 100));
     const level = 1 / Math.sqrt(copies);
-    // Binaural beat: one tone per ear, detuned by ±beat/2 (TS-40).
-    const ears: readonly (readonly [number, number])[] =
-      beat > 0
-        ? [
-            [freq - beat / 2, 0],
-            [freq + beat / 2, 1],
-          ]
-        : [[freq, 0]];
-    let merger: ChannelMergerNode | undefined;
-    if (beat > 0) {
-      merger = ctx.createChannelMerger(2);
-      merger.connect(amp);
+    // Two-tone voices: one tone per ear, detuned by ±beat/2 hertz and ±cents/2 (TS-40, TS-62),
+    // or splitting the partials between the ears (TS-65).
+    const dual = twoTone(ear);
+    const sides = ear.harmonics ? this.splitPair(name, c) : undefined;
+    const k = 2 ** (ear.cents / 2400);
+    const ears: (readonly [number, number])[] = [];
+    if (dual) {
+      ears.push([clamp(freq / k - ear.beat / 2, 1, 20000), 0], [clamp(freq * k + ear.beat / 2, 1, 20000), 1]);
+    } else {
+      ears.push([freq, 0]);
     }
-    for (const [f, ear] of ears) {
+    const buses: AudioNode[] = [];
+    if (dual) {
+      const merger = ctx.createChannelMerger(2);
+      merger.connect(amp);
+      const left = ctx.createGain();
+      left.connect(merger, 0, 0);
+      const right = ctx.createGain();
+      const rf = ears[1]?.[0] ?? freq;
+      if (ear.phase > 0) {
+        // Delaying by phase/360 of a period shifts every harmonic of the right ear by that phase.
+        const d = ctx.createDelay(1);
+        d.delayTime.value = clamp(ear.phase / 360 / rf, 0, 1);
+        right.connect(d).connect(merger, 0, 1);
+      } else {
+        right.connect(merger, 0, 1);
+      }
+      buses.push(left, right);
+    }
+    for (const [f, side] of ears) {
       for (const cents of offsets) {
         const o = ctx.createOscillator();
-        if (wave) o.setPeriodicWave(wave);
+        const w = sides?.[side] ?? wave;
+        if (w) o.setPeriodicWave(w);
         else o.type = name as OscillatorType;
         const ratio = 2 ** (cents / 1200);
         const target = clamp(f * ratio, 1, 20000);
@@ -1007,7 +1176,8 @@ export class AudioEngine {
         const g = ctx.createGain();
         g.gain.value = level;
         o.connect(g);
-        if (merger) g.connect(merger, 0, ear);
+        const bus = buses[side];
+        if (bus) g.connect(bus);
         else g.connect(amp);
         carriers.push(o);
       }
@@ -1047,6 +1217,65 @@ export class AudioEngine {
 
     sources.push(...carriers);
     return { sources, end };
+  }
+
+  /**
+   * Noise heard differently in each ear (TS-64, TS-66): a shared bed mixed with an independent
+   * bed per ear by `icorr`, then an all-pass band on the right ear for `dichotic`. Independent
+   * beds are distant offsets into the same fixed-seed buffer, chosen by the event's `iseed`.
+   */
+  private noiseEars(
+    kind: NoiseKind,
+    c: ControlMap,
+    ear: EarShift,
+    out: AudioNode,
+    t: number,
+  ): { sources: AudioScheduledSourceNode[]; starts: Map<AudioScheduledSourceNode, readonly [number, number]> } {
+    const ctx = this.ctx;
+    const buf = this.noiseBed(kind);
+    const len = buf.duration;
+    const rnd = seededFrom(fin(c.iseed, 0));
+    const base = ((rnd() + 1) / 2) * len;
+    const sources: AudioScheduledSourceNode[] = [];
+    const starts = new Map<AudioScheduledSourceNode, readonly [number, number]>();
+    const bed = (offset: number): AudioBufferSourceNode => {
+      const s = ctx.createBufferSource();
+      s.buffer = buf;
+      s.loop = true;
+      sources.push(s);
+      starts.set(s, [t, offset % len]);
+      return s;
+    };
+    const merger = ctx.createChannelMerger(2);
+    merger.connect(out);
+    const shared = bed(base);
+    // Equal power per ear; the correlation between the ears is icorr.
+    const together = Math.sqrt(ear.icorr);
+    const apart = Math.sqrt(1 - ear.icorr);
+    for (let ch = 0; ch < 2; ch++) {
+      const sum = ctx.createGain();
+      const sg = ctx.createGain();
+      sg.gain.value = together;
+      shared.connect(sg).connect(sum);
+      if (apart > 0) {
+        const og = ctx.createGain();
+        og.gain.value = apart;
+        bed(base + (len * (ch + 1)) / 3)
+          .connect(og)
+          .connect(sum);
+      }
+      let tail: AudioNode = sum;
+      if (ch === 1 && ear.dichotic > 0) {
+        const ap = ctx.createBiquadFilter();
+        ap.type = 'allpass';
+        ap.frequency.value = ear.dichotic;
+        ap.Q.value = ear.dichoticq;
+        tail.connect(ap);
+        tail = ap;
+      }
+      tail.connect(merger, 0, ch);
+    }
+    return { sources, starts };
   }
 
   private noiseBed(kind: NoiseKind): AudioBuffer {

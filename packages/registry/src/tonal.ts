@@ -42,13 +42,27 @@ export const SCALES: ReadonlyMap<string, readonly number[]> = new Map<string, re
   ['minor pentatonic', [0, 3, 5, 7, 10]],
   ['blues', [0, 3, 5, 6, 7, 10]],
   ['chromatic', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]],
+  ['whole tone', [0, 2, 4, 6, 8, 10]],
+  ['augmented', [0, 3, 4, 7, 8, 11]],
+  ['diminished', [0, 2, 3, 5, 6, 8, 9, 11]],
+  ['phrygian dominant', [0, 1, 4, 5, 7, 8, 10]],
+  ['lydian dominant', [0, 2, 4, 6, 7, 9, 10]],
+  ['hungarian minor', [0, 2, 3, 6, 7, 8, 11]],
+  ['hirajoshi', [0, 2, 3, 7, 8]],
+  ['in sen', [0, 1, 5, 7, 10]],
+  ['egyptian', [0, 2, 5, 7, 10]],
 ]);
+/** Scale names ignore case, spaces, hyphens and underscores (TS-60). */
+const scaleKey = (s: string): string => s.toLowerCase().replace(/[\s_-]+/g, '');
+const SCALE_INDEX: ReadonlyMap<string, readonly number[]> = new Map(
+  [...SCALES].map(([k, v]) => [scaleKey(k), v] as const),
+);
 
 /** "D:minor" gives { root: 50, intervals } (TS-11: a bare root is octave 3). */
 export function parseScale(spec: string): { root: number; intervals: readonly number[] } | null {
   const [rootText = '', ...rest] = spec.trim().split(':');
   const root = noteToMidi(rootText);
-  const intervals = SCALES.get(rest.join(' ').toLowerCase());
+  const intervals = SCALE_INDEX.get(scaleKey(rest.join(' ')));
   return root === null || !intervals ? null : { root, intervals };
 }
 

@@ -11,9 +11,12 @@ import {
   formantBank,
   glottalWave,
   nasalBank,
+  partialTable,
   pulseWave,
   seededRandom,
   shapeCurve,
+  softSquareWave,
+  splitWaves,
   timbreWave,
   unisonOffsets,
 } from '../src/dsp';
@@ -100,6 +103,43 @@ describe('dsp helpers', () => {
   it('the glottal source is darker at low effort', () => {
     expect(glottalWave(0.5).imag[1]).toBe(1);
     expect(glottalWave(0).imag[4]!).toBeLessThan(glottalWave(1).imag[4]!);
+  });
+  it('earsplit harmonics alternates partials between the ears (TS-65)', () => {
+    const saw = partialTable('sawtooth', 8)!;
+    const { left, right } = splitWaves(saw);
+    for (let n = 1; n <= 8; n++) {
+      if (n % 2 === 1) {
+        expect(left.imag[n]).not.toBe(0);
+        expect(right.imag[n]).toBe(0);
+      } else {
+        expect(left.imag[n]).toBe(0);
+        expect(right.imag[n]).not.toBe(0);
+      }
+    }
+    const g = left.imag[1]! / saw[0]!;
+    for (let n = 1; n <= 8; n++) expect(left.imag[n]! + right.imag[n]!).toBeCloseTo(saw[n - 1]! * g, 5);
+    let peak = 0;
+    for (let s = 0; s < 1024; s++) {
+      const x = (2 * Math.PI * s) / 1024;
+      let v = 0;
+      for (let n = 1; n <= 8; n++) v += (left.imag[n]! + right.imag[n]!) * Math.sin(n * x);
+      peak = Math.max(peak, Math.abs(v));
+    }
+    expect(peak).toBeGreaterThan(0.95);
+    expect(peak).toBeLessThan(1.01);
+    const sq = splitWaves(partialTable('square', 8)!);
+    expect(sq.left.imag[1]).not.toBe(0);
+    expect(sq.left.imag[3]).toBe(0);
+    expect(sq.right.imag[3]).not.toBe(0);
+    expect(sq.left.imag[5]).not.toBe(0);
+    expect(partialTable('white')).toBeNull();
+  });
+  it('the isochronic pulse is a soft square (TS-67)', () => {
+    const w = softSquareWave();
+    for (const h of [2, 4, 6]) expect(w.imag[h]).toBe(0);
+    expect(w.imag[1]!).toBeGreaterThan(w.imag[3]!);
+    expect(w.imag[3]!).toBeGreaterThan(w.imag[5]!);
+    expect(w.imag[7]!).toBeGreaterThan(0);
   });
   it('seeded random is deterministic and bounded', () => {
     const a = seededRandom(42);

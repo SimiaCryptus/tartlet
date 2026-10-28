@@ -206,6 +206,40 @@ the general kit has one take per sound, so sample variants do not change the sou
 
 `.scale` and `.transpose` on a receiver that plays only samples give `E-CAP-PITCHED` (TS-35).
 
+## Library (Tartlet L3)
+
+These come from the standard library proposal (TS-53 to TS-60). Constant-only arguments are
+marked "const".
+
+- Time and structure:
+  - `.within(b, e, f)`: applies `f`, keeping what it plays between b and e of each cycle
+    (const, 0–1).
+  - `.chunk(n, f)` and `.chunkBack(n, f)`: apply `f` to a moving 1/n of each cycle.
+  - `.lastOf(n, f)`: applies `f` on the last cycle of each group of n.
+  - `.zoom(b, e)`, `.compress(b, e)`, `.fastGap(f)` and `.linger(f)`: reshape each cycle.
+  - `.segment(n)`: samples a pattern or signal into n steps per cycle.
+  - `.hurry(f)`: `fast` plus a matching `speed`.
+  - `.swingBy(a, n)` and `.swing(n)`: delay every second subdivision.
+  - `.brak()`, `.press()` and `.pressBy(r)`.
+  - `.superimpose(f)`: stacks a transformed copy. `.echo(times, time, feedback)`: fading
+    delayed copies.
+  - `run(n)`: the numbers 0 … n−1 in each cycle, for example `n(run(8)).scale("C:major")`.
+- Randomness, all seeded:
+  - `.often(f)`, `.rarely(f)`, `.almostNever(f)`, `.almostAlways(f)`, `.always(f)` and
+    `.never(f)`;
+  - `.someCyclesBy(p, f)` and `.someCycles(f)`: decide once per cycle;
+  - `.shuffle(n)` (each slice once) and `.scramble(n)` (slices may repeat);
+  - `.undegradeBy(p)`: keeps a share `p` of events;
+  - signals: `irand(n)` (whole numbers below n) and `perlin` (smooth noise).
+- Arithmetic: `.sub`, `.mul`, `.div` and `.mod` (patternable), `.round()`, `.floor()` and
+  `.ceil()`; `.toBipolar()` and `.fromBipolar()` for signals.
+- Tonal: `.octave(k)` moves notes by octaves.
+- Controls: `legato` (alias `clip`) scales note length; `nudge` moves notes in seconds;
+  `.accent(rhythm)` makes events louder on true steps.
+  More scales: whole tone, augmented, diminished, phrygian dominant, lydian dominant, hungarian
+  minor, hirajoshi, in sen and egyptian. Scale names ignore case, spaces, hyphens and
+  underscores. Library names are reserved: they cannot be used as binding names.
+
 ## Sounds
 
 The built-in general kit is synthesized:
@@ -219,3 +253,15 @@ note. For example `808bd` plays `bd`, and `piano` and `rhodes` play `triangle`. 
 with no `s` plays on `triangle`.
 
 - voices: `voice aah ooh hum whisper choir`.
+
+  - per-ear controls (TS-62): `earsh` (−100–100 cents), `itd` (−40–40 ms), `ild` (−12–12 dB),
+    `iphase` (0–180°, oscillators only) and `earswap` (0 or 1).
+  - more headphone controls (TS-64 to TS-67, see [binaural.md](binaural.md)):
+    - `lcutoff`, `rcutoff`, `lhcutoff`, `rhcutoff`: filters on one ear only, in hertz;
+    - `earsplit`: `harmonics` (oscillators), `bands` or `none`; `splitfreq` sets the crossover
+      for `bands`;
+    - `icorr` (0–1, noise only): how alike the two ears are;
+    - `dichotic` (100–2000 Hz, noise only) and `dichoticq` (1–50): a faint pitch heard only
+      between the ears;
+    - `isochronic` (0–40 Hz) and `isodepth` (0–1): loudness pulses, also heard on speakers;
+    - `irate` (0–10 Hz, oscillators only): rotates the phase between the ears.

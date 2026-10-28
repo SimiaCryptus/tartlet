@@ -8,11 +8,13 @@ import {
   div,
   eq,
   floor,
+  gte,
   isRational,
   isZero,
   lt,
   lte,
   mapSpan,
+  min,
   mul,
   neg,
   rat,
@@ -381,6 +383,238 @@ export function degradeBy<T>(amount: number, pat: Pattern<T>, salt = '', invert 
 /** Replaces the seed scope for a subtree (`.seed()`, TS-28). */
 export function withSeed<T>(seed: string, pat: Pattern<T>): Pattern<T> {
   return pattern((st) => pat.query({ ...st, seed }));
+}
+// ---- Library transforms (docs/language_extensions.md Part 2, TS-53 to TS-59)
+/** The position of `t` within its cycle, in [0, 1). */
+function cyclePos(t: Rational): Rational {
+  return sub(t, floor(t));
+}
+/** Keeps the events whose onset satisfies `keep`. The onset is the whole's start, so fragments agree. */
+export function filterOnsets<T>(pat: Pattern<T>, keep: (t: Rational) => boolean): Pattern<T> {
+  return pattern((st) => pat.query(st).filter((ev) => keep((ev.whole ?? ev.part).begin)));
+}
+/**
+ * Plays `f(pat)` where events start in [b, e) of their cycle, and `pat` elsewhere. The filter
+ * applies to what `f` plays, so `within(0, 1/2, fast(2))` fits a whole fast cycle in the first
+ * half (TS-54).
+ */
+export function within<T>(b: Rational, e: Rational, f: (p: Pattern<T>) => Pattern<T>, pat: Pattern<T>): Pattern<T> {
+  if (!lt(b, e)) return pat;
+  const inside = (t: Rational): boolean => {
+    const x = cyclePos(t);
+    return lte(b, x) && lt(x, e);
+  };
+  return stack([filterOnsets(f(pat), inside), filterOnsets(pat, (t) => !inside(t))]);
+}
+/** Applies `f` to slot (c mod n) of the n slots of cycle c. With `back`, the slot moves backwards (TS-54). */
+export function chunk<T>(n: number, f: (p: Pattern<T>) => Pattern<T>, pat: Pattern<T>, back = false): Pattern<T> {
+  if (!Number.isInteger(n) || n < 1 || n > MAX_PLY) return pat;
+  const nR = rat(n);
+  const inside = (t: Rational): boolean => {
+    const c = floor(t);
+    const k = toNumber(c);
+    const i = ((k % n) + n) % n;
+    const slot = back ? (n - i) % n : i;
+    return toNumber(floor(mul(sub(t, c), nR))) === slot;
+  };
+  return stack([filterOnsets(f(pat), inside), filterOnsets(pat, (t) => !inside(t))]);
+}
+/** Plays `f(pat)` in the cycles where `pred` holds, and `pat` in the others. */
+export function whenCycle<T>(
+  pred: (c: Rational, st: QueryState) => boolean,
+  f: (p: Pattern<T>) => Pattern<T>,
+  pat: Pattern<T>,
+): Pattern<T> {
+  const alt = f(pat);
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    for (const piece of spanCycles(st.span)) {
+      const p = pred(floor(piece.begin), st) ? alt : pat;
+      for (const ev of p.query(at(st, piece))) out.push(ev);
+    }
+    return out;
+  });
+}
+/** Applies `f` on the last cycle of each group of n cycles. */
+export function lastOf<T>(n: number, f: (p: Pattern<T>) => Pattern<T>, pat: Pattern<T>): Pattern<T> {
+  if (!(n >= 1)) return pat;
+  return whenCycle(
+    (c) => {
+      const k = toNumber(c);
+      return ((k % n) + n) % n === n - 1;
+    },
+    f,
+    pat,
+  );
+}
+/** On odd cycles, squeezes the cycle into its middle half [1/4, 3/4) (TS-55). */
+export function brak<T>(pat: Pattern<T>): Pattern<T> {
+  return whenCycle(
+    (c) => {
+      const k = toNumber(c);
+      return ((k % 2) + 2) % 2 === 1;
+    },
+    (p) => late(rat(1, 4), compress(p, ZERO, rat(1, 2))),
+    pat,
+  );
+}
+/** Applies `f` to whole cycles chosen by a draw keyed by (scope seed, salt, cycle) (TS-56). */
+export function someCyclesBy<T>(
+  amount: number,
+  f: (p: Pattern<T>) => Pattern<T>,
+  pat: Pattern<T>,
+  salt: string,
+): Pattern<T> {
+  if (amount <= 0) return pat;
+  return whenCycle((c, st) => draw(st.seed, salt, toString(c)) < amount, f, pat);
+}
+/** Plays only [b, e) of each cycle, stretched over the whole cycle (TS-55). */
+export function zoom<T>(b: Rational, e: Rational, pat: Pattern<T>): Pattern<T> {
+  if (!lt(b, e)) return silence();
+  const w = sub(e, b);
+  if (isZero(b) && eq(w, ONE)) return pat;
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    for (const piece of spanCycles(st.span)) {
+      const c = floor(piece.begin);
+      const toInner = (t: Rational): Rational => add(add(c, b), mul(sub(t, c), w));
+      const toOuter = (t: Rational): Rational => add(c, div(sub(sub(t, c), b), w));
+      for (const ev of pat.query(at(st, mapSpan(piece, toInner)))) out.push(mapEventTime(ev, toOuter));
+    }
+    return out;
+  });
+}
+/** Repeats the opening fraction `f` of each cycle until the cycle is full (TS-55). */
+export function linger<T>(f: Rational, pat: Pattern<T>): Pattern<T> {
+  if (lte(f, ZERO) || gte(f, ONE)) return pat;
+  if (lt(mul(f, rat(MAX_PLY)), ONE)) return silence();
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    for (const piece of spanCycles(st.span)) {
+      const c = floor(piece.begin);
+      const next = add(c, ONE);
+      for (let k = 0; ; k++) {
+        const shift = mul(f, rat(k));
+        const start = add(c, shift);
+        if (!lt(start, piece.end)) break;
+        const win = sect(piece, { begin: start, end: min(add(start, f), next) });
+        if (!win) continue;
+        for (const ev of pat.query(
+          at(
+            st,
+            mapSpan(win, (t) => sub(t, shift)),
+          ),
+        )) {
+          out.push(mapEventTime(ev, (t) => add(t, shift)));
+        }
+      }
+    }
+    return out;
+  });
+}
+/** Samples `pat` on a grid of n steps per cycle: the grid's wholes, the pattern's values (TS-55). */
+export function segment<T>(n: number, pat: Pattern<T>): Pattern<T> {
+  if (!Number.isInteger(n) || n < 1 || n > MAX_PLY) return pat;
+  return appLeft(fast(rat(n), pure(true)), pat, (_g, v) => v);
+}
+/** Starts every event later by `r` of its own duration and keeps its end (TS-55). */
+export function pressBy<T>(r: Rational, pat: Pattern<T>): Pattern<T> {
+  if (lte(r, ZERO)) return pat;
+  if (gte(r, ONE)) return silence();
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    for (const ev of pat.query(st)) {
+      if (!ev.whole) {
+        out.push(ev);
+        continue;
+      }
+      const w = ev.whole;
+      const whole = { begin: add(w.begin, mul(r, sub(w.end, w.begin))), end: w.end };
+      const part = sect(whole, ev.part);
+      if (part) out.push({ ...ev, whole, part });
+    }
+    return out;
+  });
+}
+/**
+ * Cuts each cycle into n slices and delays the events starting in the second half of each slice
+ * by `amount` of a slice. Events are chosen before they move (TS-54). Each slice is one cycle of
+ * the inner pattern, so the work happens on `slow(n)` and is squeezed back with `fast(n)` (TS-63).
+ */
+export function swingBy<T>(amount: Rational, n: number, pat: Pattern<T>): Pattern<T> {
+  if (!Number.isInteger(n) || n < 1 || n > MAX_PLY || isZero(amount)) return pat;
+  const nR = rat(n);
+  const half = rat(1, 2);
+  const second = (t: Rational): boolean => !lt(cyclePos(t), half);
+  const inner = slow(nR, pat);
+  return fast(nR, stack([late(amount, filterOnsets(inner, second)), filterOnsets(inner, (t) => !second(t))]));
+}
+/**
+ * Plays the n slices of each cycle in a seeded order: a permutation, or with `replace` an
+ * independent pick per slot. Draws are keyed by (scope seed, salt, cycle, …) (TS-56).
+ */
+export function shuffle<T>(n: number, pat: Pattern<T>, salt: string, replace = false): Pattern<T> {
+  if (!Number.isInteger(n) || n <= 1 || n > MAX_PLY) return pat;
+  const nR = rat(n);
+  const order = (seed: string, cs: string): number[] => {
+    if (replace) {
+      return Array.from({ length: n }, (_, j) => Math.min(n - 1, Math.floor(draw(seed, salt, cs, String(j)) * n)));
+    }
+    const out = Array.from({ length: n }, (_, j) => j);
+    for (let k = n - 1; k > 0; k--) {
+      const r = Math.min(k, Math.floor(draw(seed, salt, cs, 'p', String(k)) * (k + 1)));
+      const tmp = out[k] ?? k;
+      out[k] = out[r] ?? r;
+      out[r] = tmp;
+    }
+    return out;
+  };
+  return pattern((st) => {
+    tick(st);
+    const res: Event<T>[] = [];
+    for (const piece of spanCycles(st.span)) {
+      const c = floor(piece.begin);
+      const ord = order(st.seed, toString(c));
+      for (let j = 0; j < n; j++) {
+        const win = sect(piece, { begin: add(c, div(rat(j), nR)), end: add(c, div(rat(j + 1), nR)) });
+        if (!win) continue;
+        const shift = div(rat((ord[j] ?? j) - j), nR);
+        for (const ev of pat.query(
+          at(
+            st,
+            mapSpan(win, (t) => add(t, shift)),
+          ),
+        )) {
+          res.push(mapEventTime(ev, (t) => sub(t, shift)));
+        }
+      }
+    }
+    return res;
+  });
+}
+/**
+ * Keeps every receiver event whole and combines its value with the argument value sounding at
+ * its onset, or `undefined` when none does (accent, TS-59).
+ */
+export function sampleOnset<A, B, C>(recv: Pattern<A>, arg: Pattern<B>, f: (a: A, b: B | undefined) => C): Pattern<C> {
+  return pattern((st) => {
+    tick(st);
+    return recv.query(st).map((r) => {
+      const span = r.whole ?? r.part;
+      let hit: B | undefined;
+      for (const x of arg.query(at(st, span))) {
+        if (lte(x.part.begin, span.begin) && lt(span.begin, x.part.end)) {
+          hit = x.value;
+          break;
+        }
+      }
+      return { whole: r.whole, part: r.part, value: f(r.value, hit), provenance: r.provenance };
+    });
+  });
 }
 
 /**

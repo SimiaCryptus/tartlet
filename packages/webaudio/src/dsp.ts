@@ -129,6 +129,72 @@ export function timbreWave(name: string): Wave | null {
   });
   return { real, imag };
 }
+/**
+ * Signed sine-series amplitudes of the basic oscillator waveforms. Entry i is harmonic i + 1.
+ * Returns null for anything that is not a basic oscillator.
+ */
+export function partialTable(type: string, harmonics = 32): readonly number[] | null {
+  const n = (i: number): number => i + 1;
+  switch (type) {
+    case 'sine':
+      return [1];
+    case 'sawtooth':
+      return Array.from({ length: harmonics }, (_, i) => ((i % 2 === 0 ? 1 : -1) * 2) / (Math.PI * n(i)));
+    case 'square':
+      return Array.from({ length: harmonics }, (_, i) => (n(i) % 2 === 1 ? 4 / (Math.PI * n(i)) : 0));
+    case 'triangle':
+      return Array.from({ length: harmonics }, (_, i) => {
+        const h = n(i);
+        if (h % 2 === 0) return 0;
+        return ((((h - 1) / 2) % 2 === 0 ? 1 : -1) * 8) / (Math.PI * Math.PI * h * h);
+      });
+    default:
+      return null;
+  }
+}
+/**
+ * Splits a partial table between the ears for `earsplit("harmonics")` (TS-65): alternate
+ * non-zero partials go left and right. Both halves share one scale, set so the summed waveform
+ * peaks at one. Build the PeriodicWaves with normalisation disabled to keep that scale.
+ */
+export function splitWaves(amps: readonly number[]): { left: Wave; right: Wave } {
+  const len = amps.length + 1;
+  const left = new Float32Array(len);
+  const right = new Float32Array(len);
+  let k = 0;
+  amps.forEach((a, i) => {
+    if (a === 0) return;
+    const side = k % 2 === 0 ? left : right;
+    side[i + 1] = a;
+    k++;
+  });
+  let peak = 0;
+  const steps = 512;
+  for (let s = 0; s < steps; s++) {
+    const x = (2 * Math.PI * s) / steps;
+    let v = 0;
+    amps.forEach((a, i) => {
+      v += a * Math.sin((i + 1) * x);
+    });
+    peak = Math.max(peak, Math.abs(v));
+  }
+  const g = peak > 0 ? 1 / peak : 1;
+  for (let i = 0; i < len; i++) {
+    left[i] = (left[i] ?? 0) * g;
+    right[i] = (right[i] ?? 0) * g;
+  }
+  return { left: { real: new Float32Array(len), imag: left }, right: { real: new Float32Array(len), imag: right } };
+}
+/** A softened square for isochronic pulses (TS-67): four odd harmonics with a sinc roll-off, so edges do not click. */
+export function softSquareWave(): Wave {
+  const real = new Float32Array(8);
+  const imag = new Float32Array(8);
+  for (const h of [1, 3, 5, 7]) {
+    const x = (Math.PI * h) / 8;
+    imag[h] = (1 / h) * (Math.sin(x) / x);
+  }
+  return { real, imag };
+}
 
 /**
  * A glottal source (TS-43): harmonic n has amplitude n^-(2 − effort), so soft voices fall off

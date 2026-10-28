@@ -3,7 +3,29 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { parseMini } from '@tartlet/mini';
 import { add, lte, rat, toJson, type Rational } from '@tartlet/time';
-import { compileMini, every, iter, palindrome, ply, pure, rev, type Event, type Pattern } from '../src';
+import {
+  brak,
+  chunk,
+  compileMini,
+  every,
+  fast,
+  iter,
+  lastOf,
+  linger,
+  palindrome,
+  ply,
+  pressBy,
+  pure,
+  rev,
+  segment,
+  shuffle,
+  someCyclesBy,
+  swingBy,
+  within,
+  zoom,
+  type Event,
+  type Pattern,
+} from '../src';
 
 const SOURCES = [
   'a b c d',
@@ -40,6 +62,18 @@ const BUILT: readonly (readonly [string, Pattern<string>])[] = [
   ['rev', rev(mini('a [b c]'))],
   ['ply(3)', ply(rat(3), mini('a b/3'))],
   ['every(3, rev)', every(3, rev, mini('a b c'))],
+  ['within(0, 1/2, fast 2)', within(rat(0), rat(1, 2), (p) => fast(rat(2), p), mini('a b c'))],
+  ['chunk(3)', chunk(3, (p) => fast(rat(2), p), mini('a b c d'))],
+  ['zoom(1/4, 3/4)', zoom(rat(1, 4), rat(3, 4), mini('a b c d/2'))],
+  ['linger(1/3)', linger(rat(1, 3), mini('a b c [d e]'))],
+  ['segment(3)', segment(3, mini('a b/2'))],
+  ['swingBy(1/3, 4)', swingBy(rat(1, 3), 4, mini('a*8'))],
+  ['brak', brak(mini('a b c'))],
+  ['pressBy(1/3)', pressBy(rat(1, 3), mini('a b/2 c'))],
+  ['shuffle(4)', shuffle(4, mini('a b c d'), 's')],
+  ['scramble(3)', shuffle(3, mini('a [b c]'), 's', true)],
+  ['someCyclesBy', someCyclesBy(0.5, rev, mini('a b'), 's')],
+  ['lastOf(3, rev)', lastOf(3, rev, mini('a b c'))],
 ];
 
 const key = (e: Event<string>): string =>

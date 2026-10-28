@@ -38,7 +38,20 @@ describe('registry', () => {
     const p = systemPrompt();
     expect(p).toContain('degradeBy');
     expect(p).toContain('syl(');
+    expect(p).toContain('often');
+    expect(p).not.toContain('scramble');
     expect(p.split(/\s+/).length).toBeLessThan(260);
+  });
+  it('library entries are L3 (TS-53)', () => {
+    for (const n of ['within', 'shuffle', 'echo', 'run', 'irand', 'perlin', 'legato']) {
+      expect(defaultRegistry.lookup(n)?.entry.level).toBe('L3');
+    }
+    expect(defaultRegistry.lookup('clip')?.entry.id).toBe('legato');
+  });
+  it('scale names ignore spacing and case (TS-60)', () => {
+    expect(parseScale('C:whole tone')?.intervals).toEqual([0, 2, 4, 6, 8, 10]);
+    expect(parseScale('C:Phrygian-Dominant')).toEqual(parseScale('C:phrygian dominant'));
+    expect(parseScale('C:harmonicMinor')).toEqual(parseScale('C:harmonic minor'));
   });
 });
 

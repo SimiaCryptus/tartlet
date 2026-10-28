@@ -118,6 +118,10 @@ body.is-playing .logo {
     transform: scale(1.08);
   }
 }
+/* Steady pulsing content: keep the logo still (TS-61). */
+body.has-pulse .logo {
+  animation: none;
+}
 
 .brand-name {
   font-size: 18px;

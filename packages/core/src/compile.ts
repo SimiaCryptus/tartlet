@@ -1,10 +1,17 @@
 import {
   type Rational,
   type TimeSpan,
+  ONE,
+  ZERO,
+  add,
+  div,
   floor,
   isRational,
   isZero,
+  lt,
+  mul,
   parseDecimal,
+  rat,
   sub,
   toNumber,
   toString as ratStr,
@@ -28,7 +35,10 @@ import {
   appLeft,
   appRight,
   bindWindow,
+  brak,
   BudgetExceeded,
+  chunk,
+  compress,
   degradeBy,
   early,
   every,
@@ -37,18 +47,28 @@ import {
   fmap,
   late,
   iter,
+  lastOf,
+  linger,
   palindrome,
   pattern,
   ply,
+  pressBy,
   pure,
   rev,
+  sampleOnset,
+  segment,
+  shuffle,
   signal,
   silence,
   slow,
   slowcat,
+  someCyclesBy,
   stack,
+  swingBy,
   truthy,
   withSeed,
+  within,
+  zoom,
   type Event,
   type Pattern,
   type QueryState,
@@ -104,24 +124,60 @@ const SIGNALS = new Map<string, (t: Rational, st: QueryState, salt: string) => n
   ],
   ['square', (t) => (frac(t) < 0.5 ? 0 : 1)],
   ['rand', (t, st, salt) => draw(st.seed, salt, 'rand', ratStr(t))],
+  [
+    // Smooth noise: one seeded value per cycle boundary, eased in between (TS-56).
+    'perlin',
+    (t, st, salt) => {
+      const c = floor(t);
+      const a = draw(st.seed, salt, 'perlin', ratStr(c));
+      const b = draw(st.seed, salt, 'perlin', ratStr(add(c, ONE)));
+      const x = frac(t);
+      return a + (b - a) * x * x * (3 - 2 * x);
+    },
+  ],
 ]);
 const VOCAL_SET: ReadonlySet<string> = new Set(VOCAL_SOUNDS);
+/** Shares used by the probability shorthands (TS-56). */
+const SHARES: ReadonlyMap<string, number> = new Map([
+  ['often', 0.75],
+  ['rarely', 0.25],
+  ['almostNever', 0.1],
+  ['almostAlways', 0.9],
+]);
+/** Binary arithmetic for add, sub, mul, div and mod (TS-57). Division by zero leaves the value. */
+const ARITH = new Map<string, (a: number, b: number) => number>([
+  ['add', (a, b) => a + b],
+  ['sub', (a, b) => a - b],
+  ['mul', (a, b) => a * b],
+  ['div', (a, b) => (b === 0 ? a : a / b)],
+  ['mod', (a, b) => (b === 0 ? a : ((a % b) + b) % b)],
+]);
+const MAX_ECHO = 64;
+/** Gain multiplier on accented events (TS-59). */
+const ACCENT = 1.3;
 /**
- * Adds `vseed`, a counter-based draw in [0, 1), to vocal events (TS-44). The audio adapter
- * derives every micro-variation from it, so it never rolls its own dice. The draw is keyed by
- * the output, the whole's start, the note and the sound, so fragments agree.
+ * Adds `vseed`, a counter-based draw in [0, 1), to vocal events (TS-44), and `iseed` to events
+ * with interaural correlation (TS-64). The audio adapter derives every variation from them, so
+ * it never rolls its own dice. Draws are keyed by the output, the whole's start and the sound
+ * (plus the note for voices), so fragments agree.
  */
-function withVoiceSeed(pat: Pattern<ControlMap>, id: string): Pattern<ControlMap> {
+function withEventSeeds(pat: Pattern<ControlMap>, id: string): Pattern<ControlMap> {
   return pattern((st) =>
     pat.query(st).map((ev) => {
       const v = ev.value;
       const s = typeof v.s === 'string' ? v.s : '';
-      if (!VOCAL_SET.has(s) && typeof v.syl !== 'string') return ev;
-      const note = v.note as { value?: unknown } | undefined;
-      const pitch = typeof note?.value === 'number' ? String(note.value) : '';
+      const vocal = VOCAL_SET.has(s) || typeof v.syl === 'string';
+      const ears = typeof v.icorr === 'number';
+      if (!vocal && !ears) return ev;
+      const at = ratStr((ev.whole ?? ev.part).begin);
       const out = dict();
       Object.assign(out, v);
-      out.vseed = draw(st.seed, id, 'vseed', ratStr((ev.whole ?? ev.part).begin), pitch, s);
+      if (vocal) {
+        const note = v.note as { value?: unknown } | undefined;
+        const pitch = typeof note?.value === 'number' ? String(note.value) : '';
+        out.vseed = draw(st.seed, id, 'vseed', at, pitch, s);
+      }
+      if (ears) out.iseed = draw(st.seed, id, 'iseed', at, s);
       return { ...ev, value: out };
     }),
   );
@@ -164,17 +220,33 @@ function merge(a: unknown, b: ControlMap): ControlMap {
   return out;
 }
 
-/** Pitch arithmetic for add and transpose (X-21). `transpose` touches only notes. */
-function addValue(v: unknown, x: unknown, noteOnly: boolean): unknown {
-  if (typeof x !== 'number') return v;
-  if (typeof v === 'number') return v + x;
-  if (isRational(v)) return toNumber(v) + x;
+/**
+ * Applies `g` to a plain number, to the MIDI value of a note, or else to `n` (X-21, TS-57).
+ * With `noteOnly`, only notes are touched.
+ */
+function mapNumeric(v: unknown, g: (x: number) => number, noteOnly = false): unknown {
+  if (typeof v === 'number') return g(v);
+  if (isRational(v)) return g(toNumber(v));
   if (!isObj(v)) return v;
   const out = dict();
   Object.assign(out, v);
   const note = v.note as { kind?: string; value?: unknown } | undefined;
-  if (note?.kind === 'midi' && typeof note.value === 'number') out.note = { kind: 'midi', value: note.value + x };
-  else if (!noteOnly && typeof v.n === 'number') out.n = v.n + x;
+  if (note?.kind === 'midi' && typeof note.value === 'number') out.note = { kind: 'midi', value: g(note.value) };
+  else if (!noteOnly && typeof v.n === 'number') out.n = g(v.n);
+  return out;
+}
+
+function arith(v: unknown, x: unknown, op: (a: number, b: number) => number, noteOnly: boolean): unknown {
+  return typeof x === 'number' ? mapNumeric(v, (p) => op(p, x), noteOnly) : v;
+}
+
+/** Multiplies a control (default 1) on a control map. */
+function scaleControl(v: unknown, key: string, k: number): unknown {
+  if (!isObj(v)) return v;
+  const out = dict();
+  Object.assign(out, v);
+  const cur = v[key];
+  out[key] = (typeof cur === 'number' ? cur : 1) * k;
   return out;
 }
 
@@ -184,6 +256,10 @@ function constValue(c: ConstValue): unknown {
 
 function constNum(a: Arg | undefined): number | null {
   return a?.kind === 'const' && a.value.t === 'num' ? toNumber(a.value.v) : null;
+}
+
+function constRat(a: Arg | undefined): Rational | null {
+  return a?.kind === 'const' && a.value.t === 'num' ? a.value.v : null;
 }
 
 export function compile(program: Program, opts?: CompileOptions): CompiledProgram {
@@ -313,6 +389,8 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
         return rev(target);
       case 'degradeBy':
         return numArg(a, env, (r) => degradeBy(toNumber(r), target, id)) ?? target;
+      case 'undegradeBy':
+        return numArg(a, env, (r) => degradeBy(toNumber(r), target, id, true)) ?? target;
       case 'degrade':
         return degradeBy(0.5, target, id);
       case 'sometimesBy': {
@@ -323,12 +401,115 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
       }
       case 'sometimes':
         return a?.kind === 'function' ? sometimes(0.5, a.fn) : target;
+      case 'often':
+      case 'rarely':
+      case 'almostNever':
+      case 'almostAlways':
+        return a?.kind === 'function' ? sometimes(SHARES.get(fn) ?? 0.5, a.fn) : target;
+      case 'always':
+        return a?.kind === 'function' ? applyFn(a.fn, target, env, fid) : target;
+      case 'never':
+        return target;
+      case 'someCyclesBy':
+      case 'someCycles': {
+        const amount = fn === 'someCycles' ? 0.5 : constNum(a);
+        const f = fn === 'someCycles' ? a : args[1];
+        if (amount === null || f?.kind !== 'function') return target;
+        return someCyclesBy(amount, (p) => applyFn(f.fn, p, env, fid), target, id);
+      }
+      case 'shuffle':
+      case 'scramble': {
+        const n = constNum(a);
+        return n === null ? target : shuffle(Math.floor(n), target, id, fn === 'scramble');
+      }
       case 'every': {
         const n = constNum(a);
         const f = args[1];
         if (n === null || f?.kind !== 'function') return target;
         return every(Math.floor(n), (p) => applyFn(f.fn, p, env, fid), target);
       }
+      case 'lastOf': {
+        const n = constNum(a);
+        const f = args[1];
+        if (n === null || f?.kind !== 'function') return target;
+        return lastOf(Math.floor(n), (p) => applyFn(f.fn, p, env, fid), target);
+      }
+      case 'within': {
+        const b = constRat(a);
+        const e = constRat(args[1]);
+        const f = args[2];
+        if (b === null || e === null || f?.kind !== 'function') return target;
+        return within(b, e, (p) => applyFn(f.fn, p, env, fid), target);
+      }
+      case 'chunk':
+      case 'chunkBack': {
+        const n = constNum(a);
+        const f = args[1];
+        if (n === null || f?.kind !== 'function') return target;
+        return chunk(Math.floor(n), (p) => applyFn(f.fn, p, env, fid), target, fn === 'chunkBack');
+      }
+      case 'superimpose':
+        return a?.kind === 'function' ? stack([target, applyFn(a.fn, target, env, fid)]) : target;
+      case 'echo': {
+        const times = constNum(a);
+        const time = constRat(args[1]);
+        const fb = constNum(args[2]);
+        if (times === null || time === null || fb === null) return target;
+        const k = Math.min(Math.floor(times), MAX_ECHO);
+        if (k < 1) return target;
+        const copies: Pattern<unknown>[] = [target];
+        for (let i = 1; i < k; i++) {
+          const g = fb ** i;
+          copies.push(fmap(late(mul(time, rat(i)), target), (v) => scaleControl(v, 'gain', g)));
+        }
+        return stack(copies);
+      }
+      case 'zoom': {
+        const b = constRat(a);
+        const e = constRat(args[1]);
+        return b === null || e === null ? target : zoom(b, e, target);
+      }
+      case 'compress': {
+        const b = constRat(a);
+        const e = constRat(args[1]);
+        if (b === null || e === null || lt(b, ZERO) || lt(ONE, e) || !lt(b, e)) return target;
+        return compress(target, b, e);
+      }
+      case 'fastGap': {
+        const r = constRat(a);
+        if (r === null || lt(r, ONE)) return target;
+        return compress(target, ZERO, div(ONE, r));
+      }
+      case 'linger': {
+        const r = constRat(a);
+        return r === null ? target : linger(r, target);
+      }
+      case 'segment': {
+        const n = constNum(a);
+        return n === null ? target : segment(Math.floor(n), target);
+      }
+      case 'hurry':
+        return (
+          numArg(a, env, (r) => {
+            const k = toNumber(r);
+            return fmap(fast(r, target), (v) => scaleControl(v, 'speed', k));
+          }) ?? target
+        );
+      case 'swingBy': {
+        const amount = constRat(a);
+        const n = constNum(args[1]);
+        return amount === null || n === null ? target : swingBy(amount, Math.floor(n), target);
+      }
+      case 'swing': {
+        const n = constNum(a);
+        return n === null ? target : swingBy(rat(1, 3), Math.floor(n), target);
+      }
+      case 'brak':
+        return brak(target);
+      case 'press':
+        return pressBy(rat(1, 2), target);
+      case 'pressBy':
+        return numArg(a, env, (r) => pressBy(r, target)) ?? target;
       case 'iter':
       case 'iterBack': {
         // TS-39: n is a constant, like every (TS-20).
@@ -356,6 +537,13 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
         return a ? appRight(target, argPattern(a, NONE, env), (v) => v, truthy) : target;
       case 'mask':
         return a ? appLeft(target, argPattern(a, NONE, env), (v) => v, truthy) : target;
+      case 'accent':
+        // TS-59: sampled at each event's onset, so rests in the rhythm never drop events.
+        return a
+          ? sampleOnset(target, argPattern(a, NONE, env), (v, x) =>
+              x !== undefined && truthy(x) ? scaleControl(v, 'gain', ACCENT) : v,
+            )
+          : target;
       case 'euclid': {
         const k = constNum(a);
         const n = constNum(args[1]);
@@ -364,14 +552,49 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
         return appRight(target, euclid(pure(true), Math.floor(k), Math.floor(n), Math.floor(r)), (v) => v); // TS-32
       }
       case 'add':
-      case 'transpose': {
+      case 'sub':
+      case 'mul':
+      case 'div':
+      case 'mod':
+      case 'transpose':
+      case 'octave': {
         if (!a) return target;
-        const noteOnly = fn === 'transpose';
+        const noteOnly = fn === 'transpose' || fn === 'octave';
+        const op = ARITH.get(noteOnly ? 'add' : fn);
+        if (!op) return target;
+        const k = fn === 'octave' ? 12 : 1;
+        const by = (x: unknown): unknown => {
+          const y = num(x);
+          return typeof y === 'number' ? y * k : y;
+        };
         if (a.kind === 'const') {
-          const x = num(constValue(a.value));
-          return fmap(target, (v) => addValue(v, x, noteOnly));
+          const x = by(constValue(a.value));
+          return fmap(target, (v) => arith(v, x, op, noteOnly));
         }
-        return appLeft(target, argPattern(a, NONE, env), (v, x) => addValue(v, num(x), noteOnly));
+        return appLeft(target, argPattern(a, NONE, env), (v, x) => arith(v, by(x), op, noteOnly));
+      }
+      case 'round':
+        return fmap(target, (v) => mapNumeric(v, (x) => Math.round(x)));
+      case 'floor':
+        return fmap(target, (v) => mapNumeric(v, (x) => Math.floor(x)));
+      case 'ceil':
+        return fmap(target, (v) => mapNumeric(v, (x) => Math.ceil(x)));
+      case 'toBipolar':
+      case 'fromBipolar':
+        return fmap(target, (v) => {
+          const x = num(v);
+          if (typeof x !== 'number') return v;
+          return fn === 'toBipolar' ? x * 2 - 1 : (x + 1) / 2;
+        });
+      case 'irand': {
+        // TS-58: irand(n) is lowered onto the rand signal.
+        const n = constNum(a);
+        if (n === null || n < 1) return target;
+        const m = Math.floor(n);
+        return fmap(target, (v) => {
+          const x = num(v);
+          return typeof x === 'number' ? Math.min(m - 1, Math.floor(x * m)) : v;
+        });
       }
       case 'range': {
         const lo = constNum(a);
@@ -413,7 +636,7 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
   const ranges = new Map<string, PatternNode['range']>();
   for (const o of program.outputs) {
     if (o.status !== 'ok') continue;
-    outputs.set(o.id, withVoiceSeed(node(o.expr, NO_ENV) as Pattern<ControlMap>, o.id));
+    outputs.set(o.id, withEventSeeds(node(o.expr, NO_ENV) as Pattern<ControlMap>, o.id));
     labels.set(o.id, o.label ?? o.id);
     ranges.set(o.id, o.expr.range);
   }

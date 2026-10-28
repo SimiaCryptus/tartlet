@@ -1,6 +1,8 @@
 # Extensions: user-defined functions and a richer standard library
 
-**Status: Part 1 is implemented (TS-48 to TS-52); Parts 2 and 3 are proposals.** The
+**Status: Part 1 is implemented (TS-48 to TS-52). Most of Part 2 is implemented natively as L3
+registry entries (TS-53 to TS-60); the deferred items are listed in TS-60. Part 3 (derived
+entries) is still a proposal.** The
 implementation follows the recommendations below. It lowers calls by inline expansion, salts
 ids with a call id built from name and structural `defHash`, and supports all four call forms,
 including user methods. Each further item needs a `TS-n` entry in `spec-issues.md`, registry

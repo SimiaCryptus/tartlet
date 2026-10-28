@@ -32,8 +32,9 @@ describe('binaural and spatial controls (TS-40)', () => {
   });
   it('warn outside their ranges and keep the authored value', () => {
     const r = check('$: note("a").s("sine").binaural(100)', opts);
-    expect(r.diagnostics.map((d) => d.id)).toEqual(['W-RANGE']);
+    expect(r.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.id)).toEqual(['W-RANGE']);
     expect(r.program.outputs[0]?.status).toBe('ok');
-    expect(check('$: s("a").azimuth(270)', opts).diagnostics.map((d) => d.id)).toEqual(['W-RANGE']);
+    const az = check('$: s("a").azimuth(270)', opts).diagnostics.map((d) => d.id);
+    expect(az).toEqual(['W-RANGE', 'I-EXT-HEADPHONES']);
   });
 });

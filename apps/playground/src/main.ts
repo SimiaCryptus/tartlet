@@ -134,10 +134,52 @@ player.addEventListener('diagnostics', () => {
     diagBadge.className = 'badge ok';
     diagBadge.textContent = 'No issues';
   }
+  document.body.classList.toggle(
+    'has-pulse',
+    ds.some((d) => d.id === 'I-EXT-PULSE'),
+  );
 });
 
 player.addEventListener('statechange', () => {
   document.body.classList.toggle('is-playing', player.playing);
+});
+// ---- pulse warning (TS-61): shown once per session before playing steady 3–30 Hz pulsing
+const pulseDialog = el('pulse-dialog') as HTMLDialogElement;
+const pulseRates = el('pulse-rates');
+const PULSE_ACK_KEY = 'tartlet.pulse-ack';
+let pulseAck = false;
+function pulseAcknowledged(): boolean {
+  if (pulseAck) return true;
+  try {
+    return sessionStorage.getItem(PULSE_ACK_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function acknowledgePulse(): void {
+  pulseAck = true;
+  try {
+    sessionStorage.setItem(PULSE_ACK_KEY, '1');
+  } catch {
+    // storage unavailable; the in-memory flag still covers this page
+  }
+}
+player.addEventListener('beforeplay', (e) => {
+  if (!player.diagnostics.some((d) => d.id === 'I-EXT-PULSE') || pulseAcknowledged()) return;
+  e.preventDefault();
+  const ranges = (player.program?.advisories ?? []).flatMap((a) =>
+    a.pulse ? [`${a.output}: ${String(a.pulse[0])}–${String(a.pulse[1])} Hz`] : [],
+  );
+  pulseRates.textContent = ranges.join(', ') || 'see the diagnostics';
+  pulseDialog.showModal();
+});
+el('pulse-play').addEventListener('click', () => {
+  acknowledgePulse();
+  pulseDialog.close();
+  void player.play();
+});
+el('pulse-cancel').addEventListener('click', () => {
+  pulseDialog.close();
 });
 
 // ---- editor

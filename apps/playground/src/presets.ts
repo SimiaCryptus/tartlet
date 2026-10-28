@@ -274,6 +274,25 @@ $: s("bd").struct("x(3,8)")
 $: s("cp*8").degrade().sometimes(x => x.speed(2)).gain(.5)
 `,
   },
+  {
+    id: 'library',
+    name: 'Library tour',
+    group: 'Transforms',
+    blurb: 'Layered copies, echoes, swing, seeded choices, moving chunks, counting and smooth noise.',
+    tags: ['echo swing', 'chunk run'],
+    source: `setcpm(112/4)
+// superimpose layers a transformed copy; echo adds fading repeats
+$: n("0 2 4 7").scale("C:minor").s("triangle").superimpose(x => x.add(12).gain(.4)).echo(3, 1/8, .5).release(.1)
+// swing delays every second eighth note; often and rarely make seeded choices
+$: s("hh*8").swing(4).often(x => x.gain(.6))
+$: s("bd sd [~ bd] sd").rarely(x => x.ply(2))
+// chunk hurries a moving quarter of each cycle
+$: s("rim*4").chunk(4, x => x.hurry(2)).gain(.5)
+// run counts up; segment turns smooth noise into steps
+$: n(run(8)).scale("C:minor pentatonic").s("square").palindrome().gain(.25).release(.05)
+$: note("c2*8").s("sawtooth").lpf(perlin.range(300, 2000).segment(8)).release(.1)
+`,
+  },
 
   // ---- Sound and signals
   {
@@ -383,13 +402,13 @@ $: note("c2*8").s("sawtooth").syl("wa wa wo wi").talk(1).gain(.4)
     tags: ['const', 'setcps'],
     source: `setcps(.45)
 
-const swing = 1/16
+const lag = 1/16
 const bars = 2 * 2
 const kick = s("bd [~ bd] ~ bd")
-const snare = s("~ sd").late(swing)
+const snare = s("~ sd").late(lag)
 
 $: stack(...[kick, snare])
-$: s("hh*8").gain(.5).late(swing / 2)
+$: s("hh*8").gain(.5).late(lag / 2)
 $: n("0 2 4 6").scale("F:lydian").s("triangle").slow(bars).release(.3)
 `,
   },

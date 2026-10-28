@@ -301,6 +301,19 @@
         </ul>
       </details>
     </dialog>
+    <dialog id="pulse-dialog" class="dialog" aria-labelledby="pulse-title">
+      <form method="dialog" class="dialog-head">
+        <h2 id="pulse-title">Before you play</h2>
+        <button type="submit" class="dialog-close" aria-label="Close">×</button>
+      </form>
+      <p class="dialog-note">This sketch pulses steadily between 3 and 30 Hz: <span id="pulse-rates"></span>.</p>
+      <p class="dialog-note">Rhythmic stimulation can, rarely, contribute to seizures in susceptible people.</p>
+      <p class="dialog-note">Keep the volume low and stop if you feel unwell. This is shown once per session.</p>
+      <div class="dialog-buttons">
+        <button id="pulse-play" type="button" class="primary">Play anyway</button>
+        <button id="pulse-cancel" type="button">Cancel</button>
+      </div>
+    </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script type="module" src="/src/main.ts"></script>
