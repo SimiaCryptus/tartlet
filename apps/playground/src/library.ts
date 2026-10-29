@@ -9,6 +9,7 @@ import {
   type SketchData,
   type SketchMeta,
 } from './album-schema';
+import { starText, type Rating, type RatingSeed } from './ratings';
 
 export interface SavedSketch extends SketchData {
   readonly id: string;
@@ -23,12 +24,29 @@ export interface LibraryHost {
   suggestMeta(): SketchMeta;
   /** Puts a saved sketch into the editor and applies it. */
   load(sketch: SavedSketch): void;
+  /** The user's rating and comment for a sketch source. */
+  ratingOf(source: string): Rating | undefined;
+  /** Adds ratings from an imported album for sketches the user has not rated yet. */
+  seedRatings(entries: readonly RatingSeed[]): void;
   flash(msg: string): void;
 }
 
 export interface LibraryHandle {
   /** Called when the editor is replaced by something that is not a library entry. */
   forget(): void;
+  /** Re-renders the list (for example after ratings change). */
+  refresh(): void;
+  /** The saved sketches. */
+  entries(): readonly SavedSketch[];
+  /** Adds sketches (for example an AI album). Returns the number added, or -1 if storage failed. */
+  add(entries: readonly LibraryEntry[], albumName?: string): number;
+}
+export interface LibraryEntry {
+  readonly name: string;
+  readonly source: string;
+  readonly description?: string;
+  readonly category?: string;
+  readonly tags?: readonly string[];
 }
 
 interface Store {
@@ -67,6 +85,10 @@ function withMeta(m: SketchMeta, tags: readonly string[]): SketchMeta {
     ...(m.author ? { author: m.author } : {}),
     ...(tags.length > 0 ? { tags: [...tags] } : {}),
   };
+}
+/** Ratings live in the rating store, not in library entries. */
+function withoutRating({ ...rest }: SketchData): SketchData {
+  return rest;
 }
 
 // ---- storage
@@ -194,6 +216,9 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     const lines = s.source.split('\n').filter((l) => l.trim()).length;
     const meta = [s.category ?? '', formatDate(s.savedAt), plural(lines, 'line')].filter(Boolean);
     if (s.seed) meta.push(`seed ${s.seed}`);
+    const rating = host.ratingOf(s.source);
+    if (rating && rating.stars > 0) meta.unshift(starText(rating.stars));
+    if (rating?.comment) load.title = `${rating.comment}\n\n${load.title}`;
     load.append(span('library-name', s.name), span('library-meta', meta.join(' · ')));
     if (s.tags && s.tags.length > 0) {
       const tags = span('library-tags', '');
@@ -336,14 +361,27 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     render();
     note('Library cleared.');
   }
+  /** Adds the user's current rating and comment to an entry for export. */
+  function withRating(s: SavedSketch): SketchData {
+    const r = host.ratingOf(s.source);
+    return {
+      ...withoutRating(s),
+      ...(r && r.stars > 0 ? { rating: r.stars } : {}),
+      ...(r?.comment ? { comment: r.comment } : {}),
+    };
+  }
 
   function exportAlbum(): void {
     const n = store.sketches.length;
     if (n === 0) return;
     const albumName = cleanName(albumInput.value) || 'My Tartlet album';
-    const json = JSON.stringify(toAlbum(albumName, sorted()), null, 2);
+    const sketches = sorted().map(withRating);
+    const rated = sketches.filter((s) => s.rating || s.comment).length;
+    const json = JSON.stringify(toAlbum(albumName, sketches), null, 2);
     download(new Blob([json], { type: 'application/json' }), `${slugify(albumName) || 'tartlet-album'}.json`);
-    note(`Exported ${plural(n, 'sketch')} as "${albumName}".`);
+    note(
+      `Exported ${plural(n, 'sketch')} as "${albumName}"${rated > 0 ? `, with ${plural(rated, 'rating')} and notes` : ''}.`,
+    );
   }
 
   async function importFile(file: File): Promise<void> {
@@ -365,7 +403,12 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     let added = 0;
     let renamed = 0;
     let skipped = 0;
-    for (const s of album.sketches) {
+    const seeds: RatingSeed[] = [];
+    for (const raw of album.sketches) {
+      if (raw.rating || raw.comment) {
+        seeds.push({ source: raw.source, name: raw.name, stars: raw.rating ?? 0, comment: raw.comment ?? '' });
+      }
+      const s = withoutRating(raw);
       if (sketches.some((e) => sameName(e.name, s.name) && e.source === s.source)) {
         skipped++;
         continue;
@@ -380,11 +423,13 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
     }
     const albumName = store.album || album.name;
     if (!commit({ album: albumName, sketches })) return;
+    host.seedRatings(seeds);
     albumInput.value = albumName;
     render();
     const parts = [`Imported ${plural(added, 'sketch')}${album.name ? ` from "${album.name}"` : ''}`];
     if (renamed > 0) parts.push(`${String(renamed)} renamed to avoid clashes`);
     if (skipped > 0) parts.push(`${String(skipped)} already saved`);
+    if (seeds.length > 0) parts.push(`${plural(seeds.length, 'rating')} read (yours are kept)`);
     note(`${parts.join(', ')}.`);
     host.flash(`Imported ${plural(added, 'sketch')}`);
   }
@@ -441,6 +486,35 @@ export function initLibrary(root: HTMLElement, host: LibraryHost): LibraryHandle
       nameInput.value = '';
       tagsInput.value = '';
       render();
+    },
+    refresh: render,
+    entries: () => store.sketches,
+    add(entries, albumName) {
+      const sketches = [...store.sketches];
+      const base = Date.now();
+      let added = 0;
+      for (const e of entries) {
+        if (!e.source.trim() || sketches.some((s) => s.source === e.source)) continue;
+        let name = cleanName(e.name) || 'Untitled';
+        if (sketches.some((s) => sameName(s.name, name))) name = uniqueName(name, sketches);
+        const description = e.description?.replace(/\s+/g, ' ').trim().slice(0, 600) ?? '';
+        const category = cleanName(e.category ?? '');
+        const meta: SketchMeta = {
+          ...(description ? { description } : {}),
+          ...(category ? { category } : {}),
+        };
+        // Newest first in the list, so the first track gets the latest time.
+        const savedAt = new Date(base - added).toISOString();
+        sketches.push({ id: newId(), name, source: e.source, savedAt, ...withMeta(meta, cleanTags(e.tags ?? [])) });
+        added++;
+      }
+      if (added === 0) return 0;
+      const album = store.album || cleanName(albumName ?? '');
+      if (!commit({ album, sketches })) return -1;
+      albumInput.value = store.album;
+      render();
+      note(`Added ${plural(added, 'sketch')}${albumName ? ` from "${albumName}"` : ''}.`);
+      return added;
     },
   };
 }

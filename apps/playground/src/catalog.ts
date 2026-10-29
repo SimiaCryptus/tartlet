@@ -2,6 +2,7 @@
 // Albums window with album, category, search and tag filters. Extra albums can be mounted from
 // any URL (the playground passes the ?album= parameters), which makes them shareable as links.
 import { parseAlbum, slugify, type ParsedAlbum } from './album-schema';
+import { hasRating, starText, type Rating } from './ratings';
 
 export interface CatalogSketch {
   readonly id: string;
@@ -12,6 +13,9 @@ export interface CatalogSketch {
   readonly author: string;
   readonly source: string;
   readonly seed?: string;
+  /** Rating and comment stored in the album file (the user's own ratings take precedence). */
+  readonly rating?: number;
+  readonly comment?: string;
   readonly album: CatalogAlbum;
 }
 
@@ -159,6 +163,8 @@ function buildAlbum(
       author: s.author ?? album.author,
       source: s.source,
       ...(s.seed ? { seed: s.seed } : {}),
+      ...(s.rating ? { rating: s.rating } : {}),
+      ...(s.comment ? { comment: s.comment } : {}),
       album,
     });
   }
@@ -213,6 +219,10 @@ export interface CatalogActions {
   unmount(album: CatalogAlbum): void;
   /** Copies or shares a link that mounts and opens the album. */
   shareAlbum(album: CatalogAlbum): void;
+  /** Downloads the album as a JSON file that includes the user's ratings and comments. */
+  downloadAlbum(album: CatalogAlbum): void;
+  /** The user's rating and comment for a sketch source. */
+  ratingOf(source: string): Rating | undefined;
 }
 
 export interface CatalogView {
@@ -223,6 +233,8 @@ export interface CatalogView {
   selectAlbum(id: string): void;
   /** Sketches currently listed, after the album, category, tag and search filters. */
   shown(): readonly CatalogSketch[];
+  /** Re-renders the list (for example after ratings change). */
+  refresh(): void;
 }
 
 const MAX_CHIPS = 24;
@@ -387,6 +399,13 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
       host.shareAlbum(a);
     });
     actions.append(share);
+    const save = make('button', 'catalog-action', 'Download with my ratings');
+    save.type = 'button';
+    save.title = 'Save this album as a JSON file, including your star ratings and comments';
+    save.addEventListener('click', () => {
+      host.downloadAlbum(a);
+    });
+    actions.append(save);
     if (a.mounted) {
       const remove = make('button', 'catalog-action', 'Unmount');
       remove.type = 'button';
@@ -407,6 +426,12 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
     b.dataset.id = s.id;
     b.setAttribute('aria-pressed', String(s.id === activeId));
     b.append(make('span', 'preset-name', s.name));
+    const rating = host.ratingOf(s.source);
+    if (hasRating(rating)) {
+      const badge = make('span', 'preset-rating', rating.stars > 0 ? starText(rating.stars) : '✎ note');
+      badge.title = rating.comment || `Your rating: ${String(rating.stars)} of 5`;
+      b.append(badge);
+    }
     if (s.description) b.append(make('span', 'preset-blurb', s.description));
     const tags = make('span', 'preset-tags');
     if (showAlbum) tags.append(make('span', 'tag tag-album', s.album.name));
@@ -508,5 +533,6 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
     },
     selectAlbum,
     shown: () => shownList,
+    refresh: render,
   };
 }

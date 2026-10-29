@@ -4,6 +4,7 @@
 // Version 2 adds optional metadata. Albums: id, description, author, license, category, tags.
 // Sketches: id, description, category, tags, author. Version 1 files still load; `blurb` and
 // `group` are read as aliases of `description` and `category`.
+// Sketches may also carry the user's `rating` (1-5 stars) and `comment`.
 
 export const ALBUM_FORMAT = 'tartlet-album';
 export const ALBUM_VERSION = 2;
@@ -13,6 +14,7 @@ const MAX_NAME = 80;
 const MAX_TEXT = 600;
 const MAX_TAG = 32;
 const MAX_TAGS = 16;
+const MAX_COMMENT = 1000;
 
 export interface SketchMeta {
   readonly description?: string;
@@ -33,6 +35,10 @@ export interface SketchData extends SketchMeta {
   readonly seed?: string;
   /** ISO 8601 timestamp of the last save. */
   readonly savedAt: string;
+  /** The user's star rating, 1 to 5. */
+  readonly rating?: number;
+  /** The user's comment. */
+  readonly comment?: string;
 }
 
 export interface ParsedAlbum {
@@ -51,6 +57,8 @@ export interface SketchJson {
   source: string;
   seed?: string;
   savedAt: string;
+  rating?: number;
+  comment?: string;
 }
 
 export interface AlbumJson {
@@ -117,6 +125,16 @@ export function readMeta(r: Record<string, unknown>): SketchMeta {
     ...(author ? { author } : {}),
   };
 }
+function readRating(v: unknown): number | undefined {
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+  if (!Number.isFinite(n)) return undefined;
+  const r = Math.min(5, Math.max(0, Math.round(n)));
+  return r > 0 ? r : undefined;
+}
+function readComment(v: unknown): string | undefined {
+  const s = str(v)?.replace(/\r\n?/g, '\n').trim().slice(0, MAX_COMMENT);
+  return s ? s : undefined;
+}
 
 export function parseSketch(v: unknown): SketchData | null {
   if (typeof v !== 'object' || v === null) return null;
@@ -129,7 +147,18 @@ export function parseSketch(v: unknown): SketchData | null {
   const savedAt =
     at !== undefined && !Number.isNaN(Date.parse(at)) ? new Date(at).toISOString() : new Date().toISOString();
   const id = slugify(str(r.id) ?? '');
-  return { ...(id ? { id } : {}), name, source, ...(seed ? { seed } : {}), savedAt, ...readMeta(r) };
+  const rating = readRating(r.rating);
+  const comment = readComment(r.comment);
+  return {
+    ...(id ? { id } : {}),
+    name,
+    source,
+    ...(seed ? { seed } : {}),
+    savedAt,
+    ...readMeta(r),
+    ...(rating ? { rating } : {}),
+    ...(comment ? { comment } : {}),
+  };
 }
 
 /** Reads an album file. Also accepts a bare array of sketches or a single { name, source } object. */
@@ -166,6 +195,8 @@ function sketchJson(s: SketchData): SketchJson {
     source: s.source,
     ...(s.seed ? { seed: s.seed } : {}),
     savedAt: s.savedAt,
+    ...(s.rating ? { rating: s.rating } : {}),
+    ...(s.comment ? { comment: s.comment } : {}),
   };
 }
 

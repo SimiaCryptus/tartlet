@@ -3,12 +3,13 @@ import { installCaptureTap } from './audio-capture';
 import { initBackgroundAudio } from './background-audio';
 import { initPwa } from './pwa';
 import { defineTartletPlayer, type TartletPlayerElement } from '@tartlet/element';
-import type { Problem } from './assistant';
+import type { AlbumTrack, Problem, Reference } from './assistant';
 import { initShare } from './share';
 import { initRingtone } from './ringtone';
 import { initLibrary } from './library';
 import { initQueue, type QueueEntry } from './queue';
-import { slugify, type SketchMeta } from './album-schema';
+import { slugify, toAlbum, type SketchData, type SketchMeta } from './album-schema';
+import { createRatingStore, initRatingPanel, sourceKey } from './ratings';
 import {
   EMPTY_CATALOG,
   initCatalog,
@@ -46,6 +47,12 @@ const diagBadge = el('diag-badge');
 const counts = el('counts');
 const toast = el('toast');
 const fab = el('fab-play') as HTMLButtonElement;
+// ---- ratings and comments: any sketch, stored in this browser, editable during playback
+const ratings = createRatingStore();
+const ratingPanel = initRatingPanel(el('rating'), ratings, {
+  source: () => editor.value,
+  name: () => presetTitle.textContent || 'Sketch',
+});
 
 /** Albums are discovered through this manifest (albums/manifest.json next to index.html). */
 const MANIFEST_URL = new URL('albums/manifest.json', document.baseURI).href;
@@ -82,6 +89,7 @@ function apply(): void {
   player.source = editor.value;
   updateCounts();
   syncUrl();
+  ratingPanel.refresh();
 }
 function scheduleApply(): void {
   clearTimeout(timer);
@@ -118,6 +126,8 @@ const browser = initCatalog(
     mount: mountAlbum,
     unmount: (a) => void unmountAlbum(a),
     shareAlbum,
+    downloadAlbum,
+    ratingOf: (source) => ratings.get(source),
   },
 );
 
@@ -345,15 +355,18 @@ const openRingtone = initRingtone(el('ringtone-dialog') as HTMLDialogElement, {
 });
 el('ringtone-btn').addEventListener('click', openRingtone);
 
-el('download-btn').addEventListener('click', () => {
-  const url = URL.createObjectURL(new Blob([editor.value], { type: 'text/plain' }));
+function saveFile(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${fileStem}.tartlet`;
+  a.download = name;
   a.click();
   setTimeout(() => {
     URL.revokeObjectURL(url);
   }, 1000);
+}
+el('download-btn').addEventListener('click', () => {
+  saveFile(new Blob([editor.value], { type: 'text/plain' }), `${fileStem}.tartlet`);
 });
 
 function applySeed(): void {
@@ -393,7 +406,17 @@ const library = initLibrary(el('library'), {
     applySeed(); // sets or clears the seed, then applies the source
     if (panels.isMobile()) panels.show('player');
   },
+  ratingOf: (source) => ratings.get(source),
+  seedRatings: (entries) => {
+    ratings.seed(entries);
+  },
   flash,
+});
+// Keep the stars on the player, album cards and library in step (also across tabs).
+ratings.onChange(() => {
+  ratingPanel.refresh();
+  browser.refresh();
+  library.refresh();
 });
 // ---- play queue
 function loadQueueEntry(entry: QueueEntry): void {
@@ -499,6 +522,49 @@ function setSourceAndCheck(source: string, title?: string): Promise<Problem[]> {
     apply();
   });
 }
+/** Every sketch the album agent may learn from: album sketches, library entries and the editor, with ratings. */
+function references(): Reference[] {
+  const out: Reference[] = [];
+  const seen = new Set<string>();
+  const add = (id: string, name: string, source: string, description: string, tags: readonly string[]): void => {
+    if (!source.trim()) return;
+    const key = sourceKey(source);
+    if (seen.has(key)) return;
+    seen.add(key);
+    const r = ratings.get(source);
+    out.push({ id, name, source, stars: r?.stars ?? 0, comment: r?.comment ?? '', description, tags });
+  };
+  for (const s of catalog.sketches) add(s.id, `${s.album.name} · ${s.name}`, s.source, s.description, s.tags);
+  for (const s of library.entries()) add(`lib-${s.id}`, s.name, s.source, s.description ?? '', s.tags ?? []);
+  add('current', presetTitle.textContent || 'Current sketch', editor.value, '', []);
+  return out;
+}
+function keepAlbum(name: string, _description: string, tracks: readonly AlbumTrack[]): number {
+  return library.add(
+    tracks.map((t) => ({ name: t.name, source: t.source, description: t.description, category: name, tags: t.tags })),
+    name,
+  );
+}
+function exportAiAlbum(name: string, description: string, tracks: readonly AlbumTrack[]): void {
+  const now = new Date().toISOString();
+  const sketches: SketchData[] = tracks.map((t) => ({
+    name: t.name,
+    source: t.source,
+    savedAt: now,
+    category: name,
+    ...(t.description ? { description: t.description } : {}),
+    ...(t.tags.length > 0 ? { tags: [...t.tags] } : {}),
+  }));
+  const json = toAlbum(name, sketches, {
+    ...(description ? { description } : {}),
+    author: 'AI assistant',
+  });
+  saveFile(
+    new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' }),
+    `${slugify(name) || 'ai-album'}.json`,
+  );
+  flash(`Downloaded "${name}"`);
+}
 const assistantRoot = el('assistant');
 let assistantLoaded = false;
 function loadAssistant(): void {
@@ -512,6 +578,9 @@ function loadAssistant(): void {
         problems: currentProblems,
         flash,
         pool: () => catalog.sketches.map((s) => ({ id: s.id, name: `${s.album.name} · ${s.name}`, source: s.source })),
+        references,
+        keepAlbum,
+        exportAlbum: exportAiAlbum,
       });
     },
     () => {
@@ -553,6 +622,12 @@ function albumLink(album: CatalogAlbum): string {
 async function refreshCatalog(): Promise<string[]> {
   const { catalog: loaded, errors } = await loadCatalog(MANIFEST_URL, mounted);
   catalog = loaded;
+  // Albums may carry ratings; they fill in sketches the user has not rated yet.
+  ratings.seed(
+    loaded.sketches
+      .filter((s) => s.rating !== undefined || s.comment !== undefined)
+      .map((s) => ({ source: s.source, name: s.name, stars: s.rating ?? 0, comment: s.comment ?? '' })),
+  );
   browser.setCatalog(loaded, errors);
   return errors;
 }
@@ -599,6 +674,42 @@ function shareAlbum(album: CatalogAlbum): void {
       window.prompt('Copy this album link:', link);
     },
   );
+}
+/** Saves an album (built in or mounted) as a JSON file with the user's ratings and comments. */
+function downloadAlbum(album: CatalogAlbum): void {
+  const now = new Date().toISOString();
+  let rated = 0;
+  const sketches: SketchData[] = album.sketches.map((s) => {
+    const r = ratings.get(s.source);
+    const stars = r ? r.stars : (s.rating ?? 0);
+    const comment = r ? r.comment : (s.comment ?? '');
+    if (stars > 0 || comment) rated++;
+    return {
+      name: s.name,
+      source: s.source,
+      savedAt: now,
+      ...(s.seed ? { seed: s.seed } : {}),
+      ...(s.description ? { description: s.description } : {}),
+      ...(s.category ? { category: s.category } : {}),
+      ...(s.tags.length > 0 ? { tags: s.tags } : {}),
+      ...(s.author ? { author: s.author } : {}),
+      ...(stars > 0 ? { rating: stars } : {}),
+      ...(comment ? { comment } : {}),
+    };
+  });
+  const json = toAlbum(album.name, sketches, {
+    id: album.id,
+    ...(album.description ? { description: album.description } : {}),
+    ...(album.author ? { author: album.author } : {}),
+    ...(album.license ? { license: album.license } : {}),
+    ...(album.category ? { category: album.category } : {}),
+    ...(album.tags.length > 0 ? { tags: album.tags } : {}),
+  });
+  saveFile(
+    new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' }),
+    `${slugify(album.name) || album.id}.json`,
+  );
+  flash(rated > 0 ? `Saved "${album.name}" with ${String(rated)} rated` : `Saved "${album.name}" (no ratings yet)`);
 }
 
 // ---- startup: discover albums, then load the sketch from the URL or the first album sketch

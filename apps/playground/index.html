@@ -133,6 +133,20 @@
               <span id="diag-badge" class="badge ok">No issues</span>
             </div>
             <tartlet-player id="player" document-id="playground" blob-index="example"></tartlet-player>
+            <div id="rating" class="rating" role="group" aria-label="Your rating for this sketch">
+              <div class="rating-row">
+                <div id="rating-stars" class="rating-stars" aria-label="Stars"></div>
+                <span id="rating-status" class="rating-status" aria-live="polite"></span>
+              </div>
+              <textarea
+                id="rating-comment"
+                class="rating-comment"
+                rows="2"
+                maxlength="1000"
+                aria-label="Your comment on this sketch"
+                placeholder="Your notes on this sketch (saved in this browser)"
+              ></textarea>
+            </div>
             <label class="bg-toggle" title="Plays through a media channel so the phone keeps it running">
               <input id="bg-audio" type="checkbox" />
               Keep playing in the background and on the lock screen
@@ -323,7 +337,8 @@
               <a href="https://hosted.cognotik.com" target="_blank" rel="noopener noreferrer">Cognotik</a> server. Sign
               in there in this browser, or paste an API key. Nothing is sent until you press a button.
               <em>Vary</em> breeds mutated versions of the current sketch; <em>Recombine</em> crosses it with another
-              sketch. Each candidate is tested in the player and the fittest is loaded.
+              sketch. Each candidate is tested in the player and the fittest is loaded. <em>Build album</em> plans a
+              whole album from your prompt, guided by the sketches you rated and commented on.
             </p>
             <div class="assistant-settings">
               <label class="field">
@@ -364,6 +379,15 @@
                   <option value="">Random album sketch</option>
                 </select>
               </label>
+              <label class="field">
+                <span>Album tracks</span>
+                <select id="ai-album-size">
+                  <option value="3">3</option>
+                  <option value="4" selected>4</option>
+                  <option value="6">6</option>
+                  <option value="8">8</option>
+                </select>
+              </label>
             </div>
             <div class="assistant-actions">
               <button id="ai-generate" type="button" class="primary">Generate new</button>
@@ -373,8 +397,18 @@
               <button id="ai-recombine" type="button" title="Cross the current sketch with another sketch">
                 Recombine
               </button>
+              <button id="ai-album" type="button" title="Plan and write a whole album, guided by your ratings">
+                Build album
+              </button>
               <button id="ai-undo" type="button">Undo AI change</button>
               <button id="ai-cancel" type="button" hidden>Cancel</button>
+            </div>
+            <div id="ai-album-wrap" class="assistant-album" hidden>
+              <p id="ai-album-title" class="assistant-candidates-head"></p>
+              <div class="assistant-actions">
+                <button id="ai-album-save" type="button" class="primary">Save album to library</button>
+                <button id="ai-album-download" type="button">Download album</button>
+              </div>
             </div>
             <div id="ai-candidates-wrap" class="assistant-candidates" hidden>
               <p class="assistant-candidates-head">Candidates · click one to audition it</p>

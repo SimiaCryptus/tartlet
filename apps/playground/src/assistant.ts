@@ -41,6 +41,23 @@ export interface PoolSketch {
   readonly name: string;
   readonly source: string;
 }
+/** A sketch the album agent may learn from, with the listener's rating (0 stars = unrated). */
+export interface Reference {
+  readonly id: string;
+  readonly name: string;
+  readonly source: string;
+  readonly stars: number;
+  readonly comment: string;
+  readonly description: string;
+  readonly tags: readonly string[];
+}
+/** One finished track of an AI album. */
+export interface AlbumTrack {
+  readonly name: string;
+  readonly source: string;
+  readonly description: string;
+  readonly tags: readonly string[];
+}
 
 export interface AssistantHost {
   getSource(): string;
@@ -51,6 +68,12 @@ export interface AssistantHost {
   flash(msg: string): void;
   /** Sketches available as partners for recombination (usually the album catalog). */
   pool(): readonly PoolSketch[];
+  /** Every sketch the album agent may consult, with the user's stars and comments. */
+  references(): readonly Reference[];
+  /** Adds an album to the personal library. Returns the number added, or -1 if storage failed. */
+  keepAlbum(name: string, description: string, tracks: readonly AlbumTrack[]): number;
+  /** Downloads an album as a JSON file. */
+  exportAlbum(name: string, description: string, tracks: readonly AlbumTrack[]): void;
 }
 
 type Kind = 'generate' | 'edit' | 'fix';
@@ -60,6 +83,13 @@ type Breed = 'vary' | 'recombine';
 const MAX_REPAIRS = 1;
 const MAX_CANDIDATES = 4;
 const BREED_TEMPERATURE = 0.9;
+const MAX_ALBUM_TRACKS = 8;
+const ALBUM_TEMPERATURE = 0.8;
+const ALBUM_CONCURRENCY = 4;
+const MAX_LIKED = 8;
+const MAX_RELATED = 4;
+const MAX_AVOID = 4;
+const MAX_GUIDE_SOURCE = 4000;
 const SETTINGS_KEY = 'tartlet.assistant.v1';
 const API_KEY_KEY = 'tartlet.assistant.apiKey';
 
@@ -132,6 +162,18 @@ Rules for your reply:
 Examples:
 ${EXAMPLES.map((p) => `${p.name}: ${p.blurb}\n${FENCE}tartlet\n${p.source.trim()}\n${FENCE}`).join('\n\n')}`;
 
+const PLANNER_PROMPT = `You plan albums for Tartlet, a deterministic runtime for short Strudel-style music sketches. Each album track is one looping sketch of a few layered patterns; a separate writer turns your briefs into code, so you never write code yourself.
+
+What the instruments can do:
+- Drums: ${words(DRUM_SOUNDS)}. Synths: ${words(OSCILLATOR_SOUNDS)}, with filters, envelopes, FM, unison, glide and vibrato. Noise: ${words(NOISE_SOUNDS)}.
+- Voices that sing syllables: ${words(VOCAL_SOUNDS)}.
+- Ambiences: ${words(AMBIENCE_SOUNDS)}. Foley: ${words(FOLEY_SOUNDS)}. Creatures and machines: ${words(CREATURE_SOUNDS)}.
+- Reverb spaces: ${words(SPACE_NAMES)}; headphone placement (azimuth, elevation, distance) and binaural effects.
+- Scales: ${[...SCALES.keys()].join(', ')}.
+
+Plan like a producer: give the album an arc, vary tempo, key and texture from track to track, and keep it coherent as a whole. When the listener's ratings and notes are given, lean towards what they rated highly and away from what their low ratings and notes criticise.
+Reply with only a JSON object in a ${FENCE}json block.`;
+
 function listProblems(problems: readonly Problem[]): string {
   return problems.map((p) => `- ${p.text}`).join('\n');
 }
@@ -191,6 +233,7 @@ interface Candidate {
   problems: Problem[];
 }
 const plural = (n: number, w: string): string => `${String(n)} ${w}${n === 1 ? '' : 's'}`;
+const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 function variationMessage(source: string, s: Strategy, prompt: string, index: number, total: number): string {
   return (
     `Current sketch:\n${fenced(source)}\n\n` +
@@ -221,6 +264,211 @@ function describeProblems(ps: readonly Problem[]): string {
   return [e > 0 ? plural(e, 'error') : '', w > 0 ? plural(w, 'warning') : ''].filter(Boolean).join(', ');
 }
 const cancelled = (): CognotikError => new CognotikError('Request cancelled', { aborted: true });
+
+// ---- album agent: guiding sketches from the listener's ratings, a plan, then one sketch per track
+
+interface Guide {
+  readonly key: string;
+  readonly ref: Reference;
+  readonly rel: number;
+}
+interface Guides {
+  /** Rated 3 to 5 stars: the listener's taste. */
+  readonly liked: Guide[];
+  /** Unrated but matching the prompt. */
+  readonly related: Guide[];
+  /** Rated 1 or 2 stars: things to steer away from. */
+  readonly avoid: Guide[];
+}
+interface PlanTrack {
+  readonly title: string;
+  readonly brief: string;
+  readonly tags: string[];
+  readonly guides: string[];
+}
+interface Plan {
+  readonly name: string;
+  readonly description: string;
+  readonly tracks: PlanTrack[];
+}
+interface AlbumDraft {
+  readonly name: string;
+  readonly description: string;
+  readonly tracks: readonly { readonly title: string; readonly description: string; readonly tags: string[] }[];
+}
+
+const STOP_WORDS = new Set(
+  'the and with for that this some into from album albums music song songs track tracks sketch sketches make want like about very more less new one two three four five six seven eight are was but not all any its has have should would could please'.split(
+    ' ',
+  ),
+);
+
+function terms(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .toLowerCase()
+        .split(/[^a-z0-9#]+/)
+        .filter((w) => w.length > 2 && !STOP_WORDS.has(w)),
+    ),
+  ];
+}
+
+/** How many prompt words a sketch's name, description, tags or the listener's note share (with crude stemming). */
+function relevance(ref: Reference, want: readonly string[]): number {
+  if (want.length === 0) return 0;
+  const hay = terms([ref.name, ref.description, ref.comment, ...ref.tags].join(' '));
+  let hits = 0;
+  for (const w of want) {
+    if (hay.some((h) => h === w || (w.length > 4 && h.length > 4 && h.slice(0, 5) === w.slice(0, 5)))) hits++;
+  }
+  return hits;
+}
+
+function pickGuides(refs: readonly Reference[], prompt: string): Guides {
+  const want = terms(prompt);
+  const scored = refs.map((ref) => ({ ref, rel: relevance(ref, want) }));
+  const label =
+    (prefix: string) =>
+    (s: { ref: Reference; rel: number }, i: number): Guide => ({ key: `${prefix}${String(i + 1)}`, ...s });
+  const liked = scored
+    .filter((s) => s.ref.stars >= 3)
+    .sort((a, b) => b.rel * 3 + b.ref.stars - (a.rel * 3 + a.ref.stars))
+    .slice(0, MAX_LIKED)
+    .map(label('L'));
+  const related = scored
+    .filter((s) => s.ref.stars === 0 && s.rel > 0)
+    .sort((a, b) => b.rel - a.rel)
+    .slice(0, MAX_RELATED)
+    .map(label('R'));
+  const avoid = scored
+    .filter((s) => s.ref.stars > 0 && s.ref.stars <= 2)
+    .sort((a, b) => b.rel - a.rel || a.ref.stars - b.ref.stars)
+    .slice(0, MAX_AVOID)
+    .map(label('D'));
+  return { liked, related, avoid };
+}
+
+function describeGuide(g: Guide): string {
+  const r = g.ref;
+  const parts = [`[${g.key}] ${r.stars > 0 ? `${String(r.stars)}/5` : 'unrated'} "${r.name}"`];
+  if (r.description) parts.push(clip(r.description, 220));
+  if (r.tags.length > 0) parts.push(`tags: ${r.tags.join(', ')}`);
+  if (r.comment) parts.push(`listener's note: "${clip(r.comment, 240)}"`);
+  return `- ${parts.join(' · ')}`;
+}
+
+function planMessage(prompt: string, size: number, guides: Guides): string {
+  const sections: string[] = [`The listener wants an album: ${prompt}`, `Plan exactly ${String(size)} tracks.`];
+  if (guides.liked.length > 0) {
+    sections.push(
+      `Sketches the listener rated well (their taste; follow it where it fits the request):\n${guides.liked.map(describeGuide).join('\n')}`,
+    );
+  }
+  if (guides.related.length > 0) {
+    sections.push(`Unrated sketches related to the request:\n${guides.related.map(describeGuide).join('\n')}`);
+  }
+  if (guides.avoid.length > 0) {
+    sections.push(
+      `Sketches the listener rated poorly (avoid what their notes criticise):\n${guides.avoid.map(describeGuide).join('\n')}`,
+    );
+  }
+  const keys = guides.liked.length + guides.related.length > 0 ? '"L1"' : '';
+  sections.push(
+    `Reply with a JSON object:\n${FENCE}json\n{"name": "Album title", "description": "One or two sentences.", "tracks": [{"title": "Track title", "brief": "Tempo, key or scale, instruments, mood, and what makes this track different", "tags": ["90 bpm", "D minor"], "guides": [${keys}]}]}\n${FENCE}\n` +
+      'Each "guides" list names up to two keys from the lists above that the track should learn from (use [] if none fits).',
+  );
+  return sections.join('\n\n');
+}
+
+function parsePlan(reply: string, size: number, keys: ReadonlySet<string>): Plan | null {
+  const block = /```(?:json)?[^\n]*\n([\s\S]*?)```/.exec(reply)?.[1] ?? reply;
+  const start = block.indexOf('{');
+  const end = block.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  let data: unknown;
+  try {
+    data = JSON.parse(block.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+  if (typeof data !== 'object' || data === null) return null;
+  const r = data as Record<string, unknown>;
+  const text = (v: unknown, max: number): string =>
+    typeof v === 'string' ? clip(v.replace(/\s+/g, ' ').trim(), max) : '';
+  const strings = (v: unknown): string[] =>
+    Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === 'string') : [];
+  const list = Array.isArray(r.tracks) ? (r.tracks as unknown[]) : [];
+  const tracks: PlanTrack[] = [];
+  for (const v of list) {
+    if (typeof v !== 'object' || v === null) continue;
+    const t = v as Record<string, unknown>;
+    const title = text(t.title ?? t.name, 60);
+    const brief = text(t.brief ?? t.description, 600);
+    if (!title || !brief) continue;
+    const tags = strings(t.tags)
+      .map((x) => text(x, 32))
+      .filter(Boolean)
+      .slice(0, 6);
+    const guides = strings(t.guides)
+      .map((x) => x.trim().toUpperCase())
+      .filter((x) => keys.has(x))
+      .slice(0, 2);
+    tracks.push({ title, brief, tags, guides });
+    if (tracks.length >= size) break;
+  }
+  if (tracks.length === 0) return null;
+  return { name: text(r.name, 60) || 'AI album', description: text(r.description, 400), tracks };
+}
+
+function trackMessage(
+  prompt: string,
+  plan: Plan,
+  index: number,
+  guides: readonly Guide[],
+  avoid: readonly Guide[],
+): string {
+  const track = plan.tracks[index];
+  if (!track) return '';
+  const order = plan.tracks.map((t, i) => `${String(i + 1)}. ${t.title}: ${clip(t.brief, 160)}`).join('\n');
+  const parts = [
+    `Album "${plan.name}"${plan.description ? `: ${plan.description}` : ''}`,
+    `The listener asked for: ${prompt}`,
+    `The whole album, in order:\n${order}`,
+    `Write track ${String(index + 1)} of ${String(plan.tracks.length)}, "${track.title}": ${track.brief}`,
+  ];
+  for (const g of guides) {
+    const r = g.ref;
+    const why = r.stars > 0 ? `rated ${String(r.stars)}/5` : 'related to the request';
+    parts.push(
+      `Guiding sketch "${r.name}" (${why}${r.comment ? `; listener's note: "${clip(r.comment, 240)}"` : ''}). ` +
+        'Borrow its techniques and sound world, but write something new rather than copying it:\n' +
+        fenced(clip(r.source, MAX_GUIDE_SOURCE)),
+    );
+  }
+  if (avoid.length > 0) {
+    parts.push(
+      `The listener disliked: ${avoid
+        .map((g) => `"${g.ref.name}"${g.ref.comment ? ` ("${clip(g.ref.comment, 160)}")` : ''}`)
+        .join('; ')}. Steer clear of those qualities.`,
+    );
+  }
+  parts.push('Make it fit the album and differ from the other tracks in tempo, key or texture.');
+  return parts.join('\n\n');
+}
+
+async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (t: T, i: number) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i] as T, i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
 
 /** Pulls the sketch out of a model reply: the longest fenced block, or the bare reply if it looks like code. */
 export function extractCode(reply: string): string | null {
@@ -305,8 +553,14 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
   const cancelBtn = q('#ai-cancel', HTMLButtonElement);
   const varyBtn = q('#ai-vary', HTMLButtonElement);
   const recombineBtn = q('#ai-recombine', HTMLButtonElement);
+  const albumBtn = q('#ai-album', HTMLButtonElement);
   const countSelect = q('#ai-count', HTMLSelectElement);
   const partnerSelect = q('#ai-partner', HTMLSelectElement);
+  const albumSizeSelect = q('#ai-album-size', HTMLSelectElement);
+  const albumWrap = q('#ai-album-wrap', HTMLElement);
+  const albumTitleEl = q('#ai-album-title', HTMLElement);
+  const albumSaveBtn = q('#ai-album-save', HTMLButtonElement);
+  const albumDownloadBtn = q('#ai-album-download', HTMLButtonElement);
   const candidatesWrap = q('#ai-candidates-wrap', HTMLElement);
   const candidatesEl = q('#ai-candidates', HTMLUListElement);
   const statusEl = q('#ai-status', HTMLElement);
@@ -323,6 +577,7 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
   const usage = new UsageTracker();
   let candidates: Candidate[] = [];
   let activeCandidate = -1;
+  let draft: AlbumDraft | null = null;
 
   function setStatus(msg: string, isError = false): void {
     statusEl.textContent = msg;
@@ -336,13 +591,16 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
     fixBtn.disabled = !ready;
     varyBtn.disabled = !ready;
     recombineBtn.disabled = !ready;
+    albumBtn.disabled = !ready;
     countSelect.disabled = busy !== null;
     partnerSelect.disabled = busy !== null;
+    albumSizeSelect.disabled = busy !== null;
     undoBtn.disabled = busy !== null || history.length === 0;
     connectBtn.disabled = busy !== null;
     cancelBtn.hidden = busy === null;
     modelSelect.disabled = busy !== null || models.length === 0;
     renderCandidates();
+    renderDraft();
   }
 
   function persist(): void {
@@ -503,6 +761,33 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
     usageEl.textContent = `${UsageTracker.format(response.usage)} · session: ${usage.summary()}`;
     return extractText(response);
   }
+  /** Tests a drafted sketch in the player and, if it has errors, asks for one repair and keeps the better version. */
+  async function testAndRepair(
+    c: CognotikClient,
+    conv: Conversation,
+    reply: string,
+    code: string,
+    model: string,
+    signal: AbortSignal,
+    label: string,
+  ): Promise<{ code: string; problems: Problem[] }> {
+    const problems = await host.setSource(code);
+    const errors = problems.filter((p) => p.severity === 'error');
+    if (errors.length === 0) return { code, problems };
+    setStatus(`Repairing ${label}…`);
+    conv.addAssistant(reply);
+    conv.addUser([textPart(repairMessage(errors))]);
+    try {
+      const fixed = extractCode(await ask(c, conv, model, signal));
+      if (fixed) {
+        const again = await host.setSource(fixed);
+        if (score(again) < score(problems)) return { code: fixed, problems: again };
+      }
+    } catch (e) {
+      if (signal.aborted) throw e;
+    }
+    return { code, problems };
+  }
   function fillPartners(): void {
     const keep = partnerSelect.value;
     const pool = host.pool();
@@ -540,6 +825,15 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
       }),
     );
     candidatesWrap.hidden = candidates.length === 0;
+  }
+  function renderDraft(): void {
+    albumWrap.hidden = draft === null;
+    if (!draft) return;
+    albumTitleEl.textContent = `Album "${draft.name}" · ${plural(draft.tracks.length, 'track')}${
+      draft.description ? ` · ${draft.description}` : ''
+    }`;
+    albumSaveBtn.disabled = busy !== null;
+    albumDownloadBtn.disabled = busy !== null;
   }
   async function audition(i: number): Promise<void> {
     const cand = candidates[i];
@@ -599,6 +893,7 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
     busy = ctrl;
     candidates = [];
     activeCandidate = -1;
+    draft = null;
     updateButtons();
     const noun = kind === 'vary' ? 'variation' : 'hybrid';
     let replies = 0;
@@ -628,7 +923,7 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
       const failures: string[] = [];
       for (const [i, d] of drafts.entries()) {
         if (aborted()) throw cancelled();
-        let code = extractCode(d.reply);
+        const code = extractCode(d.reply);
         if (!code) {
           failures.push(`${d.brief.label}: ${d.error || 'no sketch in the reply'}.`);
           continue;
@@ -638,26 +933,8 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
           pushed = true;
         }
         setStatus(`Testing ${String(i + 1)} of ${String(drafts.length)}…`);
-        let problems = await host.setSource(code);
-        const errors = problems.filter((p) => p.severity === 'error');
-        if (errors.length > 0) {
-          setStatus(`Repairing ${d.brief.label}…`);
-          d.conv.addAssistant(d.reply);
-          d.conv.addUser([textPart(repairMessage(errors))]);
-          try {
-            const fixed = extractCode(await ask(c, d.conv, model, ctrl.signal));
-            if (fixed) {
-              const again = await host.setSource(fixed);
-              if (score(again) < score(problems)) {
-                code = fixed;
-                problems = again;
-              }
-            }
-          } catch (e) {
-            if (ctrl.signal.aborted) throw e;
-          }
-        }
-        candidates.push({ label: d.brief.label, source: code, title: d.brief.title, problems });
+        const tested = await testAndRepair(c, d.conv, d.reply, code, model, ctrl.signal, d.brief.label);
+        candidates.push({ label: d.brief.label, source: tested.code, title: d.brief.title, problems: tested.problems });
         renderCandidates();
       }
       if (candidates.length === 0) {
@@ -693,6 +970,162 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
     }
   }
 
+  // ---- album agent
+  /** Plans an album from the prompt and the listener's ratings, writes and tests every track. */
+  async function buildAlbum(): Promise<void> {
+    const c = client;
+    if (!c || busy) return;
+    const model = modelSelect.value;
+    if (!model) return;
+    const prompt = promptInput.value.trim();
+    if (!prompt) {
+      setStatus('Describe the album you want first.', true);
+      promptInput.focus();
+      return;
+    }
+    const size = Math.min(MAX_ALBUM_TRACKS, Math.max(2, Math.round(Number(albumSizeSelect.value)) || 4));
+    const guides = pickGuides(host.references(), prompt);
+    const usable = [...guides.liked, ...guides.related];
+    const byKey = new Map(usable.map((g) => [g.key, g]));
+    const source = host.getSource();
+
+    const ctrl = new AbortController();
+    const aborted = (): boolean => ctrl.signal.aborted;
+    busy = ctrl;
+    candidates = [];
+    activeCandidate = -1;
+    draft = null;
+    updateButtons();
+    let pushed = false;
+    let settled = false;
+    try {
+      const rated = guides.liked.length + guides.avoid.length;
+      setStatus(
+        rated > 0
+          ? `Planning the album with ${plural(rated, 'rated sketch')} as a guide to your taste…`
+          : 'Planning the album (rate some sketches to steer it towards your taste)…',
+      );
+      const planConv = new Conversation({ system: PLANNER_PROMPT });
+      planConv.addUser([textPart(planMessage(prompt, size, guides))]);
+      const plan = parsePlan(await ask(c, planConv, model, ctrl.signal), size, new Set(byKey.keys()));
+      if (!plan) throw new CognotikError('The model did not return a usable album plan. Try again.');
+      if (aborted()) throw cancelled();
+
+      // Each track learns from the guides its brief names, or (failing that) one of the listener's favourites.
+      const trackGuides = plan.tracks.map((t, i): Guide[] => {
+        const named = t.guides.map((k) => byKey.get(k)).filter((g): g is Guide => g !== undefined);
+        if (named.length > 0) return named;
+        const fallback = guides.liked[i % Math.max(1, guides.liked.length)];
+        return fallback ? [fallback] : [];
+      });
+
+      let replies = 0;
+      const total = plan.tracks.length;
+      setStatus(`Writing ${plural(total, 'track')} for "${plan.name}"…`);
+      const drafts = await mapLimit(plan.tracks, ALBUM_CONCURRENCY, async (track, i) => {
+        const conv = new Conversation({ system: SYSTEM_PROMPT });
+        conv.addUser([textPart(trackMessage(prompt, plan, i, trackGuides[i] ?? [], guides.avoid))]);
+        let reply = '';
+        let error = '';
+        try {
+          reply = await ask(c, conv, model, ctrl.signal, ALBUM_TEMPERATURE);
+        } catch (e) {
+          if (ctrl.signal.aborted) throw e;
+          error = describeError(e);
+        }
+        replies++;
+        if (!ctrl.signal.aborted) setStatus(`Writing: ${String(replies)} of ${String(total)} tracks in…`);
+        return { track, conv, reply, error };
+      });
+
+      const failures: string[] = [];
+      const tracks: { title: string; description: string; tags: string[] }[] = [];
+      for (const [i, d] of drafts.entries()) {
+        if (aborted()) throw cancelled();
+        const code = extractCode(d.reply);
+        if (!code) {
+          failures.push(`${d.track.title}: ${d.error || 'no sketch in the reply'}.`);
+          continue;
+        }
+        if (!pushed) {
+          history.push(source);
+          pushed = true;
+        }
+        setStatus(`Testing track ${String(i + 1)} of ${String(total)}…`);
+        const tested = await testAndRepair(c, d.conv, d.reply, code, model, ctrl.signal, `"${d.track.title}"`);
+        candidates.push({
+          label: `${String(tracks.length + 1)}. ${d.track.title}`,
+          source: tested.code,
+          title: d.track.title,
+          problems: tested.problems,
+        });
+        tracks.push({ title: d.track.title, description: d.track.brief, tags: d.track.tags });
+        renderCandidates();
+      }
+      const first = candidates[0];
+      if (!first) throw new CognotikError(`No usable tracks came back. ${failures.join(' ')}`.trim());
+      draft = { name: plan.name, description: plan.description, tracks };
+      activeCandidate = 0;
+      first.problems = await host.setSource(first.source, first.title);
+      settled = true;
+
+      const used = new Set<string>();
+      trackGuides.forEach((gs) => {
+        for (const g of gs) used.add(g.ref.name);
+      });
+      const broken = candidates.filter((cand) => countErrors(cand.problems) > 0).length;
+      setStatus(
+        `Built "${plan.name}": ${plural(candidates.length, 'track')}` +
+          (broken > 0 ? ` (${String(broken)} with errors)` : '') +
+          (used.size > 0 ? `, guided by ${[...used].slice(0, 4).join(', ')}${used.size > 4 ? '…' : ''}` : '') +
+          `. Click a track to audition, then save the album.${
+            failures.length > 0 ? ` ${plural(failures.length, 'track')} failed.` : ''
+          }`,
+        broken > 0,
+      );
+      host.flash('Album ready');
+    } catch (e) {
+      setStatus(describeError(e), !(e instanceof CognotikError && e.aborted));
+    } finally {
+      if (pushed && !settled) {
+        activeCandidate = -1;
+        candidates = [];
+        await host.setSource(source);
+        history.pop();
+      }
+      busy = null;
+      updateButtons();
+    }
+  }
+
+  function draftTracks(): AlbumTrack[] {
+    if (!draft) return [];
+    return draft.tracks
+      .map((t, i) => ({
+        name: t.title,
+        description: t.description,
+        tags: t.tags,
+        source: candidates[i]?.source ?? '',
+      }))
+      .filter((t) => t.source.trim());
+  }
+
+  function saveDraft(): void {
+    if (!draft || busy) return;
+    const n = host.keepAlbum(draft.name, draft.description, draftTracks());
+    if (n < 0) setStatus('Could not save: browser storage is full or unavailable. Download the album instead.', true);
+    else if (n === 0) setStatus('Those tracks are already in your library.');
+    else {
+      setStatus(`Saved ${plural(n, 'track')} of "${draft.name}" to your library.`);
+      host.flash('Album saved to library');
+    }
+  }
+
+  function downloadDraft(): void {
+    if (!draft || busy) return;
+    host.exportAlbum(draft.name, draft.description, draftTracks());
+  }
+
   async function undo(): Promise<void> {
     const prev = history.pop();
     if (prev === undefined) return;
@@ -719,6 +1152,9 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
   undoBtn.addEventListener('click', () => void undo());
   varyBtn.addEventListener('click', () => void evolve('vary'));
   recombineBtn.addEventListener('click', () => void evolve('recombine'));
+  albumBtn.addEventListener('click', () => void buildAlbum());
+  albumSaveBtn.addEventListener('click', saveDraft);
+  albumDownloadBtn.addEventListener('click', downloadDraft);
   partnerSelect.addEventListener('focus', fillPartners);
   root.addEventListener('panelshow', fillPartners);
   cancelBtn.addEventListener('click', () => {

@@ -1580,6 +1580,19 @@ tartlet-player {
 .assistant-candidates[hidden] {
   display: none;
 }
+.assistant-album {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--grad-soft);
+}
+.assistant-album .assistant-actions {
+  margin-top: 0;
+}
+.assistant-album[hidden] {
+  display: none;
+}
 .assistant-candidates-head {
   margin: 0 0 8px;
   font-size: 12px;
