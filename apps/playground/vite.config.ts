@@ -191,12 +191,16 @@ function pwa(): Plugin {
 // add any other album hosts here (they must also send CORS headers).
 // media-src allows blob: so a recorded ringtone can be previewed before download.
 // The service worker (sw.js), manifest and icons are same-origin, so 'self' covers them.
+// style-src allows 'unsafe-inline' (styles only, never scripts) because the Monaco code editor creates
+// <style> elements at runtime for its theme and decorations. Its worker and fonts are same-origin.
+// When Trusted Types are enforced, allow Monaco's policies (e.g. trusted-types tartlet editorViewLayer ...).
 const CSP =
-  "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self'; media-src 'self' blob:; connect-src 'self' https://hosted.cognotik.com https://raw.githubusercontent.com; object-src 'none'; base-uri 'none'";
+  "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; connect-src 'self' https://hosted.cognotik.com https://raw.githubusercontent.com; object-src 'none'; base-uri 'none'";
 
 export default defineConfig({
   resolve: { alias },
   plugins: [albums(), pwa()],
   preview: { headers: { 'Content-Security-Policy': CSP, 'Cross-Origin-Opener-Policy': 'same-origin' } },
-  build: { target: 'es2022' },
+  // Monaco is loaded lazily as its own large chunk.
+  build: { target: 'es2022', chunkSizeWarningLimit: 4000 },
 });

@@ -1266,6 +1266,39 @@ tartlet-player {
   outline: none;
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
 }
+.code-editor[hidden] {
+  display: none;
+}
+/* Monaco (desktop): fills the editor panel like the textarea did */
+.monaco-host {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 240px;
+  background: var(--code-bg);
+}
+.panel.has-size .monaco-host,
+.panel.is-floating .monaco-host {
+  min-height: 80px;
+}
+.monaco-host:focus-within {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.monaco-editor textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+/* Suggestions and hover tooltips live here, above every window */
+.monaco-overflow {
+  position: relative;
+  z-index: 2000;
+  height: 0;
+  flex: 0 0 0;
+}
+.monaco-overflow .monaco-hover,
+.monaco-overflow .suggest-widget {
+  border-radius: 10px;
+  box-shadow: var(--float-shadow);
+}
 
 .statusbar {
   display: flex;

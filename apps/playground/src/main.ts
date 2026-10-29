@@ -4,6 +4,7 @@ import { initBackgroundAudio } from './background-audio';
 import { initPwa } from './pwa';
 import { defineTartletPlayer, type TartletPlayerElement } from '@tartlet/element';
 import type { AlbumTrack, Problem, Reference } from './assistant';
+import type { CodeEditorHandle } from './code-editor';
 import { initShare } from './share';
 import { initRingtone } from './ringtone';
 import { initLibrary } from './library';
@@ -63,6 +64,8 @@ let current: CatalogSketch | null = null;
 /** Album sketch the editor came from, offered as metadata when saving to the library. */
 let origin: CatalogSketch | null = null;
 let fileStem = 'sketch';
+/** Monaco, once loaded (desktop only); null while the plain textarea is in use. */
+let codeEditor: CodeEditorHandle | null = null;
 
 // ---- feedback
 
@@ -135,6 +138,7 @@ const browser = initCatalog(
 
 player.addEventListener('diagnostics', () => {
   const ds = player.diagnostics;
+  codeEditor?.setDiagnostics(ds);
   const errors = ds.filter((d) => d.severity === 'error').length;
   const warnings = ds.filter((d) => d.severity === 'warning').length;
   const plural = (n: number, w: string): string => `${String(n)} ${w}${n === 1 ? '' : 's'}`;
@@ -210,21 +214,36 @@ el('pulse-cancel').addEventListener('click', () => {
 });
 
 // ---- editor
+function applyNow(): void {
+  apply();
+  flash('Applied');
+}
 
 editor.addEventListener('input', scheduleApply);
 editor.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
-    apply();
-    flash('Applied');
+    applyNow();
   }
 });
+// Monaco with completion and hover docs replaces the textarea on desktop; phones keep the textarea.
+if (!matchMedia('(pointer: coarse)').matches) {
+  import('./code-editor').then(
+    ({ mountCodeEditor }) => {
+      codeEditor = mountCodeEditor(editor, { onRun: applyNow });
+      codeEditor.setDiagnostics(player.diagnostics);
+    },
+    () => {
+      // keep the plain textarea
+    },
+  );
+}
 
 // Space toggles the transport when focus is not in a field or control.
 document.addEventListener('keydown', (e) => {
   if (e.code !== 'Space' || e.repeat) return;
   const t = e.target;
-  if (t instanceof Element && t.closest('dialog, [role="menu"], [role="separator"]')) return;
+  if (t instanceof Element && t.closest('dialog, [role="menu"], [role="separator"], .monaco-editor')) return;
   if (
     t instanceof HTMLTextAreaElement ||
     t instanceof HTMLInputElement ||
