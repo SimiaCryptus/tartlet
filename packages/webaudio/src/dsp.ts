@@ -1,6 +1,7 @@
 // Pure DSP helpers for @tartlet/webaudio (TS-41, TS-42, TS-43). They build no Web Audio objects,
 // so they run and are tested in Node. All randomness is a fixed-seed xorshift: identical on
 // every machine, and never drawn from Math.random.
+import { CURVE_NAMES, FIR_DESIGNS, SPECTRAL_MODES } from '@tartlet/registry';
 
 export type NoiseKind = 'white' | 'pink' | 'brown';
 
@@ -418,12 +419,21 @@ export function spaceSeconds(space: string, size: number): number {
 /**
  * Fills `out` with a seeded impulse response for a named space: predelay, then noise that decays
  * by 60 dB over the buffer while a one-pole low-pass closes, so the tail darkens.
+ * `opts` overrides the predelay (seconds) and the damping of the space (TS-84).
  */
-export function spaceImpulse(out: Float32Array, sampleRate: number, space: string, seed: number): void {
+export function spaceImpulse(
+  out: Float32Array,
+  sampleRate: number,
+  space: string,
+  seed: number,
+  opts: { readonly predelay?: number; readonly damping?: number } = {},
+): void {
   const spec = SPACES.get(space) ?? ROOM_SPACE;
+  const predelay = clamp(opts.predelay ?? spec.predelay, 0, 0.5);
+  const damping = clamp(opts.damping ?? spec.damping, 0, 1);
   const rnd = seededRandom(seed);
   const n = out.length;
-  const pre = Math.min(n, Math.round(spec.predelay * sampleRate));
+  const pre = Math.min(n, Math.round(predelay * sampleRate));
   let y = 0;
   for (let i = 0; i < n; i++) {
     if (i < pre) {
@@ -434,7 +444,7 @@ export function spaceImpulse(out: Float32Array, sampleRate: number, space: strin
     let x = rnd();
     if (spec.density < 1 && Math.abs(rnd()) > spec.density) x = 0;
     else if (spec.density < 1) x /= Math.sqrt(spec.density);
-    y += (1 - spec.damping * 0.9 * p) * (x - y);
+    y += (1 - damping * 0.9 * p) * (x - y);
     out[i] = y * Math.exp(-6.9 * p);
   }
 }
@@ -604,4 +614,905 @@ export function renderPeriodic(
   for (const v of out) peak = Math.max(peak, Math.abs(v));
   if (peak > 0) for (let k = 0; k < n; k++) out[k] = ((out[k] ?? 0) * 0.9) / peak;
   return out;
+}
+// ---- Frequency-domain shaping (TS-77 to TS-79)
+const finite = (v: unknown, dflt: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : dflt);
+/**
+ * Shelves for `tilt` in dB per octave (TS-77): four high shelves an octave apart around 1 kHz,
+ * each with the slope as its gain, and a makeup gain that keeps 1 kHz at its level.
+ */
+export function tiltShelves(slope: number): { shelves: { freq: number; gain: number }[]; makeup: number } {
+  const s = clamp(slope, -6, 6);
+  return {
+    shelves: [0, 1, 2, 3].map((i) => ({ freq: 1000 * 2 ** (i - 1.5), gain: s })),
+    makeup: -2 * s,
+  };
+}
+/** One section for an IIRFilterNode: feedforward (b) and feedback (a) coefficients. */
+export interface IirSection {
+  readonly feedforward: readonly number[];
+  readonly feedback: readonly number[];
+}
+// A published 90-degree phase-difference network: two chains of four all-pass sections in z²,
+// out(t) = c²·(in(t) + out(t − 2)) − in(t − 2). The first chain is delayed by one sample (TS-78).
+const HILBERT_FIRST = [0.6923878, 0.9360654322959, 0.988229522686, 0.9987488452737];
+const HILBERT_SECOND = [0.4021921162426, 0.856171088242, 0.9722909545651, 0.9952884791278];
+/** The two all-pass chains of the frequency shifter (TS-78). */
+export function hilbertSections(): { readonly first: IirSection[]; readonly second: IirSection[] } {
+  const section = (c: number, delay: boolean): IirSection => {
+    const b = c * c;
+    return { feedforward: delay ? [0, b, 0, -1] : [b, 0, -1], feedback: [1, 0, -b] };
+  };
+  return {
+    first: HILBERT_FIRST.map((c, i) => section(c, i === 0)),
+    second: HILBERT_SECOND.map((c) => section(c, false)),
+  };
+}
+/** Complex response [re, im] of one section at angular frequency `w` (radians per sample). */
+export function iirResponse(s: IirSection, w: number): readonly [number, number] {
+  let nr = 0;
+  let ni = 0;
+  s.feedforward.forEach((b, k) => {
+    nr += b * Math.cos(w * k);
+    ni -= b * Math.sin(w * k);
+  });
+  let dr = 0;
+  let di = 0;
+  s.feedback.forEach((a, k) => {
+    dr += a * Math.cos(w * k);
+    di -= a * Math.sin(w * k);
+  });
+  const den = dr * dr + di * di;
+  return [(nr * dr + ni * di) / den, (ni * dr - nr * di) / den];
+}
+/** Phase of the second chain relative to the first, in radians, at `f` as a fraction of the sample rate. */
+export function hilbertPhaseDifference(f: number): number {
+  const w = 2 * Math.PI * f;
+  const product = (sections: readonly IirSection[]): readonly [number, number] =>
+    sections.reduce<readonly [number, number]>(
+      ([ar, ai], s) => {
+        const [br, bi] = iirResponse(s, w);
+        return [ar * br - ai * bi, ar * bi + ai * br];
+      },
+      [1, 0],
+    );
+  const { first, second } = hilbertSections();
+  const [ar, ai] = product(first);
+  const [br, bi] = product(second);
+  return Math.atan2(bi * ar - br * ai, br * ar + bi * ai);
+}
+/** +1 when the second chain leads the first by 90°, -1 when it lags. Derived, not assumed (TS-78). */
+const HILBERT_LEAD = Math.sign(hilbertPhaseDifference(0.125));
+/**
+ * Gain of the sine branch of the shifter: out = first·cos(Ωt) + gain·second·sin(Ωt), with
+ * Ω = 2π·|shift|. Positive shifts move partials up, negative ones down.
+ */
+export function fshiftSinGain(shift: number): number {
+  return HILBERT_LEAD * Math.sign(shift);
+}
+export const STFT_SIZE = 1024;
+export const STFT_HOP = 256;
+/** Settings of the spectral kernel. `mode` is an index into SPECTRAL_MODES. */
+export type SpectralParams = {
+  mode: number;
+  amount: number;
+  gate: number;
+  comb: number;
+  shift: number;
+};
+/** The index of a spectral mode name, or 0 (`none`) when it is unknown. */
+export function spectralModeIndex(v: unknown): number {
+  const i = typeof v === 'string' ? SPECTRAL_MODES.indexOf(v) : -1;
+  return i < 0 ? 0 : i;
+}
+/** Clamped spectral settings of an event, with their defaults (TS-79). */
+export function spectralSettings(c: Readonly<Record<string, unknown>>): SpectralParams {
+  return {
+    mode: spectralModeIndex(c.spectral),
+    amount: clamp(finite(c.samount, 1), 0, 1),
+    gate: clamp(finite(c.sgate, -40), -90, 0),
+    comb: clamp(finite(c.scomb, 110), 20, 2000),
+    shift: clamp(finite(c.sshift, 0), -24, 24),
+  };
+}
+/** State of one channel of the short-time spectral processor. */
+export interface StftState {
+  readonly n: number;
+  readonly hop: number;
+  readonly sr: number;
+  readonly scale: number;
+  readonly ring: Float64Array;
+  ringPos: number;
+  count: number;
+  readonly acc: Float64Array;
+  readonly outQ: Float64Array;
+  outIdx: number;
+  readonly re: Float64Array;
+  readonly im: Float64Array;
+  readonly win: Float64Array;
+  readonly mag: Float64Array;
+  readonly avg: Float64Array;
+  readonly frozen: Float64Array;
+  readonly fphase: Float64Array;
+  readonly smag: Float64Array;
+  readonly sphase: Float64Array;
+  capFrames: number;
+  capEnergy: number;
+  rng: number;
+  fade: number;
+  mode: number;
+}
+// The kernel functions below are also the source of the spectral worklet (spectral-worklet.ts).
+// They must stay self-contained: no references to module-level names, no inner functions.
+/** In-place radix-2 FFT. The inverse divides by the length. */
+export function fftInPlace(re: Float64Array, im: Float64Array, inverse: boolean): void {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    while ((j & bit) !== 0) {
+      j ^= bit;
+      bit >>= 1;
+    }
+    j ^= bit;
+    if (i < j) {
+      const tr = re[i] ?? 0;
+      re[i] = re[j] ?? 0;
+      re[j] = tr;
+      const ti = im[i] ?? 0;
+      im[i] = im[j] ?? 0;
+      im[j] = ti;
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = ((inverse ? 2 : -2) * Math.PI) / len;
+    const wr = Math.cos(ang);
+    const wi = Math.sin(ang);
+    const h = len >> 1;
+    for (let i = 0; i < n; i += len) {
+      let cr = 1;
+      let ci = 0;
+      for (let k = 0; k < h; k++) {
+        const a = i + k;
+        const b = a + h;
+        const br = re[b] ?? 0;
+        const bi = im[b] ?? 0;
+        const xr = br * cr - bi * ci;
+        const xi = br * ci + bi * cr;
+        const ar = re[a] ?? 0;
+        const ai = im[a] ?? 0;
+        re[b] = ar - xr;
+        im[b] = ai - xi;
+        re[a] = ar + xr;
+        im[a] = ai + xi;
+        const t = cr * wr - ci * wi;
+        ci = cr * wi + ci * wr;
+        cr = t;
+      }
+    }
+  }
+  if (inverse) {
+    for (let i = 0; i < n; i++) {
+      re[i] = (re[i] ?? 0) / n;
+      im[i] = (im[i] ?? 0) / n;
+    }
+  }
+}
+/** A fresh channel state: Hann analysis and synthesis windows, frame size `n`, hop `hop`. */
+export function createStftState(n: number, hop: number, sr: number, seed: number): StftState {
+  const win = new Float64Array(n);
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / n);
+    win[i] = w;
+    sum += w * w;
+  }
+  const bins = n / 2 + 1;
+  const s = seed | 0;
+  return {
+    n,
+    hop,
+    sr,
+    scale: hop / sum,
+    ring: new Float64Array(n),
+    ringPos: 0,
+    count: 0,
+    acc: new Float64Array(n),
+    outQ: new Float64Array(hop),
+    outIdx: 0,
+    re: new Float64Array(n),
+    im: new Float64Array(n),
+    win,
+    mag: new Float64Array(bins),
+    avg: new Float64Array(bins),
+    frozen: new Float64Array(bins),
+    fphase: new Float64Array(bins),
+    smag: new Float64Array(bins),
+    sphase: new Float64Array(bins),
+    capFrames: 0,
+    capEnergy: 0,
+    rng: s === 0 ? 0x2545f491 : s,
+    fade: 1,
+    mode: 0,
+  };
+}
+/**
+ * Processes one block through the short-time spectral processor (TS-79). Output lags input by
+ * exactly one frame. A null input means the source has gone away; a freeze then fades out.
+ */
+export function stftBlock(
+  st: StftState,
+  input: Float32Array | null,
+  output: Float32Array,
+  p: SpectralParams,
+  fft: (re: Float64Array, im: Float64Array, inverse: boolean) => void,
+): void {
+  const n = st.n;
+  const hop = st.hop;
+  const half = n / 2;
+  const tau = 2 * Math.PI;
+  const mode = Math.round(p.mode);
+  if (mode !== st.mode) {
+    st.mode = mode;
+    st.capFrames = 0;
+    st.capEnergy = 0;
+    st.fade = 1;
+  }
+  const amount = Math.min(1, Math.max(0, p.amount));
+  const re = st.re;
+  const im = st.im;
+  const win = st.win;
+  const mag = st.mag;
+  const ring = st.ring;
+  const acc = st.acc;
+  for (let i = 0; i < output.length; i++) {
+    output[i] = st.outQ[st.outIdx] ?? 0;
+    st.outIdx++;
+    ring[st.ringPos] = input === null ? 0 : (input[i] ?? 0);
+    st.ringPos = (st.ringPos + 1) % n;
+    st.count++;
+    if (st.count < hop) continue;
+    st.count = 0;
+    st.outIdx = 0;
+    if (input === null) st.fade = Math.max(0, st.fade - 0.1);
+    for (let j = 0; j < n; j++) {
+      re[j] = (ring[(st.ringPos + j) % n] ?? 0) * (win[j] ?? 0);
+      im[j] = 0;
+    }
+    fft(re, im, false);
+    if (mode > 0 && amount > 0) {
+      let energy = 0;
+      for (let k = 0; k <= half; k++) {
+        const a = re[k] ?? 0;
+        const b = im[k] ?? 0;
+        const m2 = a * a + b * b;
+        energy += m2;
+        mag[k] = Math.sqrt(m2);
+      }
+      if (mode === 1) {
+        // freeze: hold the loudest of the first four sounding frames
+        if (energy > 1e-9 && st.capFrames < 4) {
+          st.capFrames++;
+          if (energy > st.capEnergy) {
+            st.capEnergy = energy;
+            st.frozen.set(mag);
+          }
+        }
+        const f = amount * st.fade;
+        for (let k = 0; k <= half; k++) {
+          const ph = ((st.fphase[k] ?? 0) + (tau * k * hop) / n) % tau;
+          st.fphase[k] = ph;
+          const m = st.frozen[k] ?? 0;
+          re[k] = (1 - f) * (re[k] ?? 0) + f * m * Math.cos(ph);
+          im[k] = (1 - f) * (im[k] ?? 0) + f * m * Math.sin(ph);
+        }
+      } else if (mode === 2) {
+        // blur: magnitudes smoothed over time, live phases
+        const c = 0.99 * amount;
+        for (let k = 0; k <= half; k++) {
+          const m = mag[k] ?? 0;
+          const v = (st.avg[k] ?? 0) * c + m * (1 - c);
+          st.avg[k] = v;
+          if (m > 1e-20) {
+            re[k] = ((re[k] ?? 0) * v) / m;
+            im[k] = ((im[k] ?? 0) * v) / m;
+          } else {
+            re[k] = v;
+            im[k] = 0;
+          }
+        }
+      } else if (mode === 3) {
+        // gate: bins below the threshold are removed; a full-scale sine peaks at n/4
+        const thr = (n / 4) * 10 ** (Math.min(0, Math.max(-90, p.gate)) / 20);
+        for (let k = 0; k <= half; k++) {
+          if ((mag[k] ?? 0) < thr) {
+            re[k] = (re[k] ?? 0) * (1 - amount);
+            im[k] = (im[k] ?? 0) * (1 - amount);
+          }
+        }
+      } else if (mode === 4) {
+        // robot: every phase set to zero
+        for (let k = 0; k <= half; k++) {
+          re[k] = (1 - amount) * (re[k] ?? 0) + amount * (mag[k] ?? 0);
+          im[k] = (1 - amount) * (im[k] ?? 0);
+        }
+      } else if (mode === 5) {
+        // whisper: seeded random phases
+        let x = st.rng;
+        for (let k = 0; k <= half; k++) {
+          x ^= x << 13;
+          x ^= x >>> 17;
+          x ^= x << 5;
+          const ph = ((x >>> 0) / 4294967296) * tau;
+          const m = mag[k] ?? 0;
+          re[k] = (1 - amount) * (re[k] ?? 0) + amount * m * Math.cos(ph);
+          im[k] = (1 - amount) * (im[k] ?? 0) + amount * m * Math.sin(ph);
+        }
+        st.rng = x;
+      } else if (mode === 6) {
+        // comb: keep bins near multiples of the spacing
+        const spacing = Math.min(2000, Math.max(20, p.comb));
+        for (let k = 0; k <= half; k++) {
+          const h = (k * st.sr) / n / spacing;
+          let w = 0;
+          if (h >= 0.5) w = Math.max(0, 1 - 4 * Math.abs(h - Math.round(h)));
+          const g = 1 - amount + amount * w;
+          re[k] = (re[k] ?? 0) * g;
+          im[k] = (im[k] ?? 0) * g;
+        }
+      } else if (mode === 7) {
+        // shift: move magnitudes to scaled bins, resynthesise with bin-centre phases
+        const r = 2 ** (Math.min(24, Math.max(-24, p.shift)) / 12);
+        st.smag.fill(0);
+        for (let k = 0; k <= half; k++) {
+          const j = Math.round(k * r);
+          if (j <= half) st.smag[j] = (st.smag[j] ?? 0) + (mag[k] ?? 0);
+        }
+        for (let j = 0; j <= half; j++) {
+          const ph = ((st.sphase[j] ?? 0) + (tau * j * hop) / n) % tau;
+          st.sphase[j] = ph;
+          const m = st.smag[j] ?? 0;
+          re[j] = (1 - amount) * (re[j] ?? 0) + amount * m * Math.cos(ph);
+          im[j] = (1 - amount) * (im[j] ?? 0) + amount * m * Math.sin(ph);
+        }
+      }
+      im[0] = 0;
+      im[half] = 0;
+      for (let k = 1; k < half; k++) {
+        re[n - k] = re[k] ?? 0;
+        im[n - k] = -(im[k] ?? 0);
+      }
+    }
+    fft(re, im, true);
+    for (let j = 0; j < n; j++) acc[j] = (acc[j] ?? 0) + (re[j] ?? 0) * (win[j] ?? 0) * st.scale;
+    for (let j = 0; j < hop; j++) st.outQ[j] = acc[j] ?? 0;
+    acc.copyWithin(0, hop);
+    acc.fill(0, n - hop);
+  }
+}
+// ---- Impulse-response filters (TS-81 to TS-85)
+/** Kernel lengths for `firlen`. All are odd, so the delay is a whole number of samples. */
+export const FIR_TAPS: ReadonlyMap<string, number> = new Map([
+  ['short', 255],
+  ['medium', 1023],
+  ['long', 4095],
+]);
+/** Kaiser window shape: about 63 dB of stop-band attenuation. */
+export const FIR_KAISER_BETA = 6;
+const FIR_DESIGN_SET: ReadonlySet<string> = new Set(FIR_DESIGNS);
+function besselI0(x: number): number {
+  let sum = 1;
+  let term = 1;
+  const q = (x * x) / 4;
+  for (let k = 1; k < 64; k++) {
+    term *= q / (k * k);
+    sum += term;
+    if (term < sum * 1e-12) break;
+  }
+  return sum;
+}
+export function kaiserWindow(n: number, beta = FIR_KAISER_BETA): Float64Array {
+  const w = new Float64Array(n);
+  const m = n - 1;
+  const d = besselI0(beta);
+  for (let i = 0; i < n; i++) {
+    const r = m > 0 ? (2 * i) / m - 1 : 0;
+    w[i] = besselI0(beta * Math.sqrt(Math.max(0, 1 - r * r))) / d;
+  }
+  return w;
+}
+/** A windowed ideal low-pass at `fc` (a fraction of the sample rate), with unit gain at DC. */
+function lowpassKernel(taps: number, fc: number, win: Float64Array): Float64Array {
+  const h = new Float64Array(taps);
+  const m = (taps - 1) / 2;
+  let sum = 0;
+  for (let i = 0; i < taps; i++) {
+    const x = i - m;
+    const v = x === 0 ? 2 * fc : Math.sin(2 * Math.PI * fc * x) / (Math.PI * x);
+    const y = v * (win[i] ?? 0);
+    h[i] = y;
+    sum += y;
+  }
+  if (sum !== 0) for (let i = 0; i < taps; i++) h[i] = (h[i] ?? 0) / sum;
+  return h;
+}
+/** Magnitude response of a kernel at `f`, a fraction of the sample rate. */
+export function firResponse(h: ArrayLike<number>, f: number): number {
+  let re = 0;
+  let im = 0;
+  const w = 2 * Math.PI * f;
+  for (let i = 0; i < h.length; i++) {
+    const v = h[i] ?? 0;
+    re += v * Math.cos(w * i);
+    im -= v * Math.sin(w * i);
+  }
+  return Math.hypot(re, im);
+}
+/**
+ * A linear-phase FIR kernel (TS-81): a Kaiser-windowed sinc. High-pass and band-stop come from
+ * spectral inversion; band-pass is the difference of two low-passes, normalised at its centre.
+ * `width` is in octaves around `freq` for the band designs.
+ */
+export function firKernel(
+  design: string,
+  freq: number,
+  width: number,
+  taps: number,
+  sampleRate: number,
+): Float32Array<ArrayBuffer> {
+  const n = taps % 2 === 1 ? taps : taps + 1;
+  const nyq = sampleRate / 2;
+  const fr = (hz: number): number => clamp(hz, 10, nyq * 0.98) / sampleRate;
+  const win = kaiserWindow(n);
+  const m = (n - 1) / 2;
+  let h: Float64Array;
+  if (design === 'lowpass' || design === 'highpass') {
+    h = lowpassKernel(n, fr(freq), win);
+    if (design === 'highpass') {
+      for (let i = 0; i < n; i++) h[i] = -(h[i] ?? 0);
+      h[m] = (h[m] ?? 0) + 1;
+    }
+  } else {
+    const half = 2 ** (clamp(width, 0.1, 4) / 2);
+    const lo = lowpassKernel(n, fr(freq / half), win);
+    const hi = lowpassKernel(n, fr(freq * half), win);
+    h = new Float64Array(n);
+    for (let i = 0; i < n; i++) h[i] = (hi[i] ?? 0) - (lo[i] ?? 0);
+    const g = firResponse(h, fr(freq));
+    if (g > 1e-6) for (let i = 0; i < n; i++) h[i] = (h[i] ?? 0) / g;
+    if (design === 'bandstop') {
+      for (let i = 0; i < n; i++) h[i] = -(h[i] ?? 0);
+      h[m] = (h[m] ?? 0) + 1;
+    }
+  }
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) out[i] = h[i] ?? 0;
+  return out;
+}
+/** The delay of a linear-phase kernel, in samples. */
+export function firLatency(taps: number): number {
+  return (taps - 1) / 2;
+}
+/** Rounds a frequency to the nearest quarter-tone, for the kernel cache (TS-81). */
+export function quarterTone(hz: number): number {
+  const f = clamp(hz, 20, 20000);
+  return 440 * 2 ** (Math.round(24 * Math.log2(f / 440)) / 24);
+}
+export interface FirSpec {
+  readonly design: string;
+  readonly len: string;
+  readonly taps: number;
+  readonly freq: number;
+  readonly width: number;
+}
+/** The quantised FIR settings of an event, or null when it has no FIR stage (TS-81). */
+export function firSpec(c: Readonly<Record<string, unknown>>): FirSpec | null {
+  const design = typeof c.fir === 'string' && FIR_DESIGN_SET.has(c.fir) ? c.fir : 'none';
+  if (design === 'none') return null;
+  const len = typeof c.firlen === 'string' && FIR_TAPS.has(c.firlen) ? c.firlen : 'medium';
+  return {
+    design,
+    len,
+    taps: FIR_TAPS.get(len) ?? 1023,
+    freq: quarterTone(finite(c.firfreq, 1000)),
+    width: Math.round(clamp(finite(c.firwidth, 1), 0.1, 4) * 4) / 4,
+  };
+}
+function normalizeEnergy(out: Float32Array): void {
+  let e = 0;
+  for (const v of out) e += v * v;
+  if (e <= 0) return;
+  const g = 1 / Math.sqrt(e);
+  for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) * g;
+}
+/** One resonance of a body: frequency in hertz, time to fall 60 dB in seconds, amplitude. */
+type BodyMode = readonly [number, number, number];
+export interface BodySpec {
+  readonly modes: readonly BodyMode[];
+  readonly noise: number;
+  readonly noiseDecay: number;
+  readonly seconds: number;
+}
+export const BODY_MAX_SECONDS = 0.1;
+/** Generated bodies, designed from published descriptions of each resonator (TS-82). */
+export const BODY_SPECS: ReadonlyMap<string, BodySpec> = new Map<string, BodySpec>([
+  [
+    'box',
+    {
+      modes: [
+        [180, 0.04, 1],
+        [310, 0.03, 0.7],
+        [470, 0.025, 0.5],
+        [690, 0.02, 0.35],
+      ],
+      noise: 0.1,
+      noiseDecay: 0.01,
+      seconds: 0.06,
+    },
+  ],
+  [
+    'guitar',
+    {
+      modes: [
+        [100, 0.08, 1],
+        [200, 0.06, 0.9],
+        [390, 0.04, 0.5],
+        [580, 0.03, 0.4],
+        [850, 0.02, 0.3],
+        [1300, 0.015, 0.25],
+        [2600, 0.01, 0.2],
+      ],
+      noise: 0.2,
+      noiseDecay: 0.008,
+      seconds: 0.1,
+    },
+  ],
+  [
+    'violin',
+    {
+      modes: [
+        [280, 0.05, 0.8],
+        [460, 0.04, 1],
+        [700, 0.035, 0.7],
+        [1000, 0.03, 0.6],
+        [1500, 0.025, 0.5],
+        [2100, 0.02, 0.7],
+        [2500, 0.02, 0.9],
+        [2900, 0.015, 0.6],
+        [3400, 0.012, 0.3],
+      ],
+      noise: 0.1,
+      noiseDecay: 0.005,
+      seconds: 0.08,
+    },
+  ],
+  [
+    'tube',
+    {
+      modes: [
+        [220, 0.06, 1],
+        [440, 0.05, 0.6],
+        [660, 0.045, 0.45],
+        [880, 0.04, 0.3],
+        [1100, 0.035, 0.2],
+      ],
+      noise: 0.05,
+      noiseDecay: 0.005,
+      seconds: 0.1,
+    },
+  ],
+  [
+    'can',
+    {
+      modes: [
+        [540, 0.06, 1],
+        [1270, 0.05, 0.8],
+        [2030, 0.04, 0.7],
+        [3150, 0.035, 0.5],
+        [4400, 0.03, 0.4],
+      ],
+      noise: 0.15,
+      noiseDecay: 0.004,
+      seconds: 0.09,
+    },
+  ],
+  [
+    'phone',
+    {
+      modes: [
+        [350, 0.01, 0.6],
+        [600, 0.012, 0.9],
+        [900, 0.012, 1],
+        [1300, 0.01, 0.9],
+        [1800, 0.01, 0.9],
+        [2400, 0.008, 0.8],
+        [3000, 0.008, 0.6],
+        [3400, 0.006, 0.4],
+      ],
+      noise: 0.05,
+      noiseDecay: 0.003,
+      seconds: 0.03,
+    },
+  ],
+  [
+    'radio',
+    {
+      modes: [
+        [180, 0.02, 0.5],
+        [450, 0.03, 1],
+        [800, 0.015, 0.7],
+        [1400, 0.012, 0.7],
+        [2500, 0.01, 0.6],
+        [4000, 0.008, 0.3],
+      ],
+      noise: 0.1,
+      noiseDecay: 0.004,
+      seconds: 0.05,
+    },
+  ],
+  [
+    'megaphone',
+    {
+      modes: [
+        [600, 0.03, 0.7],
+        [1100, 0.04, 1],
+        [1700, 0.035, 0.9],
+        [2300, 0.03, 0.8],
+        [3100, 0.02, 0.5],
+      ],
+      noise: 0.1,
+      noiseDecay: 0.004,
+      seconds: 0.07,
+    },
+  ],
+]);
+/** Length in samples of a body response, at most BODY_MAX_SECONDS. */
+export function bodySamples(body: string, sampleRate: number): number {
+  const spec = BODY_SPECS.get(body);
+  return Math.max(1, Math.round(Math.min(BODY_MAX_SECONDS, spec?.seconds ?? 0.01) * sampleRate));
+}
+/**
+ * A generated body response (TS-82): decaying sinusoids plus seeded noise, normalised to unit
+ * energy. `size` above one lowers every mode, below one raises them.
+ */
+export function bodyResponse(out: Float32Array, sampleRate: number, body: string, size: number, seed: number): void {
+  out.fill(0);
+  const spec = BODY_SPECS.get(body);
+  if (!spec) return;
+  const rnd = seededRandom(seed);
+  const k = 1 / clamp(size, 0.25, 4);
+  const top = sampleRate * 0.45;
+  for (const [f0, decay, amp] of spec.modes) {
+    const f = f0 * k;
+    const ph = Math.PI * rnd();
+    if (f >= top) continue;
+    const w = (2 * Math.PI * f) / sampleRate;
+    const r = 6.9 / (decay * sampleRate);
+    for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) + amp * Math.exp(-r * i) * Math.sin(w * i + ph);
+  }
+  if (spec.noise > 0) {
+    const r = 6.9 / (spec.noiseDecay * sampleRate);
+    for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) + spec.noise * rnd() * Math.exp(-r * i);
+  }
+  normalizeEnergy(out);
+}
+export interface CabSpec {
+  /** Low cut and high cut in hertz. */
+  readonly low: number;
+  readonly high: number;
+  /** Cone resonance in hertz and its level. */
+  readonly cone: number;
+  readonly coneGain: number;
+  /** Box resonance level, near 1.6 times the low cut. */
+  readonly box: number;
+  readonly seconds: number;
+}
+export const CAB_MAX_SECONDS = 0.05;
+/** Generated speaker cabinets (TS-83). */
+export const CABS: ReadonlyMap<string, CabSpec> = new Map<string, CabSpec>([
+  ['small', { low: 150, high: 3500, cone: 900, coneGain: 0.5, box: 0.2, seconds: 0.02 }],
+  ['open', { low: 90, high: 5000, cone: 120, coneGain: 0.6, box: 0.1, seconds: 0.03 }],
+  ['closed', { low: 80, high: 4500, cone: 110, coneGain: 0.9, box: 0.4, seconds: 0.035 }],
+  ['combo', { low: 100, high: 4200, cone: 700, coneGain: 0.6, box: 0.3, seconds: 0.03 }],
+  ['stack', { low: 70, high: 5500, cone: 95, coneGain: 1, box: 0.5, seconds: 0.045 }],
+]);
+export function cabSamples(cab: string, sampleRate: number): number {
+  const spec = CABS.get(cab);
+  return Math.max(1, Math.round(Math.min(CAB_MAX_SECONDS, spec?.seconds ?? 0.01) * sampleRate));
+}
+/**
+ * A generated cabinet response (TS-83): an impulse plus a short seeded noise tail and two
+ * resonances, through a one-pole high-pass and two one-pole low-passes. Unit energy.
+ */
+export function cabResponse(out: Float32Array, sampleRate: number, cab: string, seed: number): void {
+  out.fill(0);
+  const spec = CABS.get(cab);
+  if (!spec) return;
+  const rnd = seededRandom(seed);
+  const r = 6.9 / (spec.seconds * sampleRate);
+  const rc = r / 1.5;
+  const aLow = 1 - Math.exp((-2 * Math.PI * spec.low) / sampleRate);
+  const aHigh = 1 - Math.exp((-2 * Math.PI * Math.min(spec.high, sampleRate * 0.45)) / sampleRate);
+  const wc = (2 * Math.PI * spec.cone) / sampleRate;
+  const wb = (2 * Math.PI * spec.low * 1.6) / sampleRate;
+  let lowState = 0;
+  let l1 = 0;
+  let l2 = 0;
+  for (let i = 0; i < out.length; i++) {
+    const res = Math.exp(-rc * i) * 0.3;
+    const x =
+      (i === 0 ? 1 : 0) +
+      0.4 * rnd() * Math.exp(-r * i) +
+      spec.coneGain * res * Math.sin(wc * i) +
+      spec.box * res * Math.sin(wb * i);
+    lowState += aLow * (x - lowState);
+    const hp = x - lowState;
+    l1 += aHigh * (hp - l1);
+    l2 += aHigh * (l1 - l2);
+    out[i] = l2;
+  }
+  normalizeEnergy(out);
+}
+// ---- Signal-level response curves (TS-86 to TS-88)
+/** Peak level of the reference sine used for gain compensation. */
+export const CURVE_REF = 0.5;
+const CURVE_LEN = 4096;
+const CURVE_SET: ReadonlySet<string> = new Set(CURVE_NAMES);
+const ASYMMETRIC: ReadonlySet<string> = new Set(['tube', 'rect', 'half', 'cheby2', 'cheby4', 'cheby6']);
+/** A known curve name other than `none`, or undefined. */
+export function curveName(v: unknown): string | undefined {
+  return typeof v === 'string' && v !== 'none' && CURVE_SET.has(v) ? v : undefined;
+}
+function curveFn(name: string, x: number): number {
+  switch (name) {
+    case 'soft': {
+      const v = clamp(x, -1, 1);
+      return 1.5 * v - 0.5 * v * v * v;
+    }
+    case 'hard':
+      return clamp(x, -1, 1);
+    case 'tanh':
+      return Math.tanh(x);
+    case 'tube':
+      return x >= 0 ? Math.tanh(x) : Math.tanh(1.6 * x) / 1.6;
+    case 'fold': {
+      const y = (((x + 1) % 4) + 4) % 4;
+      return y < 2 ? y - 1 : 3 - y;
+    }
+    case 'rect':
+      return Math.min(1, Math.abs(x));
+    case 'half':
+      return clamp(x, 0, 1);
+    default: {
+      const k = name.startsWith('cheby') ? Number(name.slice(5)) : NaN;
+      if (!(k >= 2 && k <= 7)) return x;
+      return Math.cos(k * Math.acos(clamp(x, -1, 1)));
+    }
+  }
+}
+/** Reads a waveshaper table at `x` in [-1, 1] with linear interpolation, as a WaveShaperNode does. */
+export function curveLookup(table: ArrayLike<number>, x: number): number {
+  const len = table.length;
+  const pos = ((clamp(x, -1, 1) + 1) / 2) * (len - 1);
+  const i = Math.floor(pos);
+  const f = pos - i;
+  const a = table[i] ?? 0;
+  const b = table[Math.min(len - 1, i + 1)] ?? a;
+  return a + (b - a) * f;
+}
+export interface CurveTable {
+  /** Within [-1, 1]; zero input gives zero output. */
+  readonly table: Float32Array<ArrayBuffer>;
+  /** Gain that gives a reference sine the same RMS as without the curve. */
+  readonly makeup: number;
+  /** True when the curve can produce DC, so a DC blocker should follow. */
+  readonly asymmetric: boolean;
+}
+/**
+ * A transfer curve with drive (dB) and bias baked in (TS-86). The table is f(g·u + b) − f(b),
+ * normalised to full scale; `makeup` restores the RMS of a sine at CURVE_REF.
+ */
+export function curveTable(name: string, driveDb: number, bias: number, length = CURVE_LEN): CurveTable {
+  const g = 10 ** (clamp(driveDb, 0, 24) / 20);
+  const b = clamp(bias, -0.5, 0.5);
+  const f0 = curveFn(name, b);
+  const table = new Float32Array(length);
+  let peak = 0;
+  for (let i = 0; i < length; i++) {
+    const u = (i / (length - 1)) * 2 - 1;
+    const v = curveFn(name, g * u + b) - f0;
+    table[i] = v;
+    peak = Math.max(peak, Math.abs(v));
+  }
+  if (peak > 1) for (let i = 0; i < length; i++) table[i] = (table[i] ?? 0) / peak;
+  const n = 1024;
+  let si = 0;
+  let so = 0;
+  for (let k = 0; k < n; k++) {
+    const x = CURVE_REF * Math.sin((2 * Math.PI * k) / n);
+    const y = curveLookup(table, x);
+    si += x * x;
+    so += y * y;
+  }
+  const makeup = so > 1e-12 ? clamp(Math.sqrt(si / so), 0.25, 4) : 1;
+  return { table, makeup, asymmetric: b !== 0 || ASYMMETRIC.has(name) };
+}
+/**
+ * Bends the linear segments of an envelope (TS-88). `exp` changes fast and then slowly, `log`
+ * slowly and then fast; each changing segment becomes `steps` linear pieces. Breakpoints keep
+ * their times and levels.
+ */
+export function shapeEnvelope(
+  pts: readonly (readonly [number, number])[],
+  shape: string,
+  steps = 8,
+): [number, number][] {
+  if (shape !== 'exp' && shape !== 'log') return pts.map(([t, v]) => [t, v]);
+  const k = 5;
+  const f =
+    shape === 'exp'
+      ? (x: number): number => (1 - Math.exp(-k * x)) / (1 - Math.exp(-k))
+      : (x: number): number => (Math.exp(k * x) - 1) / (Math.exp(k) - 1);
+  const out: [number, number][] = [];
+  const first = pts[0];
+  if (!first) return out;
+  out.push([first[0], first[1]]);
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1] ?? first;
+    const b = pts[i] ?? a;
+    if (b[1] === a[1] || b[0] <= a[0]) {
+      out.push([b[0], b[1]]);
+      continue;
+    }
+    for (let s = 1; s <= steps; s++) {
+      const x = s / steps;
+      out.push([a[0] + (b[0] - a[0]) * x, a[1] + (b[1] - a[1]) * f(x)]);
+    }
+  }
+  return out;
+}
+/** State of the per-voice gate (TS-87). */
+export interface GateState {
+  env: number;
+  gain: number;
+}
+// The gate functions below are also the source of the gate worklet (gate-worklet.ts).
+// They must stay self-contained: no references to module-level names, no inner functions.
+export function createGateState(): GateState {
+  return { env: 0, gain: 0 };
+}
+/**
+ * Processes one block through the gate: a peak follower (50 ms release) opens the gate within
+ * about 1 ms when it reaches the threshold and closes it over `release` seconds. All channels
+ * share one gain.
+ */
+export function gateBlock(
+  st: GateState,
+  input: readonly Float32Array[],
+  output: readonly Float32Array[],
+  thresholdDb: number,
+  release: number,
+  sr: number,
+): void {
+  const frames = output[0] ? output[0].length : 0;
+  const thr = 10 ** (Math.min(0, Math.max(-90, thresholdDb)) / 20);
+  const envRel = Math.exp(-1 / (0.05 * sr));
+  const open = 1 - Math.exp(-1 / (0.001 * sr));
+  const close = 1 - Math.exp(-1 / (Math.min(1, Math.max(0.005, release)) * sr));
+  for (let i = 0; i < frames; i++) {
+    let peak = 0;
+    for (let c = 0; c < input.length; c++) {
+      const v = Math.abs(input[c]?.[i] ?? 0);
+      if (v > peak) peak = v;
+    }
+    st.env = peak > st.env ? peak : st.env * envRel;
+    const target = st.env >= thr ? 1 : 0;
+    st.gain += (target - st.gain) * (target > st.gain ? open : close);
+    for (let c = 0; c < output.length; c++) {
+      const out = output[c];
+      if (!out) continue;
+      const src = input[c] ?? input[0];
+      const x = src ? (src[i] ?? 0) : 0;
+      out[i] = Number.isFinite(x) ? x * st.gain : 0;
+    }
+  }
 }

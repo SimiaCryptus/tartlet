@@ -347,3 +347,122 @@ defHash)`. `defHash` hashes the definition without layout. Method ids inside the
 - **TS-76: creatures and machines.** `bird` plays FM chirps with seeded pitch sweeps, `insect`
   a noise band pulsing at two rates, and `engine` a pulse train through three resonant bands.
   `note` or `freq` sets the chirp pitch, band centre or pulse rate when given.
+
+## Found while implementing frequency-domain filters (docs/dsp.md Part 1)
+
+- **TS-77: native spectral shaping.** These are audio-adapter interpretations; the IR keeps the
+  authored values.
+  - In signal order after the high-pass: low shelf, high shelf, peak, band, notch, tilt,
+    frequency shift, ring modulation, then `shape` and `crush`. A stage exists only when its
+    control is present and non-zero.
+  - The shelves default to 200 Hz and 4 kHz. The peak defaults to 1 kHz with Q 1, the band to
+    Q 1 and the notch to Q 4. Boosts stop at 12 dB, cuts at −18 dB.
+  - `tilt` is four high shelves an octave apart, from about 354 Hz to 2.8 kHz, each with the
+    slope as its gain, plus a makeup gain that keeps 1 kHz at its level. Outside that range the
+    response is flat, so the total change is at most ±2 × slope. Noise `color` is not added yet.
+  - `ringmod` multiplies by a sine started with the voice. `ringmix` defaults to 1 and does
+    nothing without `ringmod`.
+- **TS-78: frequency shift.** `fshift` uses a published 90° phase-difference network: two chains
+  of four all-pass sections in z², with the first chain delayed by one sample. The coefficients
+  are constants, and the direction of the shift comes from the network's computed phase
+  response, not from an assumption. Accuracy is tested from 300 Hz to 15 kHz at 48 kHz (within
+  2°). The voice stays pitched for `E-CAP-PITCHED`, although the result is inharmonic.
+- **TS-79: spectral processor.**
+  - One static worklet with frame size 1024, hop 256 and Hann analysis and synthesis windows.
+    Output lags input by exactly one frame. Its source is composed from the self-contained kernel
+    functions in `dsp.ts`, which are tested in Node; nothing is built from document content.
+  - Defaults: `samount` 1, `sgate` −40 dB (relative to a full-scale sine), `scomb` 110 Hz,
+    `sshift` 0.
+  - `freeze` holds the loudest of the first four sounding frames and resynthesises it with
+    bin-centre phases. A per-voice freeze fades out over about 50 ms once its input is gone. On a
+    bus it re-arms whenever the bus mode changes, and stopping resets every bus to `none`.
+  - `blur` smooths magnitudes with a one-pole whose coefficient is 0.99 × `samount`. `comb` keeps
+    bins within a quarter of a harmonic of multiples of `scomb`. `shift` moves magnitudes to
+    rounded scaled bins.
+  - A per-voice stage costs 8 extra polyphony units. With `ssend` above zero the event sends to a
+    bus per orbit instead (at most 4 buses), and the latest onset on the orbit sets the settings.
+  - Latency compensation is deferred: per-voice spectral stages play about 21 ms late, and
+    `I-DSP-LATENCY` is not reported yet. If the worklet is refused, spectral settings are
+    ignored; the play-time info diagnostic is deferred.
+- **TS-80: spectral seed and checks.**
+  - Core adds `dseed` to events whose `spectral` is a string other than `none`. It is keyed by
+    (scope seed, output id, `whole.begin`, `s`) at the output level, like `vseed` (TS-44), and
+    seeds the `whisper` phases.
+  - An unknown constant `spectral` mode gives `W-ARG-MODE`; `none` is used.
+  - `scomb`, `sgate` and `sshift` give `W-ARG-UNSUPPORTED` when every `spectral` value of the
+    track is known and none of them is their mode. Non-constant `spectral` patterns are not
+    judged.
+  - `peak`, `notch`, `tilt` and the other new names are reserved. The America album's festival
+    sketch renamed its `peak` binding to `drop`.
+
+## Found while implementing impulse-response filters (docs/dsp.md Part 2)
+
+- **TS-81: FIR designs.** `fir` selects `lowpass`, `highpass`, `bandpass` or `bandstop`; `none`
+  turns it off. Kernels are Kaiser-windowed sincs (beta 6, about 63 dB of stop-band attenuation)
+  of 255, 1023 or 4095 taps (`firlen` short, medium or long; default medium). High-pass and
+  band-stop use spectral inversion; band-pass is the difference of two low-passes at `firfreq`
+  divided and multiplied by 2^(`firwidth`/2), normalised to unit gain at the centre. For the cache,
+  `firfreq` is rounded to the nearest quarter-tone and `firwidth` to quarter octaves; the IR keeps
+  the authored values. At most 32 kernels are cached. The stage sits right after the high-pass and
+  costs 1, 2 or 4 polyphony units.
+- **TS-82: body responses.** `body` names `box`, `guitar`, `violin`, `tube`, `can`, `phone`,
+  `radio` or `megaphone`. Each is a sum of decaying sinusoids plus seeded noise, at most 100 ms
+  long and normalised to unit energy, generated from constant seeds. `bodysize` divides every
+  mode frequency (quantised to quarter-octave steps) and `bodymix` (default 1) is the wet share.
+  The stage sits after the vowel colour and before the spectral stage, and costs 3 units.
+- **TS-83: cabinets.** `cab` names `small`, `open`, `closed`, `combo` or `stack`: a generated
+  response (impulse plus short noise tail and two resonances through a high-pass and two
+  low-passes), at most 50 ms, unit energy. One convolver per (orbit, cabinet), at most 8, sits in
+  the dry path after placement and the ear stage, so stereo placement survives. Reverb and delay
+  sends still tap the voice before the cabinet.
+- **TS-84: space tails and checks.** `spacepre` (ms, in 10 ms steps) and `spacedamp` (in 0.1
+  steps) override the predelay and damping of a `space` preset; without a known `space` they do
+  nothing. Unknown constant `fir`, `firlen`, `body` and `cab` values give `W-ARG-MODE`.
+  `W-ARG-UNSUPPORTED` fires for `firwidth` when every constant `fir` is neither band design,
+  for `bodysize` and `bodymix` without a non-`none` body, and for `spacepre` and `spacedamp`
+  without a known space. Non-constant owner patterns are not judged. Recorded responses (Tier I3)
+  are deferred until ADR-004.
+- **TS-85: latency compensation.** A voice with a FIR stage, or a per-voice spectral stage
+  (no `ssend`), starts early by the stage latency: (taps − 1)/2 samples, plus one STFT frame.
+  The early start is capped at 60 ms and by how early the event arrived; when it is cut short,
+  the voice plays late by the difference and the engine counts it. Bus stages are not
+  compensated. `I-DSP-LATENCY` (info) marks tracks with a constant compensated stage; this
+  resolves the deferrals in TS-79.
+
+## Found while implementing response curves (docs/dsp.md Part 3)
+
+- **TS-86: transfer curves.** `curve` names `soft` (cubic soft clip), `hard`, `tanh`, `tube`
+  (negative half compressed harder), `fold` (triangle fold), `rect`, `half` or `cheby2` to
+  `cheby7`; `none` turns it off.
+  - The table is f(g·u + `bias`) − f(`bias`), with g from `drive` (0–24 dB, quantised to
+    0.5 dB) and `bias` quantised to 0.05, normalised to full scale. The IR keeps the authored
+    values.
+  - A makeup gain restores the RMS of a sine at peak 0.5, clamped to 0.25–4. Even Chebyshev
+    curves at drive 0 give a quieter sine of the same RMS, plus DC.
+  - Asymmetric curves, and any non-zero `bias`, are followed by a 10 Hz high-pass.
+  - `fold` and the Chebyshev curves oversample 4x, the others 2x.
+  - The stage sits after the frequency shift and ring modulation and before `shape`.
+  - `shape` keeps its own fixed curve, so existing documents sound the same; the mapping to
+    `curve("soft")` is deferred.
+  - The proposed pattern method `.curve(k)` (docs/noise.md) is reserved as `.bend(k)`.
+- **TS-87: dynamics.**
+  - A voice with `comp` below zero sends its dry path through a `DynamicsCompressorNode` per
+    `orbit` (at most 8) that feeds the master bus. Reverb, delay and spectral sends are not
+    compressed. Defaults: ratio 4, knee 6 dB, attack 3 ms, release 250 ms. The latest onset on
+    the orbit sets the settings.
+  - `gate` (dB) is a per-voice worklet, closest to the sink, built from `gateBlock` in
+    `dsp.ts`: a peak follower with a 50 ms release opens the gate within about 1 ms and closes
+    it over `gaterelease` (default 0.1 s). It costs 2 polyphony units. If the worklet is
+    refused, `gate` is ignored.
+- **TS-88: control curves.**
+  - `envcurve` bends the amplitude envelopes of oscillator, noise, voice and texture voices:
+    each changing segment becomes 8 linear pieces following 1 − e^(−5x) (`exp`) or its mirror
+    (`log`). Breakpoints keep their times and levels.
+  - `velcurve` (0.25–4, default 1) raises velocity to that power before it sets the level.
+    Effort and other timbre mappings still read the raw velocity.
+- **TS-89: checks.**
+  - Unknown constant `curve` or `envcurve` values give `W-ARG-MODE`; `none` and `lin` are used.
+  - `drive`, `bias` and `curvemix` give `W-ARG-UNSUPPORTED` when every constant `curve` of the
+    track is `none` or absent. Non-constant `curve` patterns are not judged.
+  - `I-DSP-ORBIT` (info) marks a track whose constant compressor settings differ from an earlier
+    track on the same constant orbit (default 0).

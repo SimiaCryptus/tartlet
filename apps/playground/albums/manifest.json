@@ -31,6 +31,14 @@
       "file": "binaural-techno.json"
     },
     {
+      "id": "binaural-classical",
+      "file": "binaural-classical.json"
+    },
+    {
+      "id": "binaural-jazz",
+      "file": "binaural-jazz.json"
+    },
+    {
       "id": "workout",
       "file": "workout.json"
     },

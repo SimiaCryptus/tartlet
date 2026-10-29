@@ -36,10 +36,17 @@ import type {
 } from '@tartlet/ir';
 import { DEFAULT_LIMITS } from '@tartlet/ir';
 import {
+  BODY_NAMES,
+  CAB_NAMES,
+  CURVE_NAMES,
   DRUM_SOUNDS,
+  ENVCURVE_NAMES,
+  FIR_DESIGNS,
+  FIR_LENGTHS,
   NOISE_SOUNDS,
   OSCILLATOR_SOUNDS,
   SPACE_NAMES,
+  SPECTRAL_MODES,
   VOICE_TYPES,
   defaultRegistry,
   editDistance,
@@ -81,9 +88,61 @@ const SAMPLE_IDS: ReadonlySet<string> = new Set(['s']);
 const SCALE_OK: ReadonlySet<string> = new Set(['n', 'note', 'freq']);
 const PITCH_OK: ReadonlySet<string> = new Set(['note', 'freq']);
 /** String controls whose atoms are checked against closed sets (TS-45, TS-68). */
-const VOCAL_STRINGS: ReadonlySet<string> = new Set(['syl', 'vowel', 'voicetype', 'earsplit', 'space']);
+const VOCAL_STRINGS: ReadonlySet<string> = new Set([
+  'syl',
+  'vowel',
+  'voicetype',
+  'earsplit',
+  'space',
+  'spectral',
+  'fir',
+  'firlen',
+  'body',
+  'cab',
+  'curve',
+  'envcurve',
+]);
 const EARSPLIT_MODES: ReadonlySet<string> = new Set(['none', 'harmonics', 'bands']);
 const SPACE_SET: ReadonlySet<string> = new Set(SPACE_NAMES);
+const SPECTRAL_SET: ReadonlySet<string> = new Set(SPECTRAL_MODES);
+/** Spectral controls that only matter in one spectral mode (TS-80). */
+const SPECTRAL_NEEDS: ReadonlyMap<string, string> = new Map([
+  ['scomb', 'comb'],
+  ['sgate', 'gate'],
+  ['sshift', 'shift'],
+]);
+const FIR_SET: ReadonlySet<string> = new Set(FIR_DESIGNS);
+/** Closed value sets for impulse-response controls, and the value used for unknown ones (TS-84). */
+const MODE_LISTS: ReadonlyMap<string, { readonly names: readonly string[]; readonly fallback: string }> = new Map([
+  ['fir', { names: FIR_DESIGNS, fallback: 'none' }],
+  ['firlen', { names: FIR_LENGTHS, fallback: 'medium' }],
+  ['body', { names: BODY_NAMES, fallback: 'none' }],
+  ['cab', { names: CAB_NAMES, fallback: 'none' }],
+  ['curve', { names: CURVE_NAMES, fallback: 'none' }],
+  ['envcurve', { names: ENVCURVE_NAMES, fallback: 'lin' }],
+]);
+interface Need {
+  readonly owner: string;
+  readonly modes?: ReadonlySet<string>;
+}
+/** Controls that only matter when another control selects something (TS-84). */
+const MODE_NEEDS: ReadonlyMap<string, Need> = new Map<string, Need>([
+  ['firwidth', { owner: 'fir', modes: new Set(['bandpass', 'bandstop']) }],
+  ['bodysize', { owner: 'body' }],
+  ['bodymix', { owner: 'body' }],
+  ['spacepre', { owner: 'space' }],
+  ['spacedamp', { owner: 'space' }],
+  ['drive', { owner: 'curve' }],
+  ['bias', { owner: 'curve' }],
+  ['curvemix', { owner: 'curve' }],
+]);
+/** Known values of the controls that MODE_NEEDS depend on. */
+const OWNER_SETS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ['fir', FIR_SET],
+  ['body', new Set(BODY_NAMES)],
+  ['space', SPACE_SET],
+  ['curve', new Set(CURVE_NAMES)],
+]);
 const VOICE_TYPE_SET: ReadonlySet<string> = new Set(VOICE_TYPES);
 /** Stands in for a parameter in a constant position while a definition is checked (TS-50). */
 const PLACEHOLDER: Rational = rat(1);
@@ -151,6 +210,8 @@ const MONO_PHASE = 150;
 /** Controls that only affect oscillator voices, and ones that only affect noise voices (TS-68). */
 const OSC_ONLY: ReadonlySet<string> = new Set(['iphase', 'irate']);
 const NOISE_ONLY: ReadonlySet<string> = new Set(['dichotic', 'icorr']);
+/** Settings of the compressor shared by an orbit (TS-87). */
+const COMP_CONTROLS: ReadonlySet<string> = new Set(['comp', 'compratio', 'compknee', 'compattack', 'comprelease']);
 type SoundKind = 'osc' | 'noise' | 'drum' | 'other';
 const OSC_SET: ReadonlySet<string> = new Set(OSCILLATOR_SOUNDS);
 const NOISE_SET: ReadonlySet<string> = new Set(NOISE_SOUNDS);
@@ -306,6 +367,10 @@ function constStrings(a: Arg): string[] {
   const found: { text: string; range: readonly [number, number] }[] = [];
   miniAtoms(n.ast, found);
   return found.map((x) => x.text);
+}
+/** Whether a control argument is fully known at check time: a constant or a mini-notation string. */
+function isConstArg(a: Arg): boolean {
+  return a.kind === 'const' || (a.kind === 'pattern' && (a.node.kind === 'pure' || a.node.kind === 'mini'));
 }
 
 export function check(source: string, opts: CheckOptions): CheckResult {
@@ -968,6 +1033,25 @@ class Lowerer {
               range,
               'none',
             );
+        } else if (control === 'spectral') {
+          if (!SPECTRAL_SET.has(a.text))
+            this.diag(
+              'W-ARG-MODE',
+              'warning',
+              `Unknown spectral mode \`${a.text}\`; use ${SPECTRAL_MODES.join(', ')}. \`none\` is used.`,
+              range,
+              'none',
+            );
+        } else if (MODE_LISTS.has(control)) {
+          const m = MODE_LISTS.get(control);
+          if (m && !m.names.includes(a.text))
+            this.diag(
+              'W-ARG-MODE',
+              'warning',
+              `Unknown ${control} value \`${a.text}\`; use ${m.names.join(', ')}. \`${m.fallback}\` is used.`,
+              range,
+              'none',
+            );
         } else if (!VOICE_TYPE_SET.has(a.text.toLowerCase())) {
           this.diag('W-ARG-VOWEL', 'warning', `Unknown voice type \`${a.text}\`; \`tenor\` is used.`, range, 'none');
         }
@@ -1011,6 +1095,8 @@ class Lowerer {
   }
   /** Headphone, pulse and mono facts per playable output, for hosts to show warnings (TS-61, TS-68). */
   checkAdvisories(): void {
+    /** Constant compressor settings per orbit, to spot clashes between tracks (TS-87). */
+    const orbitComp = new Map<number, string>();
     for (const o of this.outputs) {
       if (o.status !== 'ok') continue;
       const phones: PatternNode[] = [];
@@ -1021,6 +1107,16 @@ class Lowerer {
       const needOsc: ControlNode[] = [];
       const needNoise: ControlNode[] = [];
       const seen = new Set<string>();
+      const spectralModes = new Set<string>();
+      const spectral = { open: false };
+      const needSpectral: ControlNode[] = [];
+      const owned = new Map<string, Set<string>>();
+      const ownerOpen = new Set<string>();
+      const needOwner: ControlNode[] = [];
+      const lag: { fir?: ControlNode; spectral?: ControlNode; send: boolean } = { send: false };
+      const compVals = new Map<string, string>();
+      const compState: { open: boolean; node?: ControlNode } = { open: false };
+      const orbits: number[] = [];
       const walkArg = (a: Arg): void => {
         if (a.kind === 'pattern') walk(a.node);
         else if (a.kind === 'function') {
@@ -1044,6 +1140,33 @@ class Lowerer {
             if (OSC_ONLY.has(n.control) || (n.control === 'earsplit' && constStrings(n.value).includes('harmonics')))
               needOsc.push(n);
             if (NOISE_ONLY.has(n.control)) needNoise.push(n);
+            if (n.control === 'spectral') {
+              if (isConstArg(n.value)) for (const x of constStrings(n.value)) spectralModes.add(x);
+              else spectral.open = true;
+            }
+            if (SPECTRAL_NEEDS.has(n.control)) needSpectral.push(n);
+            if (OWNER_SETS.has(n.control)) {
+              if (isConstArg(n.value)) {
+                let set = owned.get(n.control);
+                if (!set) {
+                  set = new Set<string>();
+                  owned.set(n.control, set);
+                }
+                for (const x of constStrings(n.value)) set.add(x);
+              } else {
+                ownerOpen.add(n.control);
+              }
+            }
+            if (MODE_NEEDS.has(n.control)) needOwner.push(n);
+            if (n.control === 'fir') lag.fir ??= n;
+            if (n.control === 'spectral') lag.spectral ??= n;
+            if (n.control === 'ssend') lag.send = true;
+            if (COMP_CONTROLS.has(n.control)) {
+              if (isConstArg(n.value)) compVals.set(n.control, constRates(n.value).join('|'));
+              else compState.open = true;
+              if (n.control === 'comp') compState.node ??= n;
+            }
+            if (n.control === 'orbit') orbits.push(...constRates(n.value).map((x) => Math.round(x)));
             if (n.target) walk(n.target);
             walkArg(n.value);
             return;
@@ -1082,6 +1205,17 @@ class Lowerer {
           m,
           output,
         );
+      // Stages whose latency playback compensates (TS-85).
+      const firOn = [...(owned.get('fir') ?? [])].some((v) => v !== 'none' && FIR_SET.has(v));
+      const specOn = !lag.send && [...spectralModes].some((v) => v !== 'none' && SPECTRAL_SET.has(v));
+      const lagNode = firOn ? lag.fir : specOn ? lag.spectral : undefined;
+      if (lagNode)
+        this.advise(
+          'I-DSP-LATENCY',
+          'This track uses a filter that delays its sound, so playback starts it a little early to stay in time.',
+          lagNode,
+          output,
+        );
       // Only when every sound of the track is known and of the wrong kind (TS-68).
       const kinds = [...sounds].map(soundKind);
       const only = (...ks: readonly SoundKind[]): boolean => kinds.length > 0 && kinds.every((k) => ks.includes(k));
@@ -1091,6 +1225,54 @@ class Lowerer {
       if (only('osc'))
         for (const n of needNoise)
           this.unsupported(n, 'works on noise sounds only; it has no effect on oscillators.', output);
+      // Mode-specific spectral controls without their mode, when every spectral value is known (TS-80).
+      if (!spectral.open) {
+        for (const n of needSpectral) {
+          const mode = SPECTRAL_NEEDS.get(n.control) ?? '';
+          if (!spectralModes.has(mode))
+            this.unsupported(n, `only affects spectral("${mode}"); it has no effect here.`, output);
+        }
+      }
+      // Controls whose owner control is missing or selects nothing they affect (TS-84).
+      for (const n of needOwner) {
+        const need = MODE_NEEDS.get(n.control);
+        if (!need || ownerOpen.has(need.owner)) continue;
+        const known = OWNER_SETS.get(need.owner);
+        const modes = need.modes;
+        const vals = [...(owned.get(need.owner) ?? [])];
+        const ok = vals.some((v) => (modes ? modes.has(v) : known?.has(v) === true && v !== 'none'));
+        if (ok) continue;
+        this.unsupported(
+          n,
+          modes
+            ? `only affects ${[...modes].map((x) => `${need.owner}("${x}")`).join(' or ')}; it has no effect here.`
+            : `needs ${need.owner}; it has no effect here.`,
+          output,
+        );
+      }
+      // Compressor settings are per orbit; tell hosts when tracks disagree (TS-87).
+      const cn = compState.node;
+      const cv = compVals.get('comp');
+      if (cn && !compState.open && cv !== undefined && cv !== '0') {
+        const sig = [...compVals]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => `${k}=${v}`)
+          .join(',');
+        for (const orbit of orbits.length > 0 ? orbits : [0]) {
+          const prev = orbitComp.get(orbit);
+          if (prev === undefined) {
+            orbitComp.set(orbit, sig);
+          } else if (prev !== sig) {
+            this.advise(
+              'I-DSP-ORBIT',
+              `Another track on orbit ${String(orbit)} sets different compressor settings; the latest onset wins.`,
+              cn,
+              output,
+            );
+            break;
+          }
+        }
+      }
       if (!hp && rates.length === 0) continue;
       this.advisories.push({
         output,

@@ -281,3 +281,31 @@ with no `s` plays on `triangle`.
   - `gdensity`: grains per second;
   - `gjitter`: how far grains wander, 0–1;
   - `gpos`: where grains are read from, 0–1.
+
+## Spectral shaping (Tartlet extensions, TS-77 to TS-80)
+
+- Equalisers, in decibels and hertz:
+  - `lowshelf` and `highshelf` (−18–12 dB, at 200 Hz and 4 kHz; `lsfreq` and `hsfreq` move
+    them);
+  - `peak` (−18–12 dB) with `peakfreq` and `peakq`;
+  - `bandf` with `bandq` keeps a band; `notch` with `notchq` removes one;
+  - `tilt` (−6–6 dB per octave around 1 kHz): negative is darker.
+- `fshift` (−2000–2000 Hz) moves every partial by the same number of hertz, so harmonic tones
+  turn bell-like.
+- `ringmod` (0–4000 Hz) and `ringmix` (0–1) multiply the sound by a sine.
+- `spectral` works on the spectrum of short slices: `freeze`, `blur`, `gate`, `robot`,
+  `whisper`, `comb`, `shift` or `none`. `samount` (0–1) sets the strength, `sgate` the gate
+  level in dB, `scomb` the comb spacing in hertz and `sshift` the shift in semitones. `ssend`
+  (0–1) sends to one spectral effect shared by the orbit instead of one per note.
+
+## Impulse responses (Tartlet extensions, TS-81 to TS-85)
+
+- `fir`: a linear-phase filter, `lowpass`, `highpass`, `bandpass`, `bandstop` or `none`, with
+  `firfreq` (hertz), `firwidth` (octaves, band designs only) and `firlen` (`short`, `medium` or
+  `long`). It delays the sound slightly; playback starts the voice early to compensate.
+- `body`: a generated resonant body, `box`, `guitar`, `violin`, `tube`, `can`, `phone`, `radio`,
+  `megaphone` or `none`. `bodysize` (0.25–4) makes it larger or smaller; `bodymix` (0–1) sets the
+  wet share.
+- `cab`: a speaker cabinet shared by the orbit, `small`, `open`, `closed`, `combo`, `stack` or
+  `none`. It suits sounds driven by `shape`.
+- `spacepre` (0–200 ms) and `spacedamp` (0–1) reshape the tail of a `space` preset.

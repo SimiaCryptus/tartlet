@@ -35,7 +35,30 @@ import {
   type NoiseKind,
   type Wave,
 } from './dsp';
+import {
+  BODY_SPECS,
+  CABS,
+  bodyResponse,
+  bodySamples,
+  cabResponse,
+  cabSamples,
+  firKernel,
+  firLatency,
+  firSpec,
+  fshiftSinGain,
+  hilbertSections,
+  spectralModeIndex,
+  spectralSettings,
+  STFT_SIZE,
+  tiltShelves,
+  type FirSpec,
+  type IirSection,
+  type SpectralParams,
+} from './dsp';
 import { SAFETY_WORKLET_SOURCE } from './safety-worklet';
+import { SPECTRAL_WORKLET_SOURCE } from './spectral-worklet';
+import { curveName, curveTable, shapeEnvelope, type CurveTable } from './dsp';
+import { GATE_WORKLET_SOURCE } from './gate-worklet';
 
 type ControlMap = Readonly<Record<string, unknown>>;
 
@@ -70,10 +93,36 @@ const LEAD_CAP = 0.06;
 const JITTER_BEDS = 4;
 const DEFAULT_VOWEL: ReadonlyMap<string, string> = new Map([['ooh', 'oo']]);
 const DEG = Math.PI / 180;
+/** Extra polyphony cost of a per-voice spectral stage (TS-79). */
+const SPECTRAL_COST = 8;
+/** At most this many shared spectral buses exist at once (TS-79). */
+const MAX_SPECTRAL_BUSES = 4;
+/** Voices start at most this many seconds early to compensate stage latency (TS-85). */
+const LATENCY_CAP = 0.06;
+/** Polyphony cost of a per-voice FIR stage, by length (TS-81). */
+const FIR_COST: ReadonlyMap<string, number> = new Map([
+  ['short', 1],
+  ['medium', 2],
+  ['long', 4],
+]);
+/** At most this many FIR kernels are cached (TS-81). */
+const MAX_FIR_KERNELS = 32;
+/** Polyphony cost of a per-voice body response (TS-82). */
+const BODY_COST = 3;
+/** At most this many cabinet buses exist at once (TS-83). */
+const MAX_CAB_BUSES = 8;
+/** At most this many orbit compressors exist at once (TS-87). */
+const MAX_COMP_BUSES = 8;
+/** Polyphony cost of a per-voice gate (TS-87). */
+const GATE_COST = 2;
 
 const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
 const fin = (v: unknown, dflt: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : dflt);
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+/** The envelope segment shape of an event (TS-88). */
+const envShape = (c: ControlMap): string => (typeof c.envcurve === 'string' ? c.envcurve : 'lin');
+/** An integer seed from an event draw in [0, 1). */
+const seedInt = (u: number): number => Math.floor(clamp(u, 0, 1) * 0x7ffffffe) + 1;
 
 interface Voice {
   end: number;
@@ -156,6 +205,8 @@ function blip(param: AudioParam, at: number, peak: number, a: number, d: number)
 interface Chain {
   readonly input: AudioNode;
   readonly lfos: readonly OscillatorNode[];
+  /** Extra polyphony cost of the chain's stages. */
+  readonly cost: number;
 }
 
 interface DelayBus {
@@ -222,10 +273,21 @@ export class AudioEngine {
     { readonly pos: readonly [number, number, number]; readonly at: number }
   >();
   private readonly periodic = new Map<string, AudioBuffer>();
+  private readonly spectralBuses = new Map<number, AudioWorkletNode>();
+  private cosWave: PeriodicWave | undefined;
+  private readonly firKernels = new Map<string, AudioBuffer>();
+  private readonly bodies = new Map<string, AudioBuffer>();
+  private readonly cabs = new Map<string, AudioBuffer>();
+  private readonly cabBuses = new Map<string, AudioNode>();
+  private readonly compBuses = new Map<number, DynamicsCompressorNode>();
+  private readonly curveTables = new Map<string, CurveTable>();
+  private shortLeads = 0;
 
   private constructor(
     readonly ctx: AudioContext,
     private readonly input: AudioNode,
+    private readonly spectralReady: boolean,
+    private readonly gateReady: boolean,
   ) {}
 
   /** Must be called from a user gesture. */
@@ -236,6 +298,26 @@ export class AudioEngine {
       await ctx.audioWorklet.addModule(url);
     } finally {
       URL.revokeObjectURL(url);
+    }
+    // Spectral effects are optional: if the worklet is refused, they are bypassed (TS-79).
+    const spectralUrl = URL.createObjectURL(new Blob([SPECTRAL_WORKLET_SOURCE], { type: 'text/javascript' }));
+    let spectral = true;
+    try {
+      await ctx.audioWorklet.addModule(spectralUrl);
+    } catch {
+      spectral = false;
+    } finally {
+      URL.revokeObjectURL(spectralUrl);
+    }
+    // The gate is optional too: if its worklet is refused, `gate` is ignored (TS-87).
+    const gateUrl = URL.createObjectURL(new Blob([GATE_WORKLET_SOURCE], { type: 'text/javascript' }));
+    let gate = true;
+    try {
+      await ctx.audioWorklet.addModule(gateUrl);
+    } catch {
+      gate = false;
+    } finally {
+      URL.revokeObjectURL(gateUrl);
     }
     const safety = new AudioWorkletNode(ctx, 'tartlet-safety', {
       numberOfInputs: 1,
@@ -250,11 +332,15 @@ export class AudioEngine {
     const bus = ctx.createGain();
     bus.gain.value = 0.7;
     bus.connect(comp).connect(safety).connect(ctx.destination);
-    return new AudioEngine(ctx, bus);
+    return new AudioEngine(ctx, bus, spectral, gate);
   }
 
   get unknown(): ReadonlySet<string> {
     return this.unknownSounds;
+  }
+  /** Voices whose latency compensation was cut short by the cap or a late event (TS-85). */
+  get shortenedLeads(): number {
+    return this.shortLeads;
   }
 
   play(c: ControlMap, time: number, duration: number): void {
@@ -263,9 +349,19 @@ export class AudioEngine {
     // nudge moves the onset in seconds; legato scales the held duration (TS-59).
     const at = time + clamp(fin(c.nudge, 0), -0.05, 0.25);
     if (!Number.isFinite(at) || at < now - 0.05) return;
-    const t = Math.max(at, now);
+    // Stages that delay the signal start the voice early by their latency (TS-85).
+    const fir = firSpec(c);
+    const perVoiceSpectral =
+      spectralModeIndex(c.spectral) > 0 && clamp(fin(c.ssend, 0), 0, 1) === 0 && this.spectralReady;
+    const latency =
+      (fir ? firLatency(fir.taps) : 0) / ctx.sampleRate + (perVoiceSpectral ? STFT_SIZE / ctx.sampleRate : 0);
+    const lead = Math.min(latency, LATENCY_CAP, Math.max(0, at - now));
+    if (latency > lead + 1e-4) this.shortLeads++;
+    const t = Math.max(at - lead, now);
     const dur = Math.max(0, fin(duration, 0)) * clamp(fin(c.legato, 1), 0.01, 8);
-    const gain = clamp(fin(c.gain, 1), 0, 1.5) * clamp(fin(c.velocity, 1), 0, 1);
+    const vel = clamp(fin(c.velocity, 1), 0, 1);
+    // velcurve bends velocity before it sets the level; timbre still reads the raw velocity (TS-88).
+    const gain = clamp(fin(c.gain, 1), 0, 1.5) * vel ** clamp(fin(c.velcurve, 1), 0.25, 4);
     if (gain <= 0) return;
     const note = c.note as { kind?: string; value?: unknown } | undefined;
     const midi = note?.kind === 'midi' ? fin(note.value, NaN) : NaN;
@@ -302,7 +398,13 @@ export class AudioEngine {
     };
     const dual = twoEar(ear);
     const post = ctx.createGain();
-    const sink = this.earStage(c);
+    // A cabinet sits in the dry path, after placement and the ear stage (TS-83).
+    const cab = typeof c.cab === 'string' && CABS.has(c.cab) ? c.cab : undefined;
+    // A compressor shared by the orbit takes the dry path of voices that ask for it (TS-87).
+    const orbit = clamp(Math.round(fin(c.orbit, 0)), 0, 15);
+    const threshold = num(c.comp);
+    const dry = threshold !== undefined && threshold < 0 ? this.compBus(orbit, c, t) : this.input;
+    const sink = this.earStage(c, cab ? this.cabBus(orbit, cab, dry) : dry);
     post.connect(dual ? sink : this.air(c, this.placer(c, sink, t)));
     this.sends(c, post, t);
     const textured = amb || creature;
@@ -366,7 +468,7 @@ export class AudioEngine {
       spec.end,
       gate,
       spec.starts,
-      spec.cost === undefined ? undefined : spec.cost + fx.lfos.length,
+      (spec.cost ?? spec.sources.length) + fx.lfos.length + fx.cost,
     );
     this.admit(voice, now);
     if (key !== undefined) {
@@ -386,6 +488,11 @@ export class AudioEngine {
     for (const bus of this.delays.values()) {
       bus.feedback.gain.cancelScheduledValues(now);
       bus.feedback.gain.setValueAtTime(0, now);
+    }
+    for (const bus of this.spectralBuses.values()) {
+      const mode = bus.parameters.get('mode');
+      mode?.cancelScheduledValues(now);
+      mode?.setValueAtTime(0, now);
     }
   }
 
@@ -501,9 +608,9 @@ export class AudioEngine {
   /**
    * Interaural time and level differences, per-ear filters, the band split and the ear swap,
    * after any panner (TS-62, TS-64). Returns the node a placed voice feeds; without these
-   * controls it is the bus itself.
+   * controls it is `out` itself.
    */
-  private earStage(c: ControlMap): AudioNode {
+  private earStage(c: ControlMap, out: AudioNode): AudioNode {
     const itd = clamp(fin(c.itd, 0), -MAX_ITD, MAX_ITD);
     const ild = clamp(fin(c.ild, 0), -MAX_ILD, MAX_ILD);
     const swap = fin(c.earswap, 0) >= 0.5;
@@ -512,7 +619,7 @@ export class AudioEngine {
     const bands = c.earsplit === 'bands';
     const crossover = clamp(fin(c.splitfreq, 1000), 100, 8000);
     const filtered = bands || [...lows, ...highs].some((x) => x !== undefined);
-    if (itd === 0 && ild === 0 && !swap && !filtered) return this.input;
+    if (itd === 0 && ild === 0 && !swap && !filtered) return out;
     const ctx = this.ctx;
     const split = ctx.createChannelSplitter(2);
     const merge = ctx.createChannelMerger(2);
@@ -526,14 +633,14 @@ export class AudioEngine {
       const g = ctx.createGain();
       g.gain.value = gains[ch] ?? 1;
       split.connect(g, ch);
-      let out: AudioNode = g;
+      let node: AudioNode = g;
       const filter = (type: BiquadFilterType, f: number, q: number): void => {
         const b = ctx.createBiquadFilter();
         b.type = type;
         b.frequency.value = clamp(f, 20, 20000);
         b.Q.value = q;
-        out.connect(b);
-        out = b;
+        node.connect(b);
+        node = b;
       };
       if (bands) {
         // Two cascaded Butterworth sections per side form a Linkwitz–Riley crossover, which sums flat in mono.
@@ -550,11 +657,11 @@ export class AudioEngine {
         const dl = ctx.createDelay(MAX_ITD / 1000 + 0.01);
         dl.delayTime.value = d;
         g.connect(dl);
-        out = dl;
+        node = dl;
       }
-      out.connect(merge, 0, swap ? 1 - ch : ch);
+      node.connect(merge, 0, swap ? 1 - ch : ch);
     }
-    merge.connect(this.input);
+    merge.connect(out);
     return split;
   }
 
@@ -573,7 +680,12 @@ export class AudioEngine {
       const s = this.ctx.createGain();
       s.gain.value = room;
       post.connect(s);
-      s.connect(this.reverb(orbit, size, space));
+      // spacepre and spacedamp reshape the tail of a space preset (TS-84).
+      const pre = space ? num(c.spacepre) : undefined;
+      const damp = space ? num(c.spacedamp) : undefined;
+      const preStep = pre === undefined ? undefined : Math.round(clamp(pre, 0, 200) / 10);
+      const dampStep = damp === undefined ? undefined : Math.round(clamp(damp, 0, 1) * 10);
+      s.connect(this.reverb(orbit, size, space, preStep, dampStep));
       const er = this.early(orbit, size, space ?? 'room');
       if (er) {
         const e = this.ctx.createGain();
@@ -592,24 +704,40 @@ export class AudioEngine {
       post.connect(s);
       s.connect(bus.input);
     }
+    // A spectral effect shared per orbit (TS-79). The latest onset on the orbit sets its settings.
+    const ssend = clamp(fin(c.ssend, 0), 0, 1);
+    const spec = spectralSettings(c);
+    if (ssend > 0 && spec.mode > 0 && this.spectralReady) {
+      const bus = this.spectralBus(orbit);
+      for (const [name, v] of Object.entries(spec)) bus.parameters.get(name)?.setValueAtTime(v, t);
+      const s = this.ctx.createGain();
+      s.gain.value = ssend;
+      post.connect(s);
+      s.connect(bus);
+    }
   }
 
-  private reverb(orbit: number, size: number, space?: string): AudioNode {
+  private reverb(orbit: number, size: number, space?: string, preStep?: number, dampStep?: number): AudioNode {
     const step = Math.round(size * 10);
-    const key = `${String(orbit)}:${space ?? ''}:${String(step)}`;
+    const key = `${String(orbit)}:${space ?? ''}:${String(step)}:${String(preStep ?? '')}:${String(dampStep ?? '')}`;
     const hit = this.reverbs.get(key);
     if (hit) return hit;
     if (this.reverbs.size >= MAX_REVERBS) {
       const first = this.reverbs.values().next();
       if (!first.done) return first.value;
     }
-    const seconds = space ? spaceSeconds(space, step / 10) : 0.4 + step * 0.4;
+    const pre = preStep === undefined ? 0 : preStep / 100;
+    const seconds = space ? Math.min(10, spaceSeconds(space, step / 10) + pre) : 0.4 + step * 0.4;
+    const opts = {
+      ...(preStep !== undefined ? { predelay: pre } : {}),
+      ...(dampStep !== undefined ? { damping: dampStep / 10 } : {}),
+    };
     const sr = this.ctx.sampleRate;
     const buf = this.ctx.createBuffer(2, Math.max(1, Math.round(seconds * sr)), sr);
     const salt = space ? [...SPACES.keys()].indexOf(space) * 131 + 17 : 0;
     for (let ch = 0; ch < 2; ch++) {
       const seed = 0x1234567 + ch * 7919 + step + salt;
-      if (space) spaceImpulse(buf.getChannelData(ch), sr, space, seed);
+      if (space) spaceImpulse(buf.getChannelData(ch), sr, space, seed, opts);
       else impulseResponse(buf.getChannelData(ch), seed);
     }
     const conv = this.ctx.createConvolver();
@@ -670,6 +798,165 @@ export class AudioEngine {
     const bus = { input, delay, feedback };
     this.delays.set(orbit, bus);
     return bus;
+  }
+  /** A spectral processor node; buses persist, per-voice nodes stop once their input is gone. */
+  private spectralNode(s: SpectralParams, persist: boolean, seed: number): AudioWorkletNode {
+    return new AudioWorkletNode(this.ctx, 'tartlet-spectral', {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [2],
+      channelCount: 2,
+      channelCountMode: 'explicit',
+      channelInterpretation: 'speakers',
+      parameterData: { ...s },
+      processorOptions: { persist, seed },
+    });
+  }
+  private spectralBus(orbit: number): AudioWorkletNode {
+    const hit = this.spectralBuses.get(orbit);
+    if (hit) return hit;
+    if (this.spectralBuses.size >= MAX_SPECTRAL_BUSES) {
+      const first = this.spectralBuses.values().next();
+      if (!first.done) return first.value;
+    }
+    const node = this.spectralNode(spectralSettings({}), true, 0x51ed270b + orbit);
+    node.connect(this.input);
+    this.spectralBuses.set(orbit, node);
+    return node;
+  }
+  private monoBuffer(data: Float32Array<ArrayBuffer>): AudioBuffer {
+    const b = this.ctx.createBuffer(1, Math.max(1, data.length), this.ctx.sampleRate);
+    b.copyToChannel(data, 0);
+    return b;
+  }
+  /** A designed FIR kernel, from a small least-recently-used cache (TS-81). */
+  private firBuffer(f: FirSpec): AudioBuffer {
+    const key = `${f.design}:${String(f.taps)}:${String(f.freq)}:${String(f.width)}`;
+    const hit = this.firKernels.get(key);
+    if (hit) {
+      this.firKernels.delete(key);
+      this.firKernels.set(key, hit);
+      return hit;
+    }
+    const b = this.monoBuffer(firKernel(f.design, f.freq, f.width, f.taps, this.ctx.sampleRate));
+    this.firKernels.set(key, b);
+    if (this.firKernels.size > MAX_FIR_KERNELS) {
+      const first = this.firKernels.keys().next();
+      if (!first.done) this.firKernels.delete(first.value);
+    }
+    return b;
+  }
+  /** A generated body response; sizes are quantised to quarter-octave steps (TS-82). */
+  private bodyBuffer(body: string, size: number): AudioBuffer {
+    const step = Math.round(Math.log2(size) * 4);
+    const key = `${body}:${String(step)}`;
+    const hit = this.bodies.get(key);
+    if (hit) return hit;
+    const sr = this.ctx.sampleRate;
+    const data = new Float32Array(bodySamples(body, sr));
+    bodyResponse(data, sr, body, 2 ** (step / 4), 0x3c6ef372 + step);
+    const b = this.monoBuffer(data);
+    this.bodies.set(key, b);
+    return b;
+  }
+  private cabBuffer(cab: string): AudioBuffer {
+    const hit = this.cabs.get(cab);
+    if (hit) return hit;
+    const sr = this.ctx.sampleRate;
+    const data = new Float32Array(cabSamples(cab, sr));
+    cabResponse(data, sr, cab, 0x1f83d9ab);
+    const b = this.monoBuffer(data);
+    this.cabs.set(cab, b);
+    return b;
+  }
+  /** A cabinet bus per orbit and cabinet, feeding the master bus (TS-83). */
+  private cabBus(orbit: number, cab: string, dest: AudioNode): AudioNode {
+    const key = `${String(orbit)}:${cab}:${dest === this.input ? 'm' : 'c'}`;
+    const hit = this.cabBuses.get(key);
+    if (hit) return hit;
+    if (this.cabBuses.size >= MAX_CAB_BUSES) {
+      const first = this.cabBuses.values().next();
+      if (!first.done) return first.value;
+    }
+    const conv = this.ctx.createConvolver();
+    conv.normalize = false;
+    conv.buffer = this.cabBuffer(cab);
+    conv.connect(dest);
+    this.cabBuses.set(key, conv);
+    return conv;
+  }
+  /** The compressor shared by an orbit; the latest onset sets its settings (TS-87). */
+  private compBus(orbit: number, c: ControlMap, t: number): AudioNode {
+    let bus = this.compBuses.get(orbit);
+    if (!bus) {
+      if (this.compBuses.size >= MAX_COMP_BUSES) {
+        const first = this.compBuses.values().next();
+        if (!first.done) return first.value;
+      }
+      bus = this.ctx.createDynamicsCompressor();
+      bus.connect(this.input);
+      this.compBuses.set(orbit, bus);
+    }
+    bus.threshold.setValueAtTime(clamp(fin(c.comp, -24), -60, 0), t);
+    bus.ratio.setValueAtTime(clamp(fin(c.compratio, 4), 1, 20), t);
+    bus.knee.setValueAtTime(clamp(fin(c.compknee, 6), 0, 40), t);
+    bus.attack.setValueAtTime(clamp(fin(c.compattack, 0.003), 0, 1), t);
+    bus.release.setValueAtTime(clamp(fin(c.comprelease, 0.25), 0, 1), t);
+    return bus;
+  }
+  /** A transfer curve table, cached per quantised drive and bias (TS-86). */
+  private curveFor(name: string, drive: number, bias: number): CurveTable {
+    const key = `${name}:${String(drive)}:${String(bias)}`;
+    let hit = this.curveTables.get(key);
+    if (!hit) {
+      hit = curveTable(name, drive, bias);
+      this.curveTables.set(key, hit);
+    }
+    return hit;
+  }
+  private cosineWave(): PeriodicWave {
+    if (!this.cosWave) {
+      this.cosWave = this.ctx.createPeriodicWave(new Float32Array([0, 1]), new Float32Array([0, 0]), {
+        disableNormalization: true,
+      });
+    }
+    return this.cosWave;
+  }
+  /**
+   * Single-sideband frequency shift (TS-78): two all-pass chains give the signal and its 90°
+   * companion, which are mixed with a cosine and a sine at the shift frequency.
+   */
+  private frequencyShifter(shift: number, dest: AudioNode, lfos: OscillatorNode[]): AudioNode {
+    const ctx = this.ctx;
+    const input = ctx.createGain();
+    const { first, second } = hilbertSections();
+    const chain = (sections: readonly IirSection[]): AudioNode => {
+      let node: AudioNode = input;
+      for (const s of sections) {
+        const f = ctx.createIIRFilter([...s.feedforward], [...s.feedback]);
+        node.connect(f);
+        node = f;
+      }
+      return node;
+    };
+    const hz = Math.abs(shift);
+    const cosine = ctx.createOscillator();
+    cosine.setPeriodicWave(this.cosineWave());
+    cosine.frequency.value = hz;
+    const sine = ctx.createOscillator();
+    sine.frequency.value = hz;
+    const a = ctx.createGain();
+    a.gain.value = 0;
+    cosine.connect(a.gain);
+    const b = ctx.createGain();
+    b.gain.value = 0;
+    sine.connect(b.gain);
+    const sign = ctx.createGain();
+    sign.gain.value = fshiftSinGain(shift);
+    chain(first).connect(a).connect(dest);
+    chain(second).connect(b).connect(sign).connect(dest);
+    lfos.push(cosine, sine);
+    return input;
   }
 
   private curve(key: string, make: () => Float32Array<ArrayBuffer>): Float32Array<ArrayBuffer> {
@@ -771,11 +1058,27 @@ export class AudioEngine {
   ): Chain {
     const ctx = this.ctx;
     const lfos: OscillatorNode[] = [];
+    let cost = 0;
     let head: AudioNode = sink;
     const link = (n: AudioNode): void => {
       n.connect(head);
       head = n;
     };
+    // A per-voice gate, closest to the sink (TS-87).
+    const gateDb = num(c.gate);
+    if (gateDb !== undefined && this.gateReady) {
+      const gate = new AudioWorkletNode(ctx, 'tartlet-gate', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+        channelCount: 2,
+        channelCountMode: 'explicit',
+        channelInterpretation: 'speakers',
+        parameterData: { threshold: clamp(gateDb, -90, 0), release: clamp(fin(c.gaterelease, 0.1), 0.005, 1) },
+      });
+      link(gate);
+      cost += GATE_COST;
+    }
     // Occlusion sits closest to the sink, so the sends hear the muffled sound too (TS-72).
     const occ = clamp(fin(c.occlude, 0), 0, 1);
     if (occ > 0) {
@@ -817,6 +1120,31 @@ export class AudioEngine {
       lfo.connect(lg).connect(g.gain);
       link(g);
       lfos.push(lfo);
+    }
+    // A per-voice spectral stage, unless the event sends to the orbit's shared one (TS-79).
+    const spectralMode = spectralModeIndex(c.spectral);
+    if (spectralMode > 0 && clamp(fin(c.ssend, 0), 0, 1) === 0 && this.spectralReady) {
+      link(this.spectralNode(spectralSettings(c), false, seedInt(fin(c.dseed, 0))));
+      cost += SPECTRAL_COST;
+    }
+    // A generated body response between the vowel colour and the spectral stage (TS-82).
+    const body = typeof c.body === 'string' && BODY_SPECS.has(c.body) ? c.body : undefined;
+    const bodyMix = clamp(fin(c.bodymix, 1), 0, 1);
+    if (body && bodyMix > 0) {
+      const conv = ctx.createConvolver();
+      conv.normalize = false;
+      conv.buffer = this.bodyBuffer(body, clamp(fin(c.bodysize, 1), 0.25, 4));
+      const inp = ctx.createGain();
+      const wet = ctx.createGain();
+      wet.gain.value = bodyMix;
+      inp.connect(conv).connect(wet).connect(head);
+      if (bodyMix < 1) {
+        const dry = ctx.createGain();
+        dry.gain.value = 1 - bodyMix;
+        inp.connect(dry).connect(head);
+      }
+      head = inp;
+      cost += BODY_COST;
     }
 
     // The singer's ring and overtone whistles (TS-47).
@@ -896,6 +1224,96 @@ export class AudioEngine {
       ws.oversample = '2x';
       link(ws);
     }
+    // A transfer curve with drive, bias and gain compensation, before shape and crush (TS-86).
+    const curveId = curveName(c.curve);
+    const curveMix = clamp(fin(c.curvemix, 1), 0, 1);
+    if (curveId !== undefined && curveMix > 0) {
+      const drive = Math.round(clamp(fin(c.drive, 0), 0, 24) * 2) / 2;
+      const bias = Math.round(clamp(fin(c.bias, 0), -0.5, 0.5) * 20) / 20;
+      const table = this.curveFor(curveId, drive, bias);
+      const inp = ctx.createGain();
+      const ws = ctx.createWaveShaper();
+      ws.curve = table.table;
+      ws.oversample = curveId === 'fold' || curveId.startsWith('cheby') ? '4x' : '2x';
+      const wet = ctx.createGain();
+      wet.gain.value = table.makeup * curveMix;
+      inp.connect(ws);
+      let tail: AudioNode = ws;
+      if (table.asymmetric) {
+        const dc = ctx.createBiquadFilter();
+        dc.type = 'highpass';
+        dc.frequency.value = 10;
+        dc.Q.value = 0.7;
+        tail.connect(dc);
+        tail = dc;
+      }
+      tail.connect(wet).connect(head);
+      if (curveMix < 1) {
+        const dryPath = ctx.createGain();
+        dryPath.gain.value = 1 - curveMix;
+        inp.connect(dryPath).connect(head);
+      }
+      head = inp;
+    }
+    // Spectral shaping with native filters, in signal order: shelves, peak, band, notch, tilt,
+    // frequency shift and ring modulation (TS-77, TS-78). Each stage exists only when asked for.
+    const eq = (type: BiquadFilterType, f: number, q: number, gainDb = 0): void => {
+      const b = ctx.createBiquadFilter();
+      b.type = type;
+      b.frequency.value = clamp(f, 20, 20000);
+      b.Q.value = q;
+      b.gain.value = gainDb;
+      link(b);
+    };
+    const rm = clamp(fin(c.ringmod, 0), 0, 4000);
+    if (rm > 0) {
+      const mix = clamp(fin(c.ringmix, 1), 0, 1);
+      const inp = ctx.createGain();
+      const wet = ctx.createGain();
+      wet.gain.value = 0;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = rm;
+      lfo.connect(wet.gain);
+      const level = ctx.createGain();
+      level.gain.value = mix;
+      inp.connect(wet).connect(level).connect(head);
+      if (mix < 1) {
+        const dry = ctx.createGain();
+        dry.gain.value = 1 - mix;
+        inp.connect(dry).connect(head);
+      }
+      head = inp;
+      lfos.push(lfo);
+    }
+    const fshift = clamp(fin(c.fshift, 0), -2000, 2000);
+    if (fshift !== 0) head = this.frequencyShifter(fshift, head, lfos);
+    const tl = clamp(fin(c.tilt, 0), -6, 6);
+    if (tl !== 0) {
+      const tilt = tiltShelves(tl);
+      const makeup = ctx.createGain();
+      makeup.gain.value = 10 ** (tilt.makeup / 20);
+      link(makeup);
+      for (const s of tilt.shelves) eq('highshelf', s.freq, 0.7, s.gain);
+    }
+    const notchF = num(c.notch);
+    if (notchF !== undefined) eq('notch', notchF, clamp(fin(c.notchq, 4), 0.1, 30));
+    const bandF = num(c.bandf);
+    if (bandF !== undefined) eq('bandpass', bandF, clamp(fin(c.bandq, 1), 0.1, 30));
+    const peak = clamp(fin(c.peak, 0), -18, 12);
+    if (peak !== 0) eq('peaking', fin(c.peakfreq, 1000), clamp(fin(c.peakq, 1), 0.1, 18), peak);
+    const hs = clamp(fin(c.highshelf, 0), -18, 12);
+    if (hs !== 0) eq('highshelf', fin(c.hsfreq, 4000), 0.7, hs);
+    const ls = clamp(fin(c.lowshelf, 0), -18, 12);
+    if (ls !== 0) eq('lowshelf', fin(c.lsfreq, 200), 0.7, ls);
+    // A linear-phase FIR filter right after the high-pass (TS-81).
+    const fir = firSpec(c);
+    if (fir) {
+      const conv = ctx.createConvolver();
+      conv.normalize = false;
+      conv.buffer = this.firBuffer(fir);
+      link(conv);
+      cost += FIR_COST.get(fir.len) ?? 2;
+    }
 
     const hp = num(c.hcutoff);
     if (hp !== undefined) {
@@ -930,7 +1348,7 @@ export class AudioEngine {
       }
       link(f);
     }
-    return { input: head, lfos };
+    return { input: head, lfos, cost };
   }
 
   private waveFor(type: string, c: ControlMap): PeriodicWave | undefined {
@@ -1030,7 +1448,7 @@ export class AudioEngine {
     const sources: AudioScheduledSourceNode[] = [];
     const starts = new Map<AudioScheduledSourceNode, readonly [number, number]>();
 
-    const pts = envelope(t, dur, env, gain * 0.35);
+    const pts = shapeEnvelope(envelope(t, dur, env, gain * 0.35), envShape(c));
     const amp = ctx.createGain();
     amp.gain.setValueAtTime(0, t);
     for (const [time, v] of pts.slice(1)) amp.gain.linearRampToValueAtTime(v, time);
@@ -1286,7 +1704,7 @@ export class AudioEngine {
   ): Spec {
     const ctx = this.ctx;
     const noise = isNoise(name);
-    const pts = envelope(t, dur, env, gain * (noise ? 0.25 : 0.3));
+    const pts = shapeEnvelope(envelope(t, dur, env, gain * (noise ? 0.25 : 0.3)), envShape(c));
     const amp = ctx.createGain();
     amp.gain.setValueAtTime(0, t);
     for (const [time, v] of pts.slice(1)) amp.gain.linearRampToValueAtTime(v, time);
@@ -1581,7 +1999,7 @@ export class AudioEngine {
   }
   // ---- Textures (TS-73 to TS-76)
   private frame(c: ControlMap, env: Adsr, t: number, dur: number, peak: number, out: AudioNode): Frame {
-    const pts = envelope(t, dur, env, peak);
+    const pts = shapeEnvelope(envelope(t, dur, env, peak), envShape(c));
     const amp = this.ctx.createGain();
     amp.gain.setValueAtTime(0, t);
     for (const [time, v] of pts.slice(1)) amp.gain.linearRampToValueAtTime(v, time);

@@ -43,6 +43,9 @@ const SINCE_T6 = '0.6.0';
 const SINCE_T7 = '0.7.0';
 const SINCE_T8 = '0.8.0';
 const SINCE_T9 = '0.9.0';
+const SINCE_T10 = '0.10.0';
+const SINCE_T11 = '0.11.0';
+const SINCE_T12 = '0.12.0';
 
 function control(
   id: string,
@@ -145,6 +148,32 @@ function envControl(
 ): RegistryEntry {
   return {
     ...control(id, [id], kind, description, { since: SINCE_T9, ...(range ? { range } : undefined) }),
+    level: 'L3',
+  };
+}
+/** Frequency-domain extensions from docs/dsp.md Part 1 (TS-77 to TS-80). L3. */
+function dspControl(
+  id: string,
+  kind: ValueKind,
+  description: string,
+  range?: readonly [number, number],
+): RegistryEntry {
+  return {
+    ...control(id, [id], kind, description, { since: SINCE_T10, ...(range ? { range } : undefined) }),
+    level: 'L3',
+  };
+}
+/** Impulse-response extensions from docs/dsp.md Part 2 (TS-81 to TS-85). L3. */
+function irControl(id: string, kind: ValueKind, description: string, range?: readonly [number, number]): RegistryEntry {
+  return {
+    ...control(id, [id], kind, description, { since: SINCE_T11, ...(range ? { range } : undefined) }),
+    level: 'L3',
+  };
+}
+/** Response-curve and dynamics extensions from docs/dsp.md Part 3 (TS-86 to TS-89). L3. */
+function cvControl(id: string, kind: ValueKind, description: string, range?: readonly [number, number]): RegistryEntry {
+  return {
+    ...control(id, [id], kind, description, { since: SINCE_T12, ...(range ? { range } : undefined) }),
     level: 'L3',
   };
 }
@@ -550,6 +579,137 @@ export const ENTRIES: readonly RegistryEntry[] = [
     'number',
     'Where in the source the grains are read from, from zero for the start to one for the end.',
     [0, 1],
+  ),
+  // Spectral shaping with native filters (TS-77, TS-78).
+  dspControl('lowshelf', 'number', 'Boosts or cuts everything below about 200 Hz, in decibels.', [-18, 12]),
+  dspControl('highshelf', 'number', 'Boosts or cuts everything above about 4 kHz, in decibels.', [-18, 12]),
+  dspControl('lsfreq', 'number', 'Moves the low shelf to another frequency, in hertz.', [20, 20000]),
+  dspControl('hsfreq', 'number', 'Moves the high shelf to another frequency, in hertz.', [20, 20000]),
+  dspControl('peak', 'number', 'Boosts or cuts a band around peakfreq, in decibels. Zero turns it off.', [-18, 12]),
+  dspControl('peakfreq', 'number', 'Centre of the peak band, in hertz.', [20, 20000]),
+  dspControl('peakq', 'number', 'How narrow the peak band is; higher is narrower.', [0.1, 18]),
+  dspControl('bandf', 'number', 'Keeps only a band around this frequency, in hertz.', [20, 20000]),
+  dspControl('bandq', 'number', 'How narrow the kept band is; higher is narrower.', [0.1, 30]),
+  dspControl('notch', 'number', 'Removes a narrow band at this frequency, in hertz.', [20, 20000]),
+  dspControl('notchq', 'number', 'How narrow the removed band is; higher is narrower.', [0.1, 30]),
+  dspControl(
+    'tilt',
+    'number',
+    'Tilts the whole spectrum around 1 kHz, in decibels per octave: negative is darker, positive brighter.',
+    [-6, 6],
+  ),
+  dspControl(
+    'fshift',
+    'number',
+    'Moves every partial up or down by the same number of hertz, so harmonic tones turn bell-like or metallic.',
+    [-2000, 2000],
+  ),
+  dspControl(
+    'ringmod',
+    'number',
+    'Multiplies the sound by a sine at this frequency, in hertz, for clangorous sidebands. Zero turns it off.',
+    [0, 4000],
+  ),
+  dspControl('ringmix', 'number', 'How much of the ring-modulated sound is heard, from zero to one.', [0, 1]),
+  // Short-time spectral processing (TS-79, TS-80).
+  dspControl(
+    'spectral',
+    'string',
+    'A spectral effect: none, freeze, blur, gate, robot, whisper, comb or shift. It works on the spectrum of short slices of the sound.',
+  ),
+  dspControl('samount', 'number', 'How strong the spectral effect is, from zero to one.', [0, 1]),
+  dspControl(
+    'sgate',
+    'number',
+    'Level in decibels below which spectral("gate") removes parts of the spectrum.',
+    [-90, 0],
+  ),
+  dspControl(
+    'scomb',
+    'number',
+    'Spacing in hertz for spectral("comb"): only the spectrum near multiples of it is kept, so noise turns into a buzz.',
+    [20, 2000],
+  ),
+  dspControl('sshift', 'number', 'Semitones for spectral("shift"), a cheap and smeary pitch shift.', [-24, 24]),
+  dspControl(
+    'ssend',
+    'number',
+    'Sends to one spectral effect shared by the orbit instead of giving every note its own.',
+    [0, 1],
+  ),
+  // Impulse-response filters (TS-81 to TS-85).
+  irControl(
+    'fir',
+    'string',
+    'A linear-phase filter that keeps transients sharp: none, lowpass, highpass, bandpass or bandstop. It delays the sound slightly, so playback starts it early.',
+  ),
+  irControl('firfreq', 'number', 'Cutoff of the fir filter in hertz, or the centre of its band.', [20, 20000]),
+  irControl('firwidth', 'number', 'Width of the fir band in octaves, for bandpass and bandstop.', [0.1, 4]),
+  irControl(
+    'firlen',
+    'string',
+    'How long the fir filter is: short, medium or long. Longer is steeper but delays the sound more.',
+  ),
+  irControl(
+    'body',
+    'string',
+    'Plays the sound through a generated resonant body: box, guitar, violin, tube, can, phone, radio or megaphone. none turns it off.',
+  ),
+  irControl(
+    'bodysize',
+    'number',
+    'Scales the body: above one sounds larger and lower, below one smaller and higher.',
+    [0.25, 4],
+  ),
+  irControl('bodymix', 'number', 'How much of the body response is heard, from zero to one.', [0, 1]),
+  irControl(
+    'cab',
+    'string',
+    'Sends the sound through a generated speaker cabinet shared by the orbit: small, open, closed, combo or stack. none turns it off.',
+  ),
+  irControl('spacepre', 'number', 'Silence before the reverb tail of a space, in milliseconds.', [0, 200]),
+  irControl('spacedamp', 'number', 'How quickly the tail of a space darkens, from zero to one.', [0, 1]),
+  // Transfer curves, dynamics and control curves (TS-86 to TS-89).
+  cvControl(
+    'curve',
+    'string',
+    'A transfer curve the sound passes through: none, soft, hard, tanh, tube, fold, rect, half, or cheby2 to cheby7, which turn a loud sine into that harmonic.',
+  ),
+  cvControl(
+    'drive',
+    'number',
+    'How hard the sound is pushed into the curve, in decibels. Loudness stays level, so more drive changes the colour, not the volume.',
+    [0, 24],
+  ),
+  cvControl('bias', 'number', 'Offsets the sound before the curve, adding even harmonics.', [-0.5, 0.5]),
+  cvControl('curvemix', 'number', 'How much of the curved sound is heard, from zero to one.', [0, 1]),
+  cvControl(
+    'comp',
+    'number',
+    'Threshold in decibels of a compressor shared by the orbit, which glues its tracks together. Zero turns it off.',
+    [-60, 0],
+  ),
+  cvControl('compratio', 'number', 'How strongly the orbit compressor squeezes loud sound.', [1, 20]),
+  cvControl('compknee', 'number', 'How gradually the orbit compressor starts to act, in decibels.', [0, 40]),
+  cvControl('compattack', 'number', 'Seconds the orbit compressor takes to react.', [0, 1]),
+  cvControl('comprelease', 'number', 'Seconds the orbit compressor takes to let go.', [0, 1]),
+  cvControl(
+    'gate',
+    'number',
+    'Silences the sound whenever it falls below this level, in decibels, for tight noise beds and short tails.',
+    [-90, 0],
+  ),
+  cvControl('gaterelease', 'number', 'Seconds the gate takes to close.', [0.005, 1]),
+  cvControl(
+    'envcurve',
+    'string',
+    'Shape of the loudness envelope: lin, exp or log. exp fades fast and then slowly, which sounds natural.',
+  ),
+  cvControl(
+    'velcurve',
+    'number',
+    'Bends how velocity maps to loudness: above one, soft notes get softer; below one, they get louder.',
+    [0.25, 4],
   ),
   {
     id: 'stack',

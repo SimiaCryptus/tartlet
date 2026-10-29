@@ -143,5 +143,16 @@ Mini-notation errors mute the whole output.
 - `W-ARG-UNSUPPORTED`: a control that the track's sounds ignore. Examples are `iphase`, `irate`
   or `earsplit("harmonics")` on noise or drums, and `dichotic` or `icorr` on oscillators. It is
   reported only when every sound in the track is known (TS-68).
-- `W-ARG-MODE`: an unknown constant `earsplit` mode, where `none` is used, or an unknown
-  constant `space`, where the plain reverb is used (TS-69).
+- `W-ARG-MODE`: an unknown constant `earsplit` or `spectral` mode, where `none` is used, or an
+  unknown constant `space`, where the plain reverb is used (TS-69, TS-80).
+- `W-ARG-UNSUPPORTED` also covers `scomb`, `sgate` and `sshift` on a track whose known
+  `spectral` values never select their mode (TS-80).
+- `W-ARG-MODE` also covers unknown constant `fir`, `firlen`, `body` and `cab` values (TS-84).
+- `W-ARG-UNSUPPORTED` also covers `firwidth` without a band `fir` design, `bodysize` and
+  `bodymix` without a `body`, and `spacepre` and `spacedamp` without a known `space` (TS-84).
+- `I-DSP-LATENCY`: a track uses a constant FIR or per-voice spectral stage, which playback
+  starts early to compensate its delay. Benign and hidden from the repair payload (TS-85).
+- `W-ARG-MODE` also covers unknown constant `curve` and `envcurve` values (TS-89).
+- `W-ARG-UNSUPPORTED` also covers `drive`, `bias` and `curvemix` without a curve (TS-89).
+- `I-DSP-ORBIT`: tracks on one orbit set different constant compressor settings; the latest
+  onset wins. Benign and hidden from the repair payload (TS-87).

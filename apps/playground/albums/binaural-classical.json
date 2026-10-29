@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "binaural-classical",
+  "name": "Binaural Classical",
+  "description": "Concert music for headphones: original pieces in classical styles that use the two ears as part of the score. Brass choirs answering from opposite galleries, a canon whose voices enter from around your head, a nocturne over a pad that spreads from the centre to all around you, divided violins after Tchaikovsky, a chorale placed by tiny delays, an adagio whose strings drift apart in cents, an organ split by partials, a rotating chorale and a delta-wave lullaby. Each sketch explains its trick in the comments. Headphones on, volume low.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["classical", "binaural", "headphones", "spatial", "orchestral"],
+  "exportedAt": "2026-11-07T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "antiphonal-canzona",
+      "name": "Antiphonal Canzona",
+      "description": "Venetian polychoral music: two brass choirs, one at each ear, answer each other bar by bar across a church, then join for the last four bars over a centred organ pedal and timpani.",
+      "category": "Renaissance",
+      "tags": ["84 bpm", "C major", "azimuth", "antiphonal", "brass"],
+      "source": "setcpm(84/4)\n\n// Two brass choirs face each other across the church, one at each ear, as in the galleries of St Mark's\n// They answer each other bar by bar, then join for the last four bars\nconst galleryA = \"<1 0 1 0 1 1 1 1>\"\nconst galleryB = \"<0 1 0 1 1 1 1 1>\"\n\n// One four-bar canzona: C, F, G | Am, F, G | C, F, G | F, G, C\nconst canzona = note(\"<[[c4,e4,g4]@3 [c4,e4,g4] [f4,a4,c5]@2 [g4,b4,d5]@2] [[a3,c4,e4]@2 [f3,a3,c4]@2 [g3,b3,d4]@4] [[c4,e4,g4]@2 [e4,g4,c5]@2 [f4,a4,c5]@2 [g4,b4,d5]@2] [[f4,a4,c5]@2 [g4,b4,d5]@2 [e4,g4,c5]@4]>\")\n\n// The left gallery plays it bright, the right gallery an octave lower\nleft: canzona.mask(galleryA)\n  .s(\"sawtooth\").unison(2).detune(.1).lpf(1600).lpenv(1.5).lpattack(.05)\n  .attack(.04).sustain(.7).release(.3).azimuth(-70).distance(4).space(\"church\").gain(.18)\nright: canzona.add(-12).mask(galleryB)\n  .s(\"sawtooth\").unison(2).detune(.1).lpf(1200).lpenv(1.5).lpattack(.05)\n  .attack(.04).sustain(.7).release(.3).azimuth(70).distance(4).space(\"church\").gain(.2)\n\n// The organ pedal holds the centre, and timpani join for the tutti\npedal: note(\"<[c2@3 c2 f2@2 g2@2] [a1@2 f1@2 g1@4] [c2@4 f2@2 g2@2] [f2@2 g2@2 c2@4]>\")\n  .s(\"sawtooth\").timbre(\"organ\").lpf(500).attack(.1).sustain(.8).release(.5).space(\"church\").gain(.22)\ntimpani: s(\"lt ~ lt ~\").mask(\"<0 0 0 0 1 1 1 1>\").speed(.7).lpf(800).room(.6).gain(.4)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "canon-around-you",
+      "name": "Canon Around You",
+      "description": "A three-voice canon over a D pedal: the first violin enters ahead-left, the second a bar later ahead-right, and the viola two bars later from behind you, while the cello stays in front.",
+      "category": "Baroque",
+      "tags": ["72 bpm", "D major", "azimuth", "canon"],
+      "source": "setcpm(72/4)\n\n// One theme, three entries a bar apart, each from its own place around your head\n// Every strong beat of the theme lands on D, F# or A, so the entries fit over the pedal\nconst theme = n(\"<[0 2 4 2] [4 5 4 2] [7 6 7 4] [2@2 1 0]>\").scale(\"D:major\")\nconst bowed = (x, bright = 2600) => x.s(\"sawtooth\").vib(5.5).vibdepth(.1).attack(.04).sustain(.6).release(.25).lpf(bright)\n\n// First violin ahead-left, second violin ahead-right, viola behind you\nfirst: theme.transpose(12).bowed(3200).azimuth(-60).distance(2).room(.4).gain(.2)\nsecond: theme.late(1).bowed().azimuth(60).distance(2).room(.4).gain(.18)\nthird: theme.late(2).transpose(-12).bowed(1600).azimuth(180).distance(3).room(.4).gain(.18)\n\n// The cello holds a D pedal in front of you, and a harpsichord marks the off-beats\ncello: note(\"d2 a1\").s(\"sawtooth\").lpf(600).attack(.05).sustain(.6).release(.3).room(.4).gain(.26)\nharpsichord: note(\"[d4,f#4,a4]\").struct(\"~ x ~ x\").s(\"square\").pw(.15)\n  .decay(.15).sustain(0).lpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "nocturne-in-phase",
+      "name": "Nocturne in Phase",
+      "description": "A piano nocturne in E-flat sings in the centre of your head while a string pad underneath steps from in phase to 90 and 180 degrees, spreading from a point into a haze around you. Soft rain falls outside, uncorrelated in each ear. On speakers the 180-degree bars of the pad nearly vanish.",
+      "category": "Romantic",
+      "tags": ["60 bpm", "Eb major", "iphase", "icorr", "piano"],
+      "source": "setcpm(60/4)\n\n// Left hand: broken chords through Eb, Cm, Ab and Bb\nleft: note(\"<[eb2 bb2 g3 bb2 eb3 bb2 g3 bb2] [c2 g2 eb3 g2 c3 g2 eb3 g2] [ab1 eb2 c3 eb2 ab2 eb2 c3 eb2] [bb1 f2 d3 f2 bb2 f2 d3 f2]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(.9).sustain(.1).release(1.2)\n  .lpf(1800).room(.5).gain(.3)\n\n// Right hand: the song, always in the centre of your head\nright: note(\"<[g4@3 f4 eb4@2 f4 g4] [eb5@4 d5@2 c5 bb4] [c5@3 bb4 ab4@2 g4 f4] [f4@2 g4 ab4 g4@4]>\")\n  .s(\"sine\").fm(.8).fmh(2).attack(.01).decay(1.4).sustain(.2).release(1.5)\n  .room(.6).gain(.38)\n\n// The strings step through the interaural phase, two bars at a time\n// 0 degrees: centred. 90: looser. 180: diffuse and all around, and nearly gone in mono\npad: note(\"<[eb3,g3,bb3] [c3,eb3,g3] [ab2,c3,eb3] [bb2,d3,f3]>\").s(\"sawtooth\").unison(2).detune(.1)\n  .iphase(\"<0 0 90 90 180 180 90 90>\").lpf(1000).attack(1).sustain(1).release(2).gain(.1)\n\n// Rain outside: unrelated noise in each ear, wide and enveloping\nrain: s(\"pink\").slow(8).icorr(.15).hpf(800).lpf(4000).gain(.03)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "divided-violins",
+      "name": "Divided Violins",
+      "description": "After the finale of Tchaikovsky's Sixth Symphony: a falling melody and a rising countermelody are shared between the first violins in the left ear and the seconds in the right, swapping on every note. Each ear alone plays a jagged line; many listeners instead hear smooth lines grouped by pitch.",
+      "category": "Romantic",
+      "tags": ["60 bpm", "D major", "dichotic", "illusion", "strings"],
+      "source": "setcpm(60/4)\n\n// The melody falls from f#5 and the countermelody rises from d4, but the two sections swap on every note\n// Each ear alone hears a jagged line; many listeners hear a high line and a low line that meet and part\nfirsts: note(\"f#5 e4 d5 g4 b4 b4 g4 d5\").s(\"sawtooth\").vib(5).vibdepth(.1).lpf(2800)\n  .attack(.04).sustain(.7).release(.2).pan(0).room(.4).gain(.2)\nseconds: note(\"d4 e5 f#4 c#5 a4 a4 c#5 f#4\").s(\"sawtooth\").vib(5).vibdepth(.1).lpf(2800)\n  .attack(.04).sustain(.7).release(.2).pan(1).room(.4).gain(.2)\n\n// The cellos and basses, the same in both ears\ncello: note(\"d2 a1\").s(\"sawtooth\").vib(4.5).vibdepth(.08).lpf(600)\n  .attack(.2).sustain(.7).release(.6).room(.5).gain(.26)\n\n// Soft horns hold the harmony in the centre\nhorns: note(\"<[d3,a3] [d3,f#3]>\").s(\"triangle\").timbre(\"soft\")\n  .attack(.8).sustain(.8).release(1.5).room(.6).gain(.12)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "chorale-in-delays",
+      "name": "Chorale in Delays",
+      "description": "A four-part chorale in G whose voices are placed only by tiny delays between the ears: soprano left, alto right, tenor slightly left, bass dead centre. An organ underneath is widened by a longer, precedence-range delay that grows bar by bar.",
+      "category": "Baroque",
+      "tags": ["60 bpm", "G major", "itd", "chorale", "voices"],
+      "source": "setcpm(60/4)\n\n// Under about 0.7 ms a delay between the ears moves a voice sideways\n// Negative values lean left, positive values lean right; the bass has no delay at all\nsoprano: note(\"<[g4 g4 a4 b4] [c5 b4 a4@2] [b4 c5 d5 c5] [b4 a4 g4@2]>\")\n  .s(\"ooh\").itd(-.5).attack(.08).release(.4).room(.4).gain(.2)\nalto: note(\"<[d4 e4 f#4 g4] [g4 g4 f#4@2] [g4 g4 g4 a4] [g4 f#4 d4@2]>\")\n  .s(\"ooh\").itd(.5).attack(.08).release(.4).room(.4).gain(.18)\ntenor: note(\"<[b3 c4 d4 d4] [e4 d4 d4@2] [d4 e4 d4 e4] [d4 d4 b3@2]>\")\n  .s(\"ooh\").itd(-.25).attack(.08).release(.4).room(.4).gain(.18)\nbass: note(\"<[g2 c3 d3 g2] [c3 g2 d3@2] [g2 c3 b2 a2] [d3 d3 g2@2]>\")\n  .s(\"ooh\").attack(.08).release(.4).room(.4).gain(.22)\n\n// From about 1 to 30 ms the organ stays on the leading side but grows wider each bar\norgan: note(\"<[g2,d3,g3] [c3,g3,c4] [g2,d3,b3] [d3,a3,d4]>\").s(\"sawtooth\").timbre(\"organ\")\n  .itd(\"<1 6 12 20>\").lpf(900).attack(.4).sustain(.8).release(1).space(\"church\").gain(.1)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "adagio-in-cents",
+      "name": "Adagio in Cents",
+      "description": "A slow string adagio in B-flat minor. The string orchestra's ears drift apart in cents, two bars at a time: 2 cents beats slowly, 6 and 12 shimmer like a larger section and 30 blooms into a chorus, while the solo violin and cellos stay true in the centre.",
+      "category": "Modern",
+      "tags": ["48 bpm", "Bb minor", "earsh", "strings", "adagio"],
+      "source": "setcpm(48/4)\n\n// earsh raises the right ear and lowers the left by half the value each\n// 2 cents beats slowly; 6 and 12 shimmer like a larger section; 30 blooms into a chorus\nstrings: note(\"<[bb2,f3,db4,f4] [gb2,db3,bb3,eb4] [ab2,eb3,c4,eb4] [f2,c3,a3,eb4]>\").slow(2)\n  .s(\"sawtooth\").unison(2).detune(.1).earsh(\"<2 2 6 6 12 12 30 30>\")\n  .lpf(1300).attack(2).sustain(1).release(3).room(.7).size(.9).gain(.14)\n\n// A solo violin, the same in both ears, singing over the chords: Bbm, Gb, Ab, F7\nsolo: note(\"<[f4@3 gb4] [ab4@2 gb4 f4] [eb4@4] [db4 eb4 f4@2] [eb4@3 f4] [ab4@2 gb4 eb4] [f4@4] [a4@2 f4@2]>\")\n  .s(\"sawtooth\").mono(1).glide(.1).vib(5).vibdepth(.15).lpf(2600)\n  .attack(.3).sustain(.7).release(1).room(.6).gain(.18)\n\n// The cellos hold the roots, centred\ncello: note(\"<bb1 gb1 ab1 f1>\").slow(2).s(\"sawtooth\").vib(4.5).vibdepth(.08)\n  .lpf(600).attack(1).sustain(.8).release(2).room(.5).gain(.22)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "split-toccata",
+      "name": "Split Toccata",
+      "description": "An organ toccata in D minor with spectral fusion: the manual's arpeggios send alternate partials to each ear, and the chords split lows from highs at 600 Hz. Neither ear hears the whole organ; together, and in mono, it sounds complete. The pedal stays centred.",
+      "category": "Baroque",
+      "tags": ["108 bpm", "D minor", "earsplit", "organ", "toccata"],
+      "source": "setcpm(108/4)\n\n// earsplit(\"harmonics\") alternates the partials between the ears: each ear hears a thinner, hollow organ\nmanual: n(\"0 4 9 4 7 4 9 4\").add(\"<0 -1 -2 -3>\").scale(\"D:minor\").transpose(12)\n  .s(\"sawtooth\").timbre(\"organ\").earsplit(\"harmonics\")\n  .attack(.005).decay(.15).sustain(.4).release(.1).lpf(3000).space(\"church\").gain(.18)\n\n// earsplit(\"bands\") sends the chords' lows to one ear and highs to the other\nchords: note(\"<[d4,f4,a4,d5] [c4,e4,g4,c5] [bb3,d4,f4,bb4] [a3,c4,e4,a4]>\").struct(\"x ~ ~ ~ ~ ~ x ~\")\n  .s(\"sawtooth\").timbre(\"organ\").earsplit(\"bands\").splitfreq(600)\n  .attack(.02).sustain(.6).release(.5).lpf(2400).space(\"church\").gain(.14)\n\n// The pedal, the same in both ears\npedal: note(\"<d2 c2 bb1 a1>\").s(\"sawtooth\").timbre(\"organ\").lpf(500)\n  .attack(.05).sustain(.8).release(.6).space(\"church\").gain(.26)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "rotary-chorale",
+      "name": "Rotary Chorale",
+      "description": "A chorale prelude: a reed stop sings the hymn in the centre while the accompanying organ chords turn their interaural phase, once every four seconds, then every two, then once and twice a second, so the harmony rolls around inside your head. All rates stay below 3 Hz.",
+      "category": "Baroque",
+      "tags": ["56 bpm", "C major", "irate", "organ", "chorale"],
+      "source": "setcpm(56/4)\n\n// irate turns the phase between the ears, in turns per second, like a slowly rotating speaker\n// All rates stay below 3 Hz, so no pulse warning is needed\norgan: note(\"<[c3,e3,g3,c4] [a2,c3,e3,a3] [f2,a2,c3,f3] [g2,b2,d3,g3]>\")\n  .s(\"sawtooth\").timbre(\"organ\").irate(\"<.25 .25 .5 .5 1 1 2 2>\")\n  .lpf(1200).attack(.4).sustain(.9).release(1).space(\"church\").gain(.16)\n\n// The hymn on a reed stop, the same in both ears: C, Am, F, G\ncantus: note(\"<[e4@2 d4 c4] [c4@2 e4 a4] [a4@2 g4 f4] [d4@2 b3 d4]>\")\n  .s(\"sawtooth\").timbre(\"reed\").lpf(1800).attack(.1).sustain(.7).release(.6)\n  .space(\"church\").gain(.2)\n\n// The pedal walks the roots, centred\npedal: note(\"<c2 a1 f1 g1>\").s(\"sawtooth\").timbre(\"organ\").lpf(450)\n  .attack(.2).sustain(.8).release(1).space(\"church\").gain(.24)\n\n// A bell at the start of each phrase\nbell: note(\"<g4 ~ ~ ~>\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(3).sustain(0).release(3).space(\"church\").gain(.1)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "twilight-quartet",
+      "name": "Twilight Quartet",
+      "description": "A string quartet in A minor where nothing is panned, yet the first violin's brightness wanders between the ears: a low-pass on each ear alone sweeps in opposite directions. The viola is thinner on the right, where a high-pass cuts its body.",
+      "category": "Classical",
+      "tags": ["66 bpm", "A minor", "lcutoff", "rcutoff", "quartet"],
+      "source": "setcpm(66/4)\n\n// First violin: a low-pass on each ear alone, sweeping in opposite directions every eight bars\n// The level stays put; only the brightness wanders between the ears\nviolin: n(\"0 2 4 7 4 2 0 2\").add(\"<0 0 3 3 4 4 0 0>\").scale(\"A:minor\").transpose(12)\n  .s(\"sawtooth\").vib(5.5).vibdepth(.1)\n  .lcutoff(saw.range(500, 4000).slow(8)).rcutoff(isaw.range(500, 4000).slow(8))\n  .attack(.02).decay(.2).sustain(.4).release(.2).room(.4).gain(.18)\n\n// Second violin plucks the chord tones\npizz: n(\"[0 ~ 4 ~]*2\").add(\"<0 0 3 3 4 4 0 0>\").scale(\"A:minor\")\n  .s(\"triangle\").timbre(\"bright\").decay(.15).sustain(0).release(.2).room(.4).gain(.18)\n\n// A high-pass on the right ear only: the viola sounds fuller on the left\nviola: note(\"<[c4,e4] [c4,e4] [d4,f4] [d4,f4] [e4,g4] [e4,b4] [c4,e4] [c4,e4]>\")\n  .s(\"sawtooth\").rhcutoff(1000).lpf(1600).attack(.3).sustain(.8).release(.8).room(.4).gain(.12)\n\n// The cello on the roots, the same in both ears\ncello: note(\"<a2 a2 d2 d2 e2 e2 a2 a2>\").s(\"sawtooth\").vib(4.5).vibdepth(.08)\n  .lpf(700).attack(.2).sustain(.7).release(.8).room(.4).gain(.24)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "delta-lullaby",
+      "name": "Delta Lullaby",
+      "description": "Headphones on: an original cradle song in 3/4 on a music box floating above your head, over a 2 Hz binaural drone in the delta range, below the rates that trigger a pulse warning. A soft hum and far-off crickets keep it company.",
+      "category": "Romantic",
+      "tags": ["60 bpm", "3/4", "F major", "binaural", "lullaby"],
+      "source": "setcpm(60/3)\n\n// One cycle is a bar of 3/4\n// A 2 Hz binaural drone on an open fifth: each ear is detuned by 1 Hz, below the 3-30 Hz warning range\ndrone: note(\"[f1,c2]\").slow(8).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.26)\n\n// The cradle song on a music box, floating above your head: F, F, C, C, Bb, C7, C, F\nmusicbox: note(\"<[a4 a4 c5] [a4@2 c5] [g4 f4 g4] [e4@2 c4] [d4 e4 f4] [g4@2 bb4] [a4 g4 e4] [f4@3]>\")\n  .s(\"sine\").fm(2).fmh(4).attack(.002).decay(1).sustain(0).release(1.5)\n  .elevation(40).distance(2).room(.6).size(.85).gain(.2)\n\n// A soft root on each downbeat, and someone humming along\nbass: note(\"<f2 f2 c2 c2 bb1 c2 c2 f2>\").s(\"triangle\").timbre(\"soft\")\n  .attack(.01).decay(1).sustain(0).release(1).gain(.2)\nhum: note(\"<f3 f3 e3 e3 d3 e3 e3 f3>\").s(\"hum\").attack(.6).release(1.5).gain(.1)\n\n// Crickets far away\ncrickets: s(\"insect\").slow(4).distance(8).gain(.06)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    }
+  ]
+}

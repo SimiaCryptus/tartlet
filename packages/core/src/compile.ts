@@ -159,7 +159,8 @@ const ACCENT = 1.3;
 /**
  * Adds `vseed`, a counter-based draw in [0, 1), to vocal events (TS-44), and `iseed` to events
  * with interaural correlation (TS-64), and `tseed` to texture sounds and granular events (TS-73,
- * TS-75). The audio adapter derives every variation from them, so
+ * TS-75), and `dseed` to events with a spectral effect (TS-80). The audio adapter derives every
+ * variation from them, so
  * it never rolls its own dice. Draws are keyed by the output, the whole's start and the sound
  * (plus the note for voices), so fragments agree.
  */
@@ -171,7 +172,8 @@ function withEventSeeds(pat: Pattern<ControlMap>, id: string): Pattern<ControlMa
       const vocal = VOCAL_SET.has(s) || typeof v.syl === 'string';
       const ears = typeof v.icorr === 'number';
       const textured = TEXTURE_SET.has(s) || typeof v.grain === 'number';
-      if (!vocal && !ears && !textured) return ev;
+      const spectral = typeof v.spectral === 'string' && v.spectral !== 'none';
+      if (!vocal && !ears && !textured && !spectral) return ev;
       const at = ratStr((ev.whole ?? ev.part).begin);
       const out = dict();
       Object.assign(out, v);
@@ -182,6 +184,7 @@ function withEventSeeds(pat: Pattern<ControlMap>, id: string): Pattern<ControlMa
       }
       if (ears) out.iseed = draw(st.seed, id, 'iseed', at, s);
       if (textured) out.tseed = draw(st.seed, id, 'tseed', at, s);
+      if (spectral) out.dseed = draw(st.seed, id, 'dseed', at, s);
       return { ...ev, value: out };
     }),
   );

@@ -431,6 +431,67 @@ $: note("c2").s("sawtooth").iphase(180).earsh(6).slow(4).gain(.4)
 $: note("e3 g3 b3 d4").s("triangle").itd(12).release(.2).gain(.4)
 `,
   },
+  {
+    id: 'spectral-lab',
+    name: 'Spectral lab',
+    group: 'Sound and signals',
+    blurb: 'Shelves, peaks and notches, a tilt, a frequency shift, ring modulation and spectral effects.',
+    tags: ['EQ', 'spectral'],
+    source: `setcpm(96/4)
+// shelves, a peaking band and a notch shape a saw pad
+$: note("<[c3,eb3,g3] [ab2,c3,eb3]>").s("sawtooth").lowshelf(4).highshelf(-6).peak(6).peakfreq(900).peakq(2).notch(3000).attack(.3).release(1).gain(.3)
+// tilt darkens noise hats
+$: s("white*8").hpf(3000).tilt(-3).decay(.05).sustain(0).gain(.3)
+// a frequency shift turns a harmonic tone into a bell
+$: note("c4 g4").s("triangle").fshift(70).decay(.5).sustain(0).room(.4).gain(.3)
+// ring modulation on a rim pattern
+$: s("rim*4").ringmod(300).ringmix(.6).gain(.4)
+// whisper turns a melody into breath; comb pitches noise
+$: n("0 2 4 7").scale("C:minor").s("sawtooth").spectral("whisper").samount(.8).gain(.3)
+$: s("pink").slow(4).spectral("comb").scomb(130).gain(.2)
+// freeze on a shared bus holds a clap as a drone
+$: s("cp ~ ~ ~").spectral("freeze").ssend(.5).gain(.4)
+`,
+  },
+  {
+    id: 'bodies-cabinets',
+    name: 'Bodies and cabinets',
+    group: 'Sound and signals',
+    blurb: 'Generated instrument bodies, a speaker cabinet, a steep linear-phase filter and a reshaped hall.',
+    tags: ['body', 'cab', 'fir'],
+    source: `setcpm(90/4)
+// a plucked triangle through a generated guitar body
+$: note("e3 g3 b3 e4").s("triangle").decay(.3).sustain(0).body("guitar").gain(.4)
+// drums through a steep linear-phase low-pass that keeps transients sharp
+$: s("bd*2, ~ sd, hh*8").fir("lowpass").firfreq(3000).firlen("short").gain(.6)
+// a driven square through a speaker cabinet
+$: note("<a2 c3>").s("square").shape(.5).cab("combo").lpf(3000).gain(.3)
+// a voice on the phone
+$: note("c4 d4 e4 g4").s("voice").syl("la la li lo").body("phone").bodymix(.8).gain(.3)
+// a hall with a long pre-delay and a dark tail
+$: s("cp ~ ~ ~").space("hall").room(.5).spacepre(80).spacedamp(.8).gain(.4)
+`,
+  },
+  {
+    id: 'drive-dynamics',
+    name: 'Drive and dynamics',
+    group: 'Sound and signals',
+    blurb: 'Transfer curves with level-matched drive, a shared orbit compressor, a gate and curved envelopes.',
+    tags: ['curve', 'comp', 'gate'],
+    source: `setcpm(110/4)
+// a tube curve driven hard turns a saw bass warm and gritty; the loudness stays level
+$: note("c2 [~ c2] eb2 [g1 bb1]").s("sawtooth").lpf(1200).curve("tube").drive(12).release(.1).gain(.4)
+// cheby3 turns a sine into its third harmonic, an octave and a fifth up
+$: note("<c4 g3>").s("sine").curve("cheby3").curvemix(.6).decay(.3).sustain(0).gain(.3)
+// fold makes a dense, bright pad; bias adds even harmonics
+$: note("[c3,g3]").s("triangle").curve("fold").drive(10).bias(.2).attack(.4).release(1).lpf(3000).gain(.25)
+// drums glued together by a compressor shared on orbit 2
+$: s("bd*2, ~ sd, hh*8").orbit(2).comp(-24).compratio(4).compattack(.005).comprelease(.2)
+// a gated noise pulse, and a bell with exponential envelopes and a bent velocity curve
+$: s("pink*4").gate(-30).gaterelease(.05).decay(.2).sustain(0).gain(.3)
+$: note("c5 g4 e4 c4").s("sine").fm(2).envcurve("exp").decay(.6).sustain(0).velocity("1 .5 .8 .4").velcurve(2).gain(.3)
+`,
+  },
 
   // ---- Language
   {

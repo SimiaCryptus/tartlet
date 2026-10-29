@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "binaural-jazz",
+  "name": "Binaural Jazz",
+  "description": "A jazz club built for headphones: the bass, kick and lead horn stay in the centre while the rest of the band uses the space between your ears. A kit set up around you, a ballad widened by tiny delays, a modal vamp whose phase rotates, horn chords split by partials, vibes that hop from ear to ear, a smoky room with glasses clinking behind you, guide tones hidden in noise, a bebop line whose brightness wanders, a bossa that drifts apart in cents and a last-call ballad over a slow delta drone. Each sketch explains its trick in the comments. Headphones on, volume low.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["jazz", "binaural", "headphones", "spatial", "swing"],
+  "exportedAt": "2026-11-07T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "brushes-in-the-round",
+      "name": "Brushes in the Round",
+      "description": "A swinging ii-V-I in F with the kit set up around you: the ride on your right, the hats on your left, brushes circling your head, piano a little to the left and the saxophone straight ahead.",
+      "category": "Space",
+      "tags": ["132 bpm", "F major", "azimuth", "swing"],
+      "source": "setcpm(132/4)\n\n// The walking bass and a feathered kick stay dead centre: Gm7, C7, Fmaj7, D7\nbass: note(\"<[g1 bb1 d2 f2] [c2 e2 g2 bb2] [f1 a1 c2 e2] [d2 f#2 a2 c3]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.3).release(.1).gain(.5)\nkick: s(\"bd*4\").lpf(200).gain(.3)\n\n// The kit is set up around you: the ride on your right, the hats on your left\nride: s(\"rd [rd@2 rd] rd [rd@2 rd]\").azimuth(50).distance(2).gain(.24)\nhats: s(\"~ hh ~ hh\").azimuth(-50).distance(2).gain(.26)\n\n// Brushes sweep a circle around your head every two bars\nbrushes: s(\"pink*8\").hpf(3000).lpf(8000).decay(.08).sustain(0).swing(4)\n  .azimuth(saw.range(-180, 180).slow(2)).distance(1.5).posglide(.3).gain(.05)\n\n// Piano comping a little to the left, the saxophone straight ahead\npiano: note(\"<[f3,a3,bb3,d4] [e3,g3,bb3,d4] [e3,a3,c4,d4] [f#3,a3,c4,eb4]>\")\n  .struct(\"~ [~@2 x] ~ x\").s(\"triangle\").timbre(\"soft\")\n  .decay(.4).sustain(.1).release(.3).azimuth(-25).distance(2.5).room(.3).gain(.22)\nsax: note(\"<[d5@2 c5 bb4 a4@2 g4@2] [bb4@3 a4 g4 e4@3] [a4@4 c5@2 e5@2] [d5@2 c5 a4 f#4@4]>\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"o\").lpf(2400).vib(5).vibdepth(.12)\n  .attack(.03).sustain(.6).release(.2).distance(3).room(.4).gain(.22)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "wide-ballad",
+      "name": "Wide Ballad",
+      "description": "A ballad in E-flat where delays between the ears do the mixing: the piano grows wider each bar as its delay rises from 1 to 25 milliseconds, the brushes sway on delays under a millisecond, and the tenor sax has no delay at all.",
+      "category": "Time",
+      "tags": ["60 bpm", "Eb major", "itd", "ballad"],
+      "source": "setcpm(60/4)\n\n// A ballad in Eb: Ebmaj7, Cm7, Fm7, Bb7\n// From about 1 to 30 ms the piano stays on the leading side but grows wider each bar\npiano: note(\"<[eb3 g3 bb3 d4 g4 d4 bb3 g3] [c3 eb3 g3 bb3 eb4 bb3 g3 eb3] [f3 ab3 c4 eb4 ab4 eb4 c4 ab3] [bb2 d3 f3 ab3 d4 ab3 f3 d3]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(1).sustain(.1).release(1.2)\n  .itd(\"<1 8 15 25>\").room(.5).gain(.26)\n\n// The tenor sax stands in the middle with no delay at all\ntenor: note(\"<[g4@3 f4 eb4@4] [eb4@2 g4 bb4 c5@4] [ab4@3 g4 f4@2 eb4 c4] [d4@6 ~@2]>\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"o\").lpf(1800).mono(1).glide(.06)\n  .vib(4.5).vibdepth(.15).attack(.08).sustain(.7).release(.6).room(.5).gain(.24)\n\n// Under about 0.7 ms the delay moves a sound sideways: the brushes sway from ear to ear\nbrushes: s(\"pink*8\").hpf(2500).decay(.1).sustain(0).swing(4)\n  .itd(sine.range(-.6, .6).slow(2)).gain(.05)\n\n// A soft, centred bass\nbass: note(\"<eb2 c2 f2 bb1>\").s(\"sine\").attack(.05).decay(.8).sustain(.4).release(.6).gain(.4)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "modal-rotation",
+      "name": "Modal Rotation",
+      "description": "A modal vamp in D dorian that lifts to E-flat dorian after four bars. The quartal pad steps from centred to diffuse through interaural phase, while a vibraphone drone rolls slowly around inside your head, below the rates that trigger a pulse warning.",
+      "category": "Phase",
+      "tags": ["120 bpm", "D dorian", "iphase", "irate", "modal"],
+      "source": "setcpm(120/4)\n\n// Four bars of D dorian, then four a half step up\nconst lift = \"<0 0 0 0 1 1 1 1>\"\n\n// A centred kit: ride, hats on two and four, a lazy kick\ndrums: stack(\n  s(\"rd [rd@2 rd] rd [rd@2 rd]\").gain(.24),\n  s(\"~ hh ~ hh\").gain(.22),\n  s(\"bd ~ ~ ~ ~ ~ [~ bd?0.4] ~\").lpf(250).seed(\"modal\").gain(.3)\n)\nbass: n(\"0 4 6 [3 2]\").scale(\"D:dorian\").sub(12).add(lift)\n  .s(\"sine\").shape(.15).decay(.3).sustain(.3).release(.1).gain(.48)\n\n// Quartal chords: 0 degrees centred, 90 looser, 180 diffuse and nearly gone in mono\npad: note(\"[e3,a3,d4,g4]\").add(lift).s(\"sawtooth\").unison(3).detune(.2)\n  .iphase(\"<0 90 180 90>\").lpf(1400).attack(.6).sustain(.8).release(1).room(.5).gain(.14)\ncomp: note(\"[e3,a3,d4,g4]\").struct(\"~ ~ x ~ ~ [~ x] ~ ~\").add(lift)\n  .s(\"sine\").fm(1.1).fmh(2).decay(.5).sustain(.2).release(.3).lpf(2400).gain(.2)\n\n// A vibraphone drone whose phase between the ears turns a quarter to one time a second\nvibes: note(\"[d4,a4]\").add(lift).s(\"sine\").fm(2).fmh(4).irate(\"<.25 .5 1 .5>\")\n  .attack(.5).sustain(.7).release(1).gain(.1)\n\n// The trumpet plays the theme, straight ahead\ntrumpet: n(\"<[4@3 3 2@2 0@2] [1@4 ~@4] [4@2 5 6 7@4] [6@2 4@2 3@4]>\").scale(\"D:dorian\").transpose(12).add(lift)\n  .s(\"sawtooth\").timbre(\"bright\").lpf(2600).mono(1).glide(.04).vib(5).vibdepth(.08)\n  .attack(.02).sustain(.6).release(.2).room(.4).gain(.2)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "split-quartet",
+      "name": "Split Quartet",
+      "description": "Spectral fusion on the bandstand: the horn section's chords send alternate partials to each ear, and the kit splits its lows from its cymbals at 900 Hz. Neither ear hears the whole band; together, and in mono, it is complete.",
+      "category": "Spectrum",
+      "tags": ["108 bpm", "F blues", "earsplit", "fusion"],
+      "source": "setcpm(108/4)\n\n// earsplit(\"harmonics\") alternates the partials of each chord between the ears: F7, Bb7, F7, C7\nhorns: note(\"<[f3,a3,c4,eb4] [bb2,d3,f3,ab3] [f3,a3,c4,eb4] [c3,e3,g3,bb3]>\")\n  .struct(\"x ~ ~ [~ x] ~ x ~ ~\")\n  .s(\"sawtooth\").earsplit(\"harmonics\").lpf(2000)\n  .decay(.6).sustain(.2).release(.4).room(.4).gain(.18)\n\n// earsplit(\"bands\") puts the kick and snare body in one ear and the ride in the other\ndrums: s(\"bd ~ [~ bd] ~, ~ sd ~ sd, rd [rd@2 rd] rd [rd@2 rd]\")\n  .earsplit(\"bands\").splitfreq(900).gain(.5)\n\n// A plain, centred walking bass\nbass: note(\"<[f2 a2 c3 eb3] [bb1 d2 f2 ab2] [f2 eb2 d2 c2] [c2 e2 g2 bb2]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.3).release(.1).gain(.48)\n\n// A centred guitar answers between the chords\nguitar: n(\"<[~ ~ 4 5 6 4 ~ ~] [~ ~ 3 4 3 1 0 ~] [~ ~ 6 7 9 7 6 4] [5@4 ~@4]>\").scale(\"F:mixolydian\").transpose(12)\n  .s(\"triangle\").timbre(\"bright\").decay(.3).sustain(.2).release(.2).swing(4).gain(.2)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "ear-to-ear-vibes",
+      "name": "Ear-to-Ear Vibes",
+      "description": "A bebop vibraphone leans right with a level difference between the ears, and a patterned ear swap flips some notes to the left, so the line hops between your ears. A guitar answers on the other side, swapping once a bar.",
+      "category": "Level",
+      "tags": ["144 bpm", "C major", "ild", "earswap", "bebop"],
+      "source": "setcpm(144/4)\n\n// ild makes the right ear louder; earswap flips the ears on the steps marked 1\n// Through Cmaj7, Am7, Dm7, G7\nvibes: n(\"0 2 4 6 7 6 4 2\").add(\"<0 5 1 4>\").scale(\"C:major\").transpose(12)\n  .s(\"sine\").fm(2).fmh(4).ild(9).earswap(\"0 1 0 1 1 0 1 0\")\n  .decay(.4).sustain(0).release(.5).swing(4).gain(.2)\n\n// A guitar counter-line that swaps ears once per bar\nguitar: n(\"<[~ 4 ~ 2] [~ 0 ~ 2] [~ 3 ~ 1] [~ 6 ~ 4]>\").scale(\"C:major\")\n  .s(\"triangle\").timbre(\"soft\").ild(6).earswap(\"<0 1>\")\n  .decay(.4).sustain(.2).release(.3).gain(.18)\n\n// A centred walking bass and kit\nbass: note(\"<[c2 e2 g2 b2] [a1 c2 e2 g2] [d2 f2 a2 c3] [g1 b1 d2 f2]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.3).release(.1).gain(.48)\ndrums: stack(\n  s(\"rd [rd@2 rd] rd [rd@2 rd]\").gain(.24),\n  s(\"~ hh ~ hh\").gain(.22),\n  s(\"bd*4\").lpf(200).gain(.28)\n)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "smoky-club",
+      "name": "Smoky Club",
+      "description": "Headphones on: a table near the stage. The band plays in front of you, the room tone is wide and diffuse, glasses clink at the bar behind you and footsteps pass in the lobby beyond the wall.",
+      "category": "Space",
+      "tags": ["100 bpm", "Bb major", "azimuth", "icorr", "occlude"],
+      "source": "setcpm(100/4)\n\n// The room: chatter, unrelated noise in each ear for a wide room tone, and glasses at the bar behind you\ncrowd: s(\"crowd\").slow(8).intensity(.3).gain(.1)\nroomtone: s(\"pink\").slow(8).icorr(.15).lpf(1200).gain(.03)\nglasses: s(\"click*8?0.15\").hpf(3000).azimuth(160).distance(4).seed(\"bar\").gain(.12)\n\n// Footsteps in the lobby, beyond the wall\nlobby: s(\"step ~ step ~\").azimuth(-120).distance(5).occlude(.6).gain(.1)\n\n// The band on stage: drums at the back, bass on the left, piano on the right, horn in front\ndrums: s(\"bd ~ ~ bd?0.3, ~ sd?0.2 ~ sd, rd [rd@2 rd] rd [rd@2 rd]\").distance(4).seed(\"club\").room(.3).gain(.4)\nbass: note(\"<[bb1 d2 f2 a2] [g1 b1 d2 f2] [c2 eb2 g2 bb2] [f1 a1 c2 eb2]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.3).release(.1).azimuth(-30).distance(3).gain(.46)\npiano: note(\"<[a3,d4,f4] [b3,d4,f4] [bb3,eb4,g4] [a3,eb4,g4]>\").struct(\"~ [~@2 x] ~ [~@2 x]\")\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(.1).release(.3).azimuth(35).distance(3).gain(.22)\n\n// A muted trumpet, close in front\ntrumpet: note(\"<[d5@3 c5 bb4@2 f4@2] [g4@4 b4@2 d5@2] [eb5@3 d5 c5@2 bb4 g4] [a4@6 ~@2]>\")\n  .s(\"sawtooth\").timbre(\"bright\").vowel(\"u\").lpf(2000).vib(5).vibdepth(.1)\n  .attack(.03).sustain(.6).release(.2).distance(2).room(.3).gain(.2)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "ghost-changes",
+      "name": "Ghost Changes",
+      "description": "The off-beat brushes are white noise, but between the ears they carry the chord tones of a ii-V-I (Huggins pitch). Each ear alone hears only hiss. A quiet vibraphone plays the first bar every four bars so you know what to listen for. The effect is faint and differs between listeners.",
+      "category": "Dichotic",
+      "tags": ["96 bpm", "C major", "dichotic", "Huggins pitch"],
+      "source": "setcpm(96/4)\n\n// A centred walking bass and kick: Dm7, G7, Cmaj7, A7\nbass: note(\"<[d2 f2 a2 c3] [g1 b1 d2 f2] [c2 e2 g2 b2] [a1 c#2 e2 g2]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.3).release(.1).gain(.46)\nkick: s(\"bd*4\").lpf(200).gain(.26)\nride: s(\"rd [rd@2 rd] rd [rd@2 rd]\").gain(.18)\n\n// The brushes: the same noise in both ears, but one ear is phase-shifted in a narrow band\n// Neither ear alone hears a tone; together they hear the chord tones\nghost: s(\"[~ white]*4\").dichotic(\"<[349 440 523 440] [349 494 587 494] [330 392 494 392] [277 330 392 330]>\")\n  .dichoticq(30).attack(.005).sustain(1).release(.05).gain(.14)\n\n// A quiet hint: the first bar on a vibraphone, once every four bars\nhint: note(\"<[~ f4 ~ a4 ~ c5 ~ a4] ~ ~ ~>\").s(\"sine\").fm(2).fmh(4)\n  .decay(.3).sustain(0).release(.4).gain(.08)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "bebop-brightness",
+      "name": "Bebop Brightness",
+      "description": "Nothing is panned, yet a fast bebop line's brightness bounces between your ears: each ear has its own low-pass, sweeping in opposite directions. The comping pad is thinner on the right, where a high-pass cuts its body.",
+      "category": "Filtering",
+      "tags": ["168 bpm", "F major", "lcutoff", "rcutoff", "bebop"],
+      "source": "setcpm(168/4)\n\n// A fast, centred kit\ndrums: stack(\n  s(\"rd [rd@2 rd] rd [rd@2 rd]\").gain(.24),\n  s(\"~ hh ~ hh\").gain(.22),\n  s(\"bd ~ ~ ~ ~ ~ ~ ~, ~ ~ ~ sd?0.3 ~ ~ ~ ~\").seed(\"bop\").gain(.3)\n)\n\n// A low-pass on each ear alone, sweeping in opposite directions every four bars\n// The level stays put; only the brightness wanders: Gm7, C7, Fmaj7, D7\nline: n(\"0 2 4 6 7 5 4 3\").add(\"<1 4 0 5>\").scale(\"F:major\").transpose(12)\n  .s(\"sawtooth\").lpq(4)\n  .lcutoff(saw.range(400, 4000).slow(4)).rcutoff(isaw.range(400, 4000).slow(4))\n  .decay(.15).sustain(.3).release(.05).swing(4).gain(.18)\n\n// A high-pass on the right ear only: the comping sounds fuller on the left\ncomp: note(\"<[f3,a3,bb3,d4] [e3,g3,bb3,d4] [e3,a3,c4,d4] [f#3,a3,c4,eb4]>\").struct(\"~ [~@2 x] ~ x\")\n  .s(\"triangle\").rhcutoff(1200).decay(.4).sustain(.2).release(.3).room(.3).gain(.2)\n\nbass: note(\"<[g1 bb1 d2 f2] [c2 e2 g2 bb2] [f1 a1 c2 e2] [d2 f#2 a2 c3]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.3).release(.1).gain(.46)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "cents-bossa",
+      "name": "Cents Bossa",
+      "description": "Bossa nova for headphones: the nylon-string chords drift apart between the ears in cents, a chord at a time. At 2 cents they beat slowly, at 6 and 12 they shimmer and at 30 they bloom into a chorus. The flute, bass and clave stay centred.",
+      "category": "Pitch",
+      "tags": ["136 bpm", "C major", "earsh", "bossa nova"],
+      "source": "setcpm(136/8)\n\n// One cycle is two bars. The clave on the rim, a brushed shaker and a soft surdo kick\nperc: stack(\n  s(\"rim ~ ~ rim ~ ~ rim ~ ~ ~ rim ~ ~ rim ~ ~\").gain(.4),\n  s(\"hh*16\").hpf(6000).gain(saw.range(.1, .24).fast(8)),\n  s(\"bd ~ ~ bd bd ~ ~ bd bd ~ ~ bd bd ~ ~ bd\").lpf(260).gain(.5)\n)\n\n// earsh raises the right ear and lowers the left by half the value each: Cmaj7, Am7, Dm7, G7\nguitar: note(\"<[e3,g3,b3,d4] [e3,g3,c4,e4] [f3,a3,c4,e4] [f3,b3,d4,e4]>\")\n  .struct(\"~ ~ x ~ x ~ ~ x ~ ~ x ~ x ~ ~ x\")\n  .s(\"triangle\").timbre(\"soft\").earsh(\"<2 6 12 30>\")\n  .attack(.003).decay(.35).sustain(0).release(.3).lpf(2400).room(.35).gain(.28)\n\n// Upright bass on the dotted quarter, and a breathy flute in the middle\nbass: note(\"<[c2@3 g1]*4 [a1@3 e2]*4 [d2@3 a1]*4 [g1@3 d2]*4>\")\n  .s(\"sine\").shape(.15).decay(.4).sustain(.3).release(.15).gain(.55)\nflute: note(\"<[g5@2 e5 d5 b4@3 ~] [c5@2 b4 a4 e5@3 ~] [f5@3 e5 c5@2 a4 c5] [d5@2 b4 g4 f4@3 ~]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.12).attack(.05).sustain(.6).release(.4)\n  .delay(.3).delaytime(3/16).room(.5).gain(.28)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    },
+    {
+      "id": "last-call-delta",
+      "name": "Last Call Delta",
+      "description": "The last set, chairs on the tables: a slow ballad in F over a 2 Hz binaural drone in the delta range, below the rates that trigger a pulse warning. A sparse piano, soft brushes and a tenor sax far across the empty room.",
+      "category": "Beats",
+      "tags": ["56 bpm", "F major", "binaural", "delta", "ballad"],
+      "source": "setcpm(56/4)\n\n// A 2 Hz binaural drone: each ear is detuned by 1 Hz, so a slow beat forms between them\n// Fmaj7, Dm7, Gm7, C7\ndrone: note(\"<f1 d1 g1 c1>\").s(\"sine\").binaural(2)\n  .attack(3).sustain(1).release(4).gain(.24)\n\n// Sparse piano, a few notes gently left out\npiano: n(\"<[2 ~ 4 ~] [~ 6 ~ 4] [3 ~ ~ 5] [~ 4 ~ 2]>\").scale(\"F:major\").transpose(12)\n  .degradeBy(.25).seed(\"last-call\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(1.5).sustain(.1).release(2)\n  .room(.6).size(.85).gain(.24)\nchords: note(\"<[e3,a3,c4] [c3,f3,a3] [f3,bb3,d4] [e3,bb3,d4]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(1).sustain(.5).release(3).lpf(900).room(.6).gain(.16)\n\n// Soft brushes, centred\nbrushes: s(\"pink*4\").hpf(2500).lpf(6000).decay(.15).sustain(0).swing(4).gain(.04)\n\n// A tenor sax far across the empty room\nsax: note(\"<[a4@3 g4 f4@4] ~ [d5@2 c5 a4 g4@4] ~>\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"o\").lpf(1600).mono(1).glide(.08)\n  .vib(4.5).vibdepth(.15).attack(.1).sustain(.7).release(1)\n  .azimuth(-20).distance(7).room(.8).size(.9).gain(.16)\n",
+      "savedAt": "2026-11-07T12:00:00.000Z"
+    }
+  ]
+}
