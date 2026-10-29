@@ -1,23 +1,24 @@
-// Taps whatever the page sends to the speakers so a sketch can be recorded (for ringtones).
+// Routes everything the page sends to the speakers through one bus per AudioContext, so the
+// output can be recorded (ringtones) and redirected into a media element (background playback).
 // The player exposes no render API, so we patch AudioNode.connect: every connection to an
-// AudioContext's destination is mirrored into a per-context tap node we can record from.
+// AudioContext's destination is redirected into that context's bus. The bus feeds the destination
+// (direct output) and, on demand, a MediaStream that an <audio> element can play.
 // installCaptureTap() must run before the player creates its audio graph (main.ts does this first).
 
 type NodeFn = (this: AudioNode, ...args: unknown[]) => unknown;
 
+interface Bus {
+  readonly node: GainNode;
+  /** True while the bus is connected straight to the speakers. */
+  direct: boolean;
+  stream: MediaStreamAudioDestinationNode | null;
+}
+
 let rawConnect: NodeFn | null = null;
 let rawDisconnect: NodeFn | null = null;
-const taps = new WeakMap<BaseAudioContext, GainNode>();
+const buses = new WeakMap<BaseAudioContext, Bus>();
 const contexts = new Map<AudioContext, number>();
-
-function tapFor(ctx: BaseAudioContext): GainNode {
-  let tap = taps.get(ctx);
-  if (!tap) {
-    tap = ctx.createGain();
-    taps.set(ctx, tap);
-  }
-  return tap;
-}
+const contextListeners = new Set<(ctx: AudioContext) => void>();
 
 function link(from: AudioNode, to: AudioNode): void {
   if (!rawConnect) throw new Error('Audio capture is not available in this browser.');
@@ -34,6 +35,22 @@ function unlink(from: AudioNode, to?: AudioNode): void {
   }
 }
 
+function busFor(ctx: AudioContext): Bus {
+  let bus = buses.get(ctx);
+  if (!bus) {
+    const node = ctx.createGain();
+    bus = { node, direct: true, stream: null };
+    buses.set(ctx, bus);
+    link(node, ctx.destination);
+    for (const l of contextListeners) {
+      queueMicrotask(() => {
+        l(ctx);
+      });
+    }
+  }
+  return bus;
+}
+
 export function installCaptureTap(): boolean {
   if (rawConnect) return true;
   if (typeof AudioNode === 'undefined' || typeof AudioContext === 'undefined') return false;
@@ -44,36 +61,91 @@ export function installCaptureTap(): boolean {
   rawDisconnect = disconnect;
 
   proto.connect = function (this: AudioNode, ...args: unknown[]): unknown {
-    const result = connect.apply(this, args);
     const dest = args[0];
-    if (dest instanceof AudioDestinationNode && this.context instanceof AudioContext) {
-      const tap = tapFor(this.context);
-      if (this !== tap) {
-        try {
-          connect.call(this, tap, typeof args[1] === 'number' ? args[1] : 0);
-        } catch {
-          // never let the tap break playback
+    const ctx = this.context;
+    if (dest instanceof AudioDestinationNode && ctx instanceof AudioContext && dest.context === ctx) {
+      contexts.set(ctx, performance.now());
+      try {
+        const bus = busFor(ctx);
+        if (this !== bus.node) {
+          connect.call(this, bus.node, typeof args[1] === 'number' ? args[1] : 0);
+          return dest;
         }
+      } catch {
+        // fall back to a plain connection so routing never breaks playback
       }
-      contexts.set(this.context, performance.now());
     }
-    return result;
+    return connect.apply(this, args);
   };
 
   proto.disconnect = function (this: AudioNode, ...args: unknown[]): unknown {
     if (args[0] instanceof AudioDestinationNode) {
-      const tap = taps.get(this.context);
-      if (tap) {
+      const bus = buses.get(this.context);
+      if (bus && this !== bus.node) {
+        let done = false;
         try {
-          disconnect.call(this, tap);
+          if (typeof args[1] === 'number') disconnect.call(this, bus.node, args[1]);
+          else disconnect.call(this, bus.node);
+          done = true;
         } catch {
-          // not connected to the tap
+          // not routed through the bus
         }
+        try {
+          disconnect.apply(this, args);
+          done = true;
+        } catch (e) {
+          if (!done) throw e;
+        }
+        return undefined;
       }
     }
     return disconnect.apply(this, args);
   };
   return true;
+}
+
+/** The most recently used audio context that is not closed (it may be suspended). */
+export function latestContext(): AudioContext | null {
+  let best: AudioContext | null = null;
+  let bestAt = -Infinity;
+  for (const [ctx, at] of contexts) {
+    if (ctx.state === 'closed') {
+      contexts.delete(ctx);
+      continue;
+    }
+    if (at > bestAt) {
+      best = ctx;
+      bestAt = at;
+    }
+  }
+  return best;
+}
+
+/** Calls `cb` whenever a new audio context starts sending sound to the speakers. */
+export function onAudioContext(cb: (ctx: AudioContext) => void): () => void {
+  contextListeners.add(cb);
+  return () => {
+    contextListeners.delete(cb);
+  };
+}
+
+/** A MediaStream carrying everything the context plays (for an <audio> element). */
+export function outputStream(ctx: AudioContext): MediaStream {
+  const bus = busFor(ctx);
+  if (!bus.stream) {
+    bus.stream = ctx.createMediaStreamDestination();
+    link(bus.node, bus.stream);
+  }
+  return bus.stream.stream;
+}
+
+/** Connects or disconnects the bus from the speakers (the stream keeps flowing either way). */
+export function setDirectOutput(ctx: AudioContext, on: boolean): void {
+  const bus = buses.get(ctx);
+  if (!bus || bus.direct === on) return;
+  if (on) link(bus.node, ctx.destination);
+  else unlink(bus.node, ctx.destination);
+  bus.direct = on;
 }
 
 /** The most recently used audio context that is currently running. */
@@ -164,7 +236,7 @@ export function recordOutput(
 ): Promise<Recording> {
   const ctx = activeContext();
   if (!ctx) return Promise.reject(new Error('Nothing is playing yet.'));
-  const tap = tapFor(ctx);
+  const tap = busFor(ctx).node;
   const frames = Math.max(1, Math.round(seconds * ctx.sampleRate));
   const left = new Float32Array(frames);
   const right = new Float32Array(frames);

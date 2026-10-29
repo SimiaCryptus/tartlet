@@ -1,5 +1,7 @@
 import './style.css';
 import { installCaptureTap } from './audio-capture';
+import { initBackgroundAudio } from './background-audio';
+import { initPwa } from './pwa';
 import { defineTartletPlayer, type TartletPlayerElement } from '@tartlet/element';
 import type { Problem } from './assistant';
 import { initShare } from './share';
@@ -406,7 +408,7 @@ function loadQueueEntry(entry: QueueEntry): void {
   seedInput.value = entry.seed ?? '';
   applySeed(); // sets or clears the seed, then applies the source
 }
-initQueue(el('panel-queue'), {
+const queue = initQueue(el('panel-queue'), {
   current() {
     if (!editor.value.trim()) return null;
     const seed = seedInput.value.trim();
@@ -423,6 +425,44 @@ initQueue(el('panel-queue'), {
   isPlaying: () => player.playing,
   flash,
 });
+// ---- installable app, background playback and lock-screen controls
+function skip(dir: 1 | -1): void {
+  if (queue.running() && (dir > 0 ? queue.next() : queue.previous())) return;
+  const shown = browser.shown();
+  const list: readonly CatalogSketch[] = shown.length > 0 ? shown : catalog.sketches;
+  if (list.length === 0) return;
+  const i = list.findIndex((s) => s.source === editor.value);
+  const j = i < 0 ? (dir > 0 ? 0 : list.length - 1) : (i + dir + list.length) % list.length;
+  const next = list[j];
+  if (!next) return;
+  loadSketch(next);
+  if (!player.playing) void player.play();
+}
+const background = initBackgroundAudio(el('bg-audio') as HTMLInputElement, {
+  isPlaying: () => player.playing,
+  async play() {
+    await player.play();
+  },
+  stop() {
+    if (player.playing) player.stop();
+  },
+  next() {
+    skip(1);
+  },
+  previous() {
+    skip(-1);
+  },
+  title: () => presetTitle.textContent || 'Sketch',
+  album: () => origin?.album.name ?? '',
+});
+player.addEventListener('statechange', () => {
+  background.sync();
+});
+new MutationObserver(() => {
+  background.updateMetadata();
+}).observe(presetTitle, { childList: true, characterData: true, subtree: true });
+background.sync();
+initPwa({ installButton: el('install-btn') as HTMLButtonElement, flash });
 // ---- optional AI assistant (loaded the first time its window is shown)
 function describeDiagnostic(d: object): string {
   const r = d as Record<string, unknown>;
@@ -471,6 +511,7 @@ function loadAssistant(): void {
         setSource: setSourceAndCheck,
         problems: currentProblems,
         flash,
+        pool: () => catalog.sketches.map((s) => ({ id: s.id, name: `${s.album.name} · ${s.name}`, source: s.source })),
       });
     },
     () => {

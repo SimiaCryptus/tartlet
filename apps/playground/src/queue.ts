@@ -22,6 +22,12 @@ export interface QueueHost {
 
 export interface QueueHandle {
   add(entries: readonly QueueEntry[]): void;
+  /** True while the queue is driving playback. */
+  running(): boolean;
+  /** Skips to the next entry; false when the queue is empty. */
+  next(): boolean;
+  /** Goes back to the previous entry; false when there is none. */
+  previous(): boolean;
 }
 
 type Order = 'sequential' | 'shuffle' | 'random';
@@ -506,5 +512,19 @@ export function initQueue(root: HTMLElement, host: QueueHost): QueueHandle {
 
   render();
 
-  return { add };
+  return {
+    add,
+    running: () => running,
+    next() {
+      if (items.length === 0) return false;
+      advance(true);
+      return true;
+    },
+    previous() {
+      const uid = pickPrev();
+      if (uid === null) return false;
+      void go(uid, false);
+      return true;
+    },
+  };
 }

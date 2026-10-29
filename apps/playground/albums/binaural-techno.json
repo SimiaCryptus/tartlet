@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "binaural-techno",
+  "name": "Binaural Techno",
+  "description": "Club techno built for headphones: the kick and bass stay locked in the centre while everything else moves between your ears. Hats that hop and circle, acid lines that rotate in phase, kits split by frequency, noise risers that open from a point into a wash, Haas-widened stabs, a hook hidden in the hats and a delta drone for the afterhours. Each sketch explains its trick in the comments. Headphones on, volume sensible.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["techno", "binaural", "headphones", "spatial", "club"],
+  "exportedAt": "2026-11-06T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "hemisphere",
+      "name": "Hemisphere",
+      "description": "A centred kick and clap anchor the room while hats hop between the ears, the bass swings side to side on tiny delays and a 4 Hz binaural drone hums underneath. The player asks before playing, as with any steady pulse.",
+      "category": "Level & Time",
+      "tags": ["128 bpm", "C minor", "ild", "itd", "binaural"],
+      "source": "setcpm(128/4)\n\n// The kick and clap stay dead centre: the anchor everything else moves around\nkick: s(\"bd*4\").shape(.2).gain(.8)\nclap: s(\"~ cp ~ cp\").room(.2).gain(.45)\n\n// Hats lean right with a level difference; earswap flips the steps marked 1 to the left\nhats: s(\"hh*16\").hpf(7000).ild(8)\n  .earswap(\"0 1 0 1 1 0 1 0 0 1 0 1 1 0 0 1\").gain(\"[.3 .15]*8\")\n\n// The bass swings between the ears on delays under a millisecond\nbass: note(\"c2 ~ c2 c3 ~ c2 eb2 g1\").s(\"sawtooth\").lpf(700).lpq(4)\n  .itd(sine.range(-.5, .5).slow(4))\n  .decay(.15).sustain(.3).release(.05).gain(.45)\n\n// A low drone with a 4 Hz binaural beat: keep it quiet\ndrone: note(\"[c2,g2]\").slow(4).s(\"sine\").binaural(4)\n  .attack(2).sustain(1).release(3).gain(.16)\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    },
+    {
+      "id": "phase-tunnel",
+      "name": "Phase Tunnel",
+      "description": "An acid line whose interaural phase rotates, half a turn to two turns a second, so it rolls around inside your head, over a pad that steps from centred to diffuse. On speakers the 180-degree bars thin out. The player asks before playing, as with any steady pulse.",
+      "category": "Phase",
+      "tags": ["132 bpm", "A minor", "irate", "iphase", "acid"],
+      "source": "setcpm(132/4)\n\n// A straight club kit, all centred\ndrums: stack(\n  s(\"bd*4\").shape(.2).gain(.8),\n  s(\"[~ oh]*4\").gain(.3),\n  s(\"hh*16\").hpf(8000).gain(\"[.25 .1]*8\")\n)\n\n// The acid line: irate turns the phase between the ears, in turns per second\nacid: n(\"0 0 7 0 3 0 10 5\").scale(\"A:minor\").sub(12)\n  .s(\"sawtooth\").lpf(perlin.range(400, 2400)).lpq(10).lpenv(2).lpdecay(.1)\n  .irate(\"<.5 1 2 1>\").legato(.5).gain(.35)\n\n// A pad that steps from the centre of your head to all around it\n// 0 degrees: centred. 90: looser. 180: diffuse, and nearly gone in mono\npad: note(\"<[a3,c4,e4] [f3,a3,c4]>\").slow(2).s(\"sawtooth\").unison(3).detune(.2)\n  .iphase(\"<0 90 180 180>\").lpf(1400).attack(1).release(2).room(.6).gain(.14)\n\n// A centred sub keeps the floor\nsub: note(\"<a1 a1 f1 f1>\").s(\"sine\").attack(.05).sustain(.8).release(.3).gain(.35)\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    },
+    {
+      "id": "split-kit",
+      "name": "Split Kit",
+      "description": "Spectral fusion on the dancefloor: the kit's lows go to one ear and its highs to the other, and the chord stabs send alternate partials to each ear. Neither ear hears the whole groove; together, and in mono, it is complete.",
+      "category": "Spectrum",
+      "tags": ["126 bpm", "D minor", "earsplit", "fusion"],
+      "source": "setcpm(126/4)\n\n// earsplit(\"bands\") puts everything below splitfreq in one ear and above it in the other\ndrums: s(\"bd*4, ~ cp ~ cp, [~ hh]*4, hh*16?0.3\").earsplit(\"bands\").splitfreq(900).gain(.6)\n\n// earsplit(\"harmonics\") alternates the partials: each ear hears a thinner stab\nstabs: note(\"<[d3,f3,a3,c4] [bb2,d3,f3,a3]>\").struct(\"~ x ~ ~ x ~ x ~\")\n  .s(\"sawtooth\").earsplit(\"harmonics\").lpf(2400).decay(.2).sustain(0)\n  .delay(.3).delaytime(3/16).delayfeedback(.35).gain(.2)\n\n// A plain centred bass on the off-beats\nbass: note(\"<d2 bb1>\").struct(\"~ x ~ x ~ x ~ x\")\n  .s(\"sine\").shape(.2).decay(.2).sustain(.3).release(.1).gain(.5)\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    },
+    {
+      "id": "orbit-hats",
+      "name": "Orbit Hats",
+      "description": "Percussion placed around the listener: hats circling once every two bars, a shaker turning the other way, rims hopping from ear to ear and a ride high overhead, all around a centred kick and bass.",
+      "category": "Space",
+      "tags": ["130 bpm", "E minor", "azimuth", "elevation"],
+      "source": "setcpm(130/4)\n\n// The kick and bass sit in front of you and never move\nkick: s(\"bd*4\").shape(.2).gain(.8)\nbass: note(\"e1 ~ e2 ~ e1 e1 g1 ~\").s(\"sawtooth\").lpf(600).lpq(3)\n  .decay(.15).sustain(.3).release(.05).gain(.45)\n\n// Hats circle your head once every two bars, gliding between positions\nhats: s(\"hh*16\").hpf(7000).azimuth(saw.range(-180, 180).slow(2))\n  .distance(2).posglide(.2).gain(\"[.3 .15]*8\")\n\n// A shaker turns the other way, slower and further out\nshaker: s(\"pink*16\").hpf(5000).decay(.04).sustain(0)\n  .azimuth(isaw.range(-180, 180).slow(4)).distance(4).posglide(.3).gain(.06)\n\n// Rims hop from left to right each bar, and a ride rings high overhead\nrims: s(\"~ rim ~ ~ rim ~ ~ rim\").azimuth(\"<-90 90>\").elevation(20).gain(.3)\nride: s(\"[~ rd]*4\").elevation(60).distance(3).gain(.18)\n\n// A clap behind you on the backbeat\nclap: s(\"~ cp ~ cp\").azimuth(180).distance(2).room(.2).gain(.4)\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    },
+    {
+      "id": "wide-open",
+      "name": "Wide Open",
+      "description": "Four bars of build, four bars of drop. The riser starts as identical noise in both ears, a point in the middle of your head, and decorrelates bar by bar until it bursts into a wide wash just as the kick lands.",
+      "category": "Correlation",
+      "tags": ["128 bpm", "F minor", "icorr", "build and drop"],
+      "source": "setcpm(128/4)\n\n// Four bars of build, then four bars of drop\nconst drop = \"<0 0 0 0 1 1 1 1>\"\n\n// The riser: icorr 1 is the same noise in both ears, near 0 is unrelated noise in each\nriser: s(\"pink\").icorr(\"<1 .7 .4 .1 .1 .1 .1 .1>\")\n  .hpf(saw.range(300, 6000).slow(4)).gain(\"<.04 .06 .09 .12 .04 .04 .04 .04>\")\n\n// A snare roll that speeds up into the drop\nroll: s(\"<sd*4 sd*8 sd*16 sd*16 ~ ~ ~ ~>\").gain(saw.range(.15, .5)).hpf(400).room(.3)\n\n// The drop: kick, bass and wide chords\nkick: s(\"bd*4\").mask(drop).shape(.25).gain(.85)\nclap: s(\"~ cp ~ cp\").mask(drop).room(.3).gain(.45)\nbass: note(\"<f1 f1 db1 eb1>\").struct(\"~ x ~ x ~ x ~ x\").mask(drop)\n  .s(\"sawtooth\").lpf(600).decay(.15).sustain(.3).gain(.45)\nchords: note(\"<[f3,ab3,c4] [f3,ab3,c4] [db3,f3,ab3] [eb3,g3,bb3]>\").struct(\"x*8\").mask(drop)\n  .s(\"sawtooth\").unison(4).detune(.3).earsh(12).lpf(3500)\n  .gain(\"[.06 .16 .2 .24]*2\").room(.4)\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    },
+    {
+      "id": "cutoff-ping-pong",
+      "name": "Cutoff Ping-Pong",
+      "description": "Nothing is panned, yet the acid line's brightness bounces between the ears: each ear has its own low-pass, sweeping in opposite directions. The pad is thinner on the right, where a high-pass cuts its body.",
+      "category": "Filtering",
+      "tags": ["124 bpm", "G minor", "lcutoff", "rcutoff"],
+      "source": "setcpm(124/4)\n\n// A rolling, centred kit\ndrums: stack(\n  s(\"bd*4\").shape(.2).gain(.8),\n  s(\"~ cp ~ cp\").room(.25).gain(.45),\n  s(\"[~ oh]*4\").gain(.28),\n  s(\"~ ~ rim ~ ~ rim ~ ~\").gain(.25)\n)\n\n// A low-pass on each ear alone, sweeping in opposite directions every four bars\n// The level stays put; only the brightness wanders\nacid: n(\"0 ~ 0 7 ~ 3 0 10\").scale(\"G:minor\").sub(12)\n  .s(\"sawtooth\").lpq(6)\n  .lcutoff(saw.range(300, 4000).slow(4)).rcutoff(isaw.range(300, 4000).slow(4))\n  .decay(.15).sustain(.2).release(.05).gain(.35)\n\n// A high-pass on the right ear only: the pad sounds fuller on the left\npad: note(\"<[g3,bb3,d4,f4] [eb3,g3,bb3,d4]>\").slow(2).s(\"triangle\")\n  .rhcutoff(1200).attack(1).sustain(1).release(2).room(.5).gain(.16)\n\nsub: note(\"<g1 g1 eb1 eb1>\").s(\"sine\").attack(.05).sustain(.8).release(.3).gain(.35)\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    },
+    {
+      "id": "haas-stabs",
+      "name": "Haas Stabs",
+      "description": "Interaural delays as a mixing tool: chord stabs grow wider as their delay rises from 1 to 25 milliseconds, while rims swing from side to side on delays under a millisecond. The kick and bass have no delay at all.",
+      "category": "Time",
+      "tags": ["130 bpm", "C minor", "itd", "precedence"],
+      "source": "setcpm(130/4)\n\n// A centred kick, clap and bass, with no delay at all\nkick: s(\"bd*4\").shape(.2).gain(.8)\nclap: s(\"~ cp ~ cp\").room(.2).gain(.45)\nbass: note(\"c2 ~ ~ c2 ~ ~ c2 eb2\").s(\"sawtooth\").lpf(650).lpq(3)\n  .decay(.15).sustain(.3).release(.05).gain(.45)\n\n// From about 1 to 30 ms the stabs stay on the leading side but grow wider each bar\nstabs: note(\"[c3,eb3,g3,bb3]\").struct(\"~ x ~ ~ ~ x ~ x\")\n  .s(\"sawtooth\").unison(2).detune(.15).itd(\"<1 8 15 25>\")\n  .lpf(2200).decay(.2).sustain(0).room(.3).gain(.22)\n\n// Under about 0.7 ms the delay moves a sound sideways: the rims swing twice a bar\nrims: s(\"rim*8\").itd(sine.range(-.6, .6).slow(.5)).hpf(1500).gain(.22)\nhats: s(\"[~ hh]*4\").hpf(7000).gain(.25)\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    },
+    {
+      "id": "cents-drift",
+      "name": "Cents Drift",
+      "description": "Dub techno for headphones: a single chord whose ears drift apart in cents, a bar at a time. At 2 cents it beats slowly, at 6 and 12 it shimmers and at 30 it blooms into a chorus inside the delay. A hiss of decorrelated noise fills the room.",
+      "category": "Pitch",
+      "tags": ["118 bpm", "D minor", "earsh", "dub techno"],
+      "source": "setcpm(118/4)\n\n// A soft, centred kit\ndrums: stack(\n  s(\"bd*4\").lpf(300).gain(.75),\n  s(\"~ rim ~ rim\").room(.4).gain(.2),\n  s(\"[~ hh]*4\").hpf(7000).gain(.2)\n)\n\n// earsh raises the right ear and lowers the left by half the value each\n// 2 cents beats slowly; 30 cents widens into a chorus\nchord: note(\"[d3,f3,a3,c4]\").struct(\"~ x ~ ~ ~ ~ x ~\")\n  .s(\"sawtooth\").earsh(\"<2 6 12 30>\").lpf(sine.range(600, 1800).slow(8))\n  .decay(.3).sustain(0).delay(.5).delaytime(3/16).delayfeedback(.55).room(.6).gain(.22)\n\n// A deep, centred bass\nbass: note(\"<d1 d1 bb0 c1>\").struct(\"x ~ ~ x ~ ~ x ~\")\n  .s(\"sine\").shape(.1).decay(.4).sustain(.4).release(.2).gain(.45)\n\n// Hiss: unrelated pink noise in each ear, wide and around you\nhiss: s(\"pink\").slow(8).icorr(.15).hpf(2000).lpf(6000).gain(.03)\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    },
+    {
+      "id": "ghost-hook",
+      "name": "Ghost Hook",
+      "description": "The off-beat hats are white noise, but between the ears they carry a faint hook (Huggins pitch). Each ear alone hears only hiss. A quiet synth plays the hook once every four bars so you know what to listen for. The effect is faint and differs between listeners.",
+      "category": "Dichotic",
+      "tags": ["126 bpm", "A minor", "dichotic", "Huggins pitch"],
+      "source": "setcpm(126/4)\n\n// A centred kick, clap and bass\nkick: s(\"bd*4\").shape(.2).gain(.8)\nclap: s(\"~ cp ~ cp\").room(.2).gain(.4)\nbass: note(\"<a1 a1 f1 g1>\").struct(\"~ x ~ x ~ x ~ x\")\n  .s(\"sawtooth\").lpf(600).decay(.15).sustain(.3).gain(.42)\n\n// The hats: the same noise in both ears, but one ear is phase-shifted in a narrow band\n// Neither ear alone hears a tone; together they hear the hook\nghost: s(\"[~ white]*4\").dichotic(\"<[440 523 659 523] [440 523 784 659] [349 440 523 440] [392 494 587 494]>\")\n  .dichoticq(30).attack(.005).sustain(1).release(.05).gain(.14)\n\n// A quiet hint: the hook on a synth, once every four bars\nhint: note(\"<[~ a4 ~ c5 ~ e5 ~ c5] ~ ~ ~>\").s(\"square\").pw(.3)\n  .decay(.15).sustain(.2).release(.1).gain(.08)\n\n// Plain hats for the groove\nhats: s(\"hh*16\").hpf(8000).gain(\"[.15 .06]*8\")\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    },
+    {
+      "id": "delta-afterhours",
+      "name": "Delta Afterhours",
+      "description": "The last hour, lights low: a soft minimal groove over a 2 Hz binaural drone in the delta range, below the rates that trigger a pulse warning. Clicks drift around the room and a pad barely moves.",
+      "category": "Beats",
+      "tags": ["112 bpm", "F minor", "binaural", "delta", "minimal"],
+      "source": "setcpm(112/4)\n\n// A soft minimal kit, rolled off\ndrums: stack(\n  s(\"bd*4\").lpf(250).gain(.6),\n  s(\"~ ~ rim ~ ~ ~ rim ~\").room(.4).gain(.18),\n  s(\"[~ rd]*4\").gain(.12)\n)\n\n// A 2 Hz binaural drone: each ear is detuned by 1 Hz, so a slow beat forms between them\ndrone: note(\"<f1 f1 db1 eb1>\").slow(2).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.28)\n\n// Clicks drifting slowly around the room\nclicks: s(\"click*8?0.5\").hpf(2500).azimuth(sine.range(-150, 150).slow(8))\n  .distance(3).posglide(.4).seed(\"afterhours\").gain(.12)\n\n// A pad that barely moves\npad: note(\"<[f2,c3,ab3,eb4] [db2,ab2,f3,c4]>\").slow(4).s(\"sawtooth\").unison(4).detune(.3)\n  .attack(4).release(6).lpf(700).room(.8).size(.9).gain(.1)\n",
+      "savedAt": "2026-11-06T12:00:00.000Z"
+    }
+  ]
+}

@@ -353,6 +353,9 @@ body.has-pulse .badge::before {
   align-items: center;
   gap: 8px;
 }
+.top-btn[hidden] {
+  display: none;
+}
 
 .top-btn {
   display: inline-flex;
@@ -1379,7 +1382,8 @@ tartlet-player {
   gap: 6px;
   align-items: stretch;
 }
-.library .library-load {
+.library .library-load,
+.assistant .library-load {
   flex: 1;
   min-width: 0;
   display: grid;
@@ -1566,6 +1570,20 @@ tartlet-player {
 }
 #ai-status.error {
   color: var(--err);
+}
+.assistant-evolve {
+  margin: 12px 0 0;
+}
+.assistant-candidates {
+  margin-top: 14px;
+}
+.assistant-candidates[hidden] {
+  display: none;
+}
+.assistant-candidates-head {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 /* ============================================================================

@@ -27,6 +27,10 @@
       "file": "binaural.json"
     },
     {
+      "id": "binaural-techno",
+      "file": "binaural-techno.json"
+    },
+    {
       "id": "workout",
       "file": "workout.json"
     },
