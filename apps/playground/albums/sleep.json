@@ -1,0 +1,86 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "sleep",
+  "name": "Sleep",
+  "description": "Slow, soft sketches for winding down and drifting off: warm pads, breathing tides, lullabies, firesides, snowfall and noise blankets. No drums, no sudden changes, and gentle levels throughout.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Sleep",
+  "tags": ["sleep", "ambient", "relax", "calm"],
+  "exportedAt": "2026-10-31T00:00:00.000Z",
+  "sketches": [
+    {
+      "id": "drifting-off",
+      "name": "Drifting Off",
+      "description": "A warm pad drifting through F major, a few soft keys that forget themselves now and then, and light rain.",
+      "category": "Sleep",
+      "tags": ["50 bpm", "F major", "pad", "rain"],
+      "source": "setcpm(50/4)\n\n// A warm pad drifting through Fmaj7, Dm9, Bbmaj7 and C6\npad: note(\"<[f3,a3,c4,e4] [d3,f3,a3,e4] [bb2,d3,f3,a3] [c3,e3,g3,a3]>\").slow(2)\n  .s(\"sawtooth\").unison(3).detune(.2)\n  .attack(2).release(4).lpf(900).room(.8).size(.95).gain(.14)\n\n// A few soft keys, now and then\nkeys: n(\"<[4 ~ ~ 2] [~ 1 ~ ~] [0 ~ ~ ~] [~ ~ 2 ~]>\").scale(\"F:major\").transpose(12)\n  .degradeBy(.3).seed(\"dream\")\n  .s(\"triangle\").timbre(\"soft\")\n  .attack(.01).decay(1.5).sustain(0).release(2)\n  .delay(.3).delaytime(3/8).delayfeedback(.35).room(.7).gain(.2)\n\n// A low root underneath\nbass: note(\"<f2 d2 bb1 c2>\").slow(2).s(\"sine\").attack(1).release(3).gain(.22)\n\n// Light rain on the roof\nrain: s(\"rain\").slow(4).intensity(.2).gain(.18)\n",
+      "savedAt": "2026-10-31T00:00:00.000Z"
+    },
+    {
+      "id": "tide-of-breath",
+      "name": "Tide of Breath",
+      "description": "Six breaths a minute: breathe in as the tone rises, out as it falls, while waves roll in.",
+      "category": "Sleep",
+      "tags": ["6 breaths/min", "A minor", "breathing", "surf"],
+      "source": "setcps(.1)\n\n// One cycle is ten seconds: five in, five out\n// The tone rises on the in-breath and settles on the out-breath\ntone: note(\"[a2,e3] [f2,c3]\").s(\"sine\").attack(3).release(4).gain(.15)\n\n// A soft rush of air on each in-breath\nbreath: s(\"pink ~\").hpf(200).lpf(600).attack(4).release(5).gain(.05)\n\n// Waves rolling in\nsurf: s(\"surf\").slow(2).intensity(.4).gain(.28)\n\n// A far-off bell every few breaths\nbell: note(\"<a4 ~ e4 ~ c5 ~ ~ ~>\").s(\"sine\").fm(2).fmh(3.5)\n  .decay(5).sustain(0).release(5).room(.8).size(.95).gain(.07)\n",
+      "savedAt": "2026-10-31T00:00:00.000Z"
+    },
+    {
+      "id": "starlight-lullaby",
+      "name": "Starlight Lullaby",
+      "description": "A slow music-box waltz in G, a hummed line beneath it and crickets far away.",
+      "category": "Sleep",
+      "tags": ["54 bpm", "3/4", "G major", "music box"],
+      "source": "setcpm(54/3)\n\n// One cycle is a bar of 3/4: G D Em D C G D G\nmusicbox: note(\"<[d5 b4 g4] [a4@2 d5] [b4 g4 e4] [d4@3] [e4 g4 c5] [b4@2 g4] [a4 f#4 d4] [g4@3]>\")\n  .s(\"sine\").fm(2).fmh(4)\n  .attack(.002).decay(1).sustain(0).release(1.5)\n  .room(.7).size(.85).gain(.2)\n\n// A soft root on the downbeat\nbass: note(\"<g2 d2 e2 d2 c2 g2 d2 g2>\").s(\"triangle\").timbre(\"soft\")\n  .attack(.01).decay(1).sustain(0).release(1).gain(.2)\n\n// Someone humming along\nhum: note(\"<g3 d3 e3 d3 c3 g3 d3 g3>\").s(\"hum\").attack(.6).release(1.5).gain(.13)\n\n// Crickets far away\ncrickets: s(\"insect\").slow(4).distance(8).gain(.07)\n",
+      "savedAt": "2026-10-31T00:00:00.000Z"
+    },
+    {
+      "id": "hearthside",
+      "name": "Hearthside",
+      "description": "Slow guitar arpeggios in D by a crackling fire, a hummed tune and a quiet clock.",
+      "category": "Sleep",
+      "tags": ["56 bpm", "D major", "fire", "guitar"],
+      "source": "setcpm(56/4)\n\n// The fire\nfire: s(\"fire\").slow(4).intensity(.3).density(6).gain(.24)\n\n// Slow arpeggios: D, Bm, G, A\nguitar: note(\"<[d3 a3 d4 f#4 a4 f#4 d4 a3] [b2 f#3 b3 d4 f#4 d4 b3 f#3] [g2 d3 g3 b3 d4 b3 g3 d3] [a2 e3 a3 c#4 e4 c#4 a3 e3]>\")\n  .s(\"triangle\").timbre(\"soft\")\n  .attack(.005).decay(.9).sustain(0).release(1.2)\n  .lpf(1600).pan(.4).room(.5).gain(.2)\n\n// A tune hummed by the fire\nhum: note(\"<f#4 d4 d4 c#4>\").s(\"hum\").attack(1).release(2).pan(.6).gain(.11)\n\n// The clock on the mantel\nclock: s(\"tick*4\").lpf(3000).gain(.05)\n",
+      "savedAt": "2026-10-31T00:00:00.000Z"
+    },
+    {
+      "id": "delta-drift",
+      "name": "Delta Drift",
+      "description": "Headphones on: a slow 2 Hz binaural drone, a dark pad that opens and closes, brown noise and distant bells.",
+      "category": "Sleep",
+      "tags": ["40 bpm", "binaural", "delta", "C minor"],
+      "source": "setcpm(40/4)\n\n// Headphones: a 2 Hz delta beat, below the 3-30 Hz range that shows a warning\ndrone: note(\"<c2 c2 ab1 bb1>\").slow(2).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.32)\n\n// A dark pad that slowly opens and closes\npad: note(\"[c3,g3,eb4]\").slow(4).s(\"sawtooth\").unison(4).detune(.3)\n  .lpf(sine.range(300, 900).slow(16)).attack(4).release(6)\n  .room(.8).size(.95).gain(.1)\n\n// A floor of brown noise\nnoise: s(\"brown\").slow(8).lpf(400).gain(.1)\n\n// Bells far away\nbells: note(\"<g4 ~ ~ ~ eb4 ~ ~ ~>\").s(\"sine\").fm(1.5).fmh(2)\n  .decay(6).sustain(0).release(6).distance(6).gain(.08)\n",
+      "savedAt": "2026-10-31T00:00:00.000Z"
+    },
+    {
+      "id": "moonlit-lake",
+      "name": "Moonlit Lake",
+      "description": "Scattered glass notes on still water, a low open fifth, a stream to the left and insects to the right.",
+      "category": "Sleep",
+      "tags": ["60 bpm", "D minor pentatonic", "spatial", "water"],
+      "source": "setcpm(60/4)\n\n// A low open fifth, barely there\ndrone: note(\"[d2,a2]\").slow(4).s(\"sine\").attack(3).sustain(1).release(4).gain(.17)\n\n// Glass notes scattered on the water\nglass: n(irand(5).segment(8)).scale(\"D:minor pentatonic\").transpose(12)\n  .degradeBy(.75).seed(\"lake\")\n  .s(\"triangle\").timbre(\"glass\").decay(1).sustain(0).release(2)\n  .pan(rand).delay(.4).delaytime(3/8).delayfeedback(.45).room(.7).gain(.14)\n\n// A stream on the left, insects on the right\nstream: s(\"stream\").slow(4).azimuth(-60).distance(4).gain(.2)\ninsects: s(\"insect\").slow(4).azimuth(80).distance(5).gain(.08)\n",
+      "savedAt": "2026-10-31T00:00:00.000Z"
+    },
+    {
+      "id": "snowfall",
+      "name": "Snowfall",
+      "description": "A hushed choir in E minor, soft wind at the window and high bells falling like snowflakes.",
+      "category": "Sleep",
+      "tags": ["46 bpm", "E minor", "choir", "winter"],
+      "source": "setcpm(46/4)\n\n// Wind at the window\nwind: s(\"wind\").slow(8).intensity(.2).gain(.13)\n\n// A hushed choir: Em, C, Am, B\nchoir: note(\"<[e3,g3,b3] [c3,e3,g3] [a2,c3,e3] [b2,d#3,f#3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo oo ah oo>\")\n  .attack(2).release(3).space(\"hall\").gain(.2)\n\n// A low root beneath the choir\nbass: note(\"<e2 c2 a1 b1>\").slow(2).s(\"sine\").attack(2).release(4).gain(.18)\n\n// Snowflakes: high bells, a few at a time\nflakes: note(\"<[b5 ~ g5 ~] [~ e5 ~ ~] [~ ~ f#5 ~] [d#5 ~ ~ ~]>\")\n  .degradeBy(.25).seed(\"snow\")\n  .s(\"sine\").fm(3).fmh(2.76).decay(2).sustain(0).release(2)\n  .pan(rand).space(\"hall\").gain(.07)\n",
+      "savedAt": "2026-10-31T00:00:00.000Z"
+    },
+    {
+      "id": "brown-noise-blanket",
+      "name": "Brown Noise Blanket",
+      "description": "A deep, steady blanket of filtered brown noise with a soft hum underneath, for masking the world and sleeping through.",
+      "category": "Sleep",
+      "tags": ["30 bpm", "noise", "masking", "minimal"],
+      "source": "setcpm(30/4)\n\n// A deep, steady blanket of brown noise\nblanket: s(\"brown\").slow(8).lpf(600).gain(.25)\n\n// A faint airy layer on top\nhush: s(\"pink\").slow(8).hpf(1500).lpf(4000).gain(.02)\n\n// A low hum underneath\nhum: note(\"f1\").slow(8).s(\"hum\").gain(.1)\n",
+      "savedAt": "2026-10-31T00:00:00.000Z"
+    }
+  ]
+}

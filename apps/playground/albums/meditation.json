@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "meditation",
+  "name": "Still Water",
+  "description": "An album for meditation, breathwork and rest: a paced breathing guide, singing bowls, chant, sea, rain and forest, a body scan that moves around your head, and gentle binaural drones for sleep. Slow tempos, long envelopes and nothing sudden.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Meditation",
+  "tags": ["meditation", "calm", "breathwork", "sleep", "ambience"],
+  "exportedAt": "2026-11-01T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "breath-guide",
+      "name": "Breath Guide",
+      "description": "Paced breathing at six breaths a minute. Breathe in for four seconds while the chord swells, and out for six while it fades. A soft bowl marks each new breath.",
+      "category": "Breathwork",
+      "tags": ["6 breaths/min", "D major", "guided", "sea"],
+      "source": "setcpm(6)\n\n// One cycle is one breath of ten seconds: in for four, out for six\n// Breathe in as the chord swells, breathe out as it fades\nbreath: note(\"<[d3,a3,f#4] [b2,f#3,d4] [g2,d3,b3] [a2,e3,c#4]>\")\n  .struct(\"x@2 ~@3\")\n  .s(\"sawtooth\").unison(3).detune(.2)\n  .attack(4).sustain(1).release(6)\n  .lpf(900).room(.7).size(.9).gain(.2)\n\n// A soft bowl at the start of every breath\nbowl: note(\"d4\").s(\"sine\").fm(1.5).fmh(2.76)\n  .decay(6).sustain(0).release(6).space(\"hall\").gain(.18)\n\n// A low drone and the sea far away\ndrone: note(\"[d2,a2]\").slow(4).s(\"sine\").attack(4).sustain(1).release(6).gain(.16)\nsurf: s(\"surf\").intensity(.3).distance(4).gain(.2)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "singing-bowls",
+      "name": "Singing Bowls",
+      "description": "A sound bath: FM singing bowls struck slowly, ringing long and drifting across the stereo field above a low hum.",
+      "category": "Sound Bath",
+      "tags": ["40 bpm", "C minor", "bowls", "drone"],
+      "source": "setcpm(40/4)\n\n// Bowls struck one at a time, each left to ring out\nbowls: note(\"<c4 ~ g4 ~ eb4 ~ ~ bb3>\").s(\"sine\").fm(1.2).fmh(2.76)\n  .decay(8).sustain(0).release(8)\n  .pan(sine.slow(8)).space(\"hall\").gain(.24)\n\n// A large bowl, slightly out of tune with the others, so they beat gently\ngreatbowl: note(\"<c3 ~ ~ ~ ~ ~ ~ ~>\").s(\"sine\").fm(.8).fmh(2.41)\n  .decay(10).sustain(0).release(10).room(.8).size(.95).gain(.28)\n\n// The hum underneath, with a faint overtone whistle\nhum: note(\"c2\").slow(8).s(\"hum\").overtone(6).gain(.16)\n\n// Soft air in the room\nair: s(\"pink\").slow(8).lpf(600).gain(.03)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "ocean-breath",
+      "name": "Ocean Breath",
+      "description": "Waves on a quiet shore with a warm pad that rises and falls like the tide. Let your breathing follow the water.",
+      "category": "Nature",
+      "tags": ["50 bpm", "F major", "sea", "pad"],
+      "source": "setcpm(50/4)\n\n// The shore\nsurf: s(\"surf\").slow(8).intensity(.45).gain(.32)\nwind: s(\"wind\").slow(8).intensity(.2).gain(.06)\n\n// A warm pad that swells and recedes like the tide\npad: note(\"<[f3,a3,c4,e4] [d3,f3,a3,c4] [bb2,d3,f3,a3] [c3,e3,g3,c4]>\").slow(2)\n  .s(\"sawtooth\").unison(4).detune(.25)\n  .attack(3).release(4)\n  .lpf(sine.range(400, 1200).slow(8)).room(.8).size(.9).gain(.16)\n\n// A few clear notes, like light on the water\nshimmer: n(\"<4 ~ ~ 2 ~ ~ 6 ~>\").scale(\"F:major\").transpose(12)\n  .s(\"sine\").fm(2).fmh(4).decay(2).sustain(0).release(2)\n  .delay(.35).delaytime(3/8).delayfeedback(.4).room(.7).gain(.14)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "temple-dawn",
+      "name": "Temple Dawn",
+      "description": "A choir breathes open fifths over a reed drone. Distant bells sound, and the morning birds sing outside the temple walls.",
+      "category": "Chant",
+      "tags": ["50 bpm", "C", "choir", "church"],
+      "source": "setcpm(50/4)\n\n// The choir breathes slow, open chords\nchoir: note(\"<[c3,g3,c4] [c3,g3,d4] [c3,f3,c4] [c3,g3,c4]>\").slow(2)\n  .s(\"choir\").syl(\"<oh ah oo oh>\")\n  .attack(2).release(3).space(\"church\").gain(.32)\n\n// A reed drone that never moves\ndrone: note(\"[c2,g2]\").slow(8).s(\"sawtooth\").timbre(\"reed\")\n  .lpf(500).attack(3).sustain(1).release(4).gain(.14)\n\n// Distant bells\nbells: note(\"<g4 ~ ~ ~ c5 ~ ~ ~>\").s(\"sine\").fm(3).fmh(2.41)\n  .decay(4).sustain(0).release(4).space(\"church\").gain(.14)\n\n// Birds outside the walls\nbirds: s(\"bird\").slow(4).azimuth(-60).distance(8).occlude(.4).gain(.16)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "so-hum",
+      "name": "So Hum",
+      "description": "A mantra meditation: a single voice sings 'so' on the in-breath and 'hum' on the out-breath, over a ringing drone. Repeat it silently with each breath.",
+      "category": "Chant",
+      "tags": ["mantra", "voice", "drone"],
+      "source": "setcpm(48/4)\n\n// So on the in-breath, hum on the out-breath: one breath every two cycles\nmantra: note(\"g3 d3\").slow(2)\n  .s(\"voice\").syl(\"so hu\").voicetype(\"alto\")\n  .mono(1).vglide(.2).attack(.6).release(2)\n  .space(\"hall\").gain(.34)\n\n// A ringing drone on the tonic and fifth\ndrone: note(\"d2 a2 d3 a2\").slow(2).s(\"sawtooth\").timbre(\"bright\")\n  .unison(2).detune(.08).attack(.02).decay(2).sustain(.4).release(3)\n  .lpf(1400).room(.6).gain(.18)\n\n// The hum underneath\nhum: note(\"d2\").slow(8).s(\"hum\").overtone(5).gain(.16)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "forest-clearing",
+      "name": "Forest Clearing",
+      "description": "Headphones on: you sit in a clearing by a stream, with birds placed around you, insects in the grass and a slow wooden flute.",
+      "category": "Nature",
+      "tags": ["60 bpm", "spatial", "G major", "flute"],
+      "source": "setcpm(60/4)\n\n// The stream and the breeze\nstream: s(\"stream\").slow(4).azimuth(-30).distance(2).gain(.26)\nbreeze: s(\"wind\").slow(8).intensity(.2).gain(.08)\n\n// Birds around the clearing, one wandering slowly overhead\nwren: s(\"bird\").slow(3).azimuth(60).distance(4).gain(.3)\nthrush: s(\"bird\").slow(5).azimuth(saw.range(-150, 150).slow(16)).elevation(30).distance(6).posglide(.4).gain(.24)\ninsects: s(\"insect\").slow(4).azimuth(120).distance(3).gain(.1)\n\n// A slow wooden flute\nflute: note(\"<[g4@3 a4] b4 [d5@3 b4] a4 [g4@3 e4] d4 ~ ~>\")\n  .s(\"sine\").timbre(\"hollow\").vib(4.5).vibdepth(.12)\n  .attack(.3).sustain(.6).release(1.2)\n  .delay(.3).delaytime(3/8).room(.6).gain(.26)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "rain-retreat",
+      "name": "Rain Retreat",
+      "description": "Rain on the roof of a quiet retreat. Sparse piano notes fall into the reverb, and a seeded random choice leaves the same few out each time.",
+      "category": "Nature",
+      "tags": ["56 bpm", "F major", "rain", "piano"],
+      "source": "setcpm(56/4)\n\n// Steady rain on the roof\nrain: s(\"rain\").slow(4).intensity(.45).gain(.3)\n\n// Sparse piano notes, a few gently left out\npiano: n(\"<[0 ~ 4 ~] [~ 2 ~ ~] [5 ~ ~ 4] [~ ~ 2 ~]>\").scale(\"F:major\").transpose(12)\n  .degradeBy(.25).seed(\"retreat\")\n  .s(\"triangle\").timbre(\"soft\")\n  .attack(.005).decay(1.5).sustain(.1).release(2)\n  .room(.7).size(.9).gain(.3)\n\n// Soft low chords holding everything together\nchords: note(\"<[f2,c3,a3] [d2,a2,f3] [bb1,f2,d3] [c2,g2,e3]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(1).sustain(.5).release(3)\n  .lpf(900).room(.6).gain(.2)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "body-scan",
+      "name": "Body Scan",
+      "description": "Headphones on: a soft humming tone circles your head and slowly rises. Follow it with your attention, from your feet to the crown of your head.",
+      "category": "Guided",
+      "tags": ["headphones", "spatial", "hum"],
+      "source": "setcpm(40/4)\n\n// A guiding hum that circles and slowly rises across sixteen cycles\nguide: note(\"<a3 c4 e4 g4>\").slow(4).s(\"hum\")\n  .azimuth(saw.range(-180, 180).slow(4))\n  .elevation(saw.range(0, 60).slow(16))\n  .distance(2).posglide(.5).attack(2).release(3).gain(.3)\n\n// A still drone at the centre\ndrone: note(\"[a1,e2]\").slow(8).s(\"sine\").attack(4).sustain(1).release(6).gain(.22)\n\n// Soft air all around\nair: s(\"pink\").slow(8).lpf(500).gain(.03)\n\n// A small bell at the start of each round\nbell: note(\"<a4 ~ ~ ~ ~ ~ ~ ~>\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(5).sustain(0).release(5).space(\"hall\").gain(.12)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "delta-sleep",
+      "name": "Delta Sleep",
+      "description": "Headphones on: a gentle 2 Hz binaural beat in the delta range, over warm brown noise and a pad that barely moves. For falling asleep.",
+      "category": "Sleep",
+      "tags": ["binaural", "delta", "headphones", "A minor"],
+      "source": "setcpm(40/4)\n\n// A slow binaural drone: each ear is detuned by 1 Hz, so a 2 Hz beat forms\ndrone: note(\"<a1 a1 f1 g1>\").slow(4).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.32)\n\n// A pad that barely moves\npad: note(\"<[a2,e3,b3] [f2,c3,g3]>\").slow(8)\n  .s(\"sawtooth\").unison(4).detune(.3)\n  .attack(6).release(8).lpf(600).room(.8).size(.95).gain(.1)\n\n// Warm brown noise, like a distant waterfall\nbed: s(\"brown\").slow(8).lpf(400).gain(.08)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": "theta-drift",
+      "name": "Theta Drift",
+      "description": "Headphones on: a 6 Hz binaural beat in the theta range for deep meditation, under slow choir chords and a stream. The player asks before playing, as with any steady pulse.",
+      "category": "Binaural",
+      "tags": ["binaural", "theta", "headphones", "D minor"],
+      "source": "setcpm(44/4)\n\n// A 6 Hz binaural beat: keep the volume low\ndrone: note(\"<d2 d2 bb1 c2>\").slow(4).s(\"sine\").binaural(6)\n  .attack(4).sustain(1).release(6).gain(.3)\n\n// Slow, breathing choir chords\nchoir: note(\"<[d3,a3,f4] [bb2,f3,d4] [g2,d3,bb3] [a2,e3,c#4]>\").slow(2)\n  .s(\"choir\").syl(\"<oo ah oh oo>\")\n  .attack(3).release(4).space(\"hall\").gain(.24)\n\n// A stream nearby\nstream: s(\"stream\").slow(4).distance(4).gain(.18)\n",
+      "savedAt": "2026-11-01T12:00:00.000Z"
+    }
+  ]
+}

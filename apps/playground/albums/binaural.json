@@ -1,0 +1,113 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "binaural",
+  "name": "Binaural Experiments",
+  "description": "Headphone studies that treat the two ears as two instruments: beats that form between the ears, delays that move and widen a sound, phase and noise that spread it around your head, a tune hidden in noise, split spectra, wandering filters and a classic dichotic illusion. Each sketch explains what to listen for and what changes on speakers or in mono. Headphones on, volume low.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["binaural", "headphones", "experiments", "illusions", "spatial"],
+  "exportedAt": "2026-11-02T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "beat-or-pulse",
+      "name": "Beat or Pulse",
+      "description": "Two bars of a 5 Hz binaural beat, then two bars of plain amplitude pulsing at the same rate. The first only exists on headphones; the second is audible on speakers too. The player asks before playing, as with any steady pulse.",
+      "category": "Beats",
+      "tags": ["5 Hz", "binaural", "isochronic", "comparison"],
+      "source": "setcpm(60/4)\n\n// Two bars of a 5 Hz binaural beat: each ear hears a steady tone, and the beat forms between them\nbinaural: note(\"a2\").s(\"sine\").binaural(5).mask(\"<1 1 0 0>\")\n  .attack(.5).sustain(1).release(.5).gain(.3)\n\n// Two bars of the same rate as plain amplitude pulsing, audible on speakers too\npulse: note(\"a2\").s(\"sine\").isochronic(5).isodepth(.6).mask(\"<0 0 1 1>\")\n  .attack(.5).sustain(1).release(.5).gain(.3)\n\n// A quiet pad that never changes, for reference\npad: note(\"[a3,c#4,e4]\").slow(4).s(\"triangle\").timbre(\"soft\")\n  .attack(2).sustain(1).release(3).lpf(1200).room(.6).gain(.12)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "cents-apart",
+      "name": "Cents Apart",
+      "description": "A drone whose ears drift apart in cents, two bars at a time: 2 cents beats slowly, 6 and 12 shimmer, and 30 widens into a chorus. A plain centred sine stays put as a reference.",
+      "category": "Pitch",
+      "tags": ["earsh", "D", "drone"],
+      "source": "setcpm(50/4)\n\n// earsh raises the right ear and lowers the left by half the value each\n// 2 cents beats slowly; 30 cents widens into a chorus\ndrone: note(\"[d2,a2]\").s(\"sawtooth\").earsh(\"<2 2 6 6 12 12 30 30>\")\n  .lpf(700).attack(1.5).sustain(1).release(1.5).gain(.22)\n\n// A plain sine, the same in both ears, as a fixed point\ncentre: note(\"d3\").s(\"sine\").attack(1).sustain(1).release(1).gain(.12)\n\n// A bell marks each new setting\nbell: note(\"<a4 ~>\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(3).sustain(0).release(3).room(.6).gain(.1)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "haas-corridor",
+      "name": "Haas Corridor",
+      "description": "Interaural time differences. A pluck swings from side to side on delays under a millisecond, while a pad stays on the leading side and grows wider as its delay rises to 8 and 20 ms.",
+      "category": "Time",
+      "tags": ["itd", "precedence", "E minor", "80 bpm"],
+      "source": "setcpm(80/4)\n\n// Under about 0.7 ms, a delay between the ears moves the sound sideways\n// Negative values delay the right ear, so the pluck leans left; positive values lean right\npluck: n(\"0 2 4 7 4 2 0 -1\").scale(\"E:minor\").s(\"triangle\").timbre(\"bright\")\n  .itd(sine.range(-.6, .6).slow(4))\n  .decay(.25).sustain(0).release(.3).gain(.3)\n\n// From about 1 to 30 ms the sound stays on the leading side but grows wider\npad: note(\"<[e3,g3,b3] [c3,e3,g3]>\").s(\"sawtooth\").unison(2).detune(.1)\n  .itd(\"<1 1 8 8 20 20 1 1>\").lpf(1400)\n  .attack(.5).sustain(1).release(1).gain(.14)\n\n// A centred bass, with no delay at all\nbass: note(\"<e2 c2>\").s(\"sine\").attack(.2).sustain(.8).release(.5).gain(.3)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "inside-the-head",
+      "name": "Inside the Head",
+      "description": "Interaural phase. In phase, the drone sits in the centre of your head; at 90 degrees it loosens; at 180 it spreads diffusely around you. On speakers or in mono, the 180-degree bar nearly vanishes.",
+      "category": "Phase",
+      "tags": ["iphase", "antiphasic", "C", "mono test"],
+      "source": "setcpm(50/4)\n\n// 0 degrees: centred. 90: looser. 180: diffuse and around the head\n// Try it on speakers: the 180-degree bar almost disappears\ndrone: note(\"[c2,g2]\").s(\"triangle\").iphase(\"<0 90 180 90>\")\n  .attack(1).sustain(1).release(1).gain(.3)\n\n// A high sine follows the same phase steps, one bar later\nhigh: note(\"g4\").s(\"sine\").iphase(\"<90 0 90 180>\")\n  .attack(1).sustain(1).release(1).gain(.08)\n\n// A plain click at the start of each bar, always centred\nclick: s(\"tick ~ ~ ~\").gain(.12)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "correlation-ladder",
+      "name": "Correlation Ladder",
+      "description": "Pink noise steps down from identical in both ears to almost independent in each. A point in the middle of your head opens into a wide, enveloping wash.",
+      "category": "Correlation",
+      "tags": ["icorr", "noise", "width"],
+      "source": "setcpm(40/4)\n\n// icorr 1: the same noise in both ears, a point in the middle\n// icorr near 0: unrelated noise in each ear, wide and all around\nnoise: s(\"pink\").icorr(\"<1 .7 .4 .1>\").lpf(3000)\n  .attack(.3).sustain(1).release(.3).gain(.18)\n\n// A soft click at the start of each step\nclick: s(\"tick ~ ~ ~\").gain(.12)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "hidden-melody",
+      "name": "Hidden Melody",
+      "description": "Each ear alone hears only white noise. Together, a faint tune appears between them (Huggins pitch). A quiet sine plays the first phrase every four bars, so you know what to listen for. The effect is faint and differs between listeners.",
+      "category": "Dichotic",
+      "tags": ["dichotic", "Huggins pitch", "noise", "A minor"],
+      "source": "setcpm(60/4)\n\n// The same noise feeds both ears, but one ear's noise is phase-shifted in a narrow band\n// Neither ear alone hears a tone; together they hear a faint pitch at that band\ntune: s(\"white*4\").dichotic(\"<[440 523 659 523] [392 494 587 494] [349 440 523 440] [392 494 587 784]>\")\n  .dichoticq(30).attack(.02).sustain(1).release(.05).gain(.16)\n\n// A quiet hint: the first phrase on a sine, once every four bars\nhint: note(\"<[a4 c5 e5 c5] ~ ~ ~>\").s(\"sine\")\n  .decay(.3).sustain(.3).release(.2).gain(.1)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "split-spectrum",
+      "name": "Split Spectrum",
+      "description": "Spectral fusion. A pad sends alternate partials to each ear and the drums split lows from highs at 900 Hz. Neither ear hears the whole sound; together, and in mono, it sounds complete.",
+      "category": "Spectrum",
+      "tags": ["earsplit", "fusion", "96 bpm", "A minor"],
+      "source": "setcpm(96/4)\n\n// earsplit(\"harmonics\") alternates the partials between the ears: each ear hears a thinner tone\npad: note(\"<[a2,e3,a3] [f2,c3,f3] [c3,g3,c4] [g2,d3,g3]>\").s(\"sawtooth\").earsplit(\"harmonics\")\n  .attack(.4).sustain(1).release(1).lpf(2400).gain(.16)\n\n// earsplit(\"bands\") splits the lows and highs between the ears at splitfreq; it works on any sound\ndrums: s(\"bd ~ [~ bd] ~, ~ sd ~ sd, hh*8\").earsplit(\"bands\").splitfreq(900).gain(.5)\n\n// A plain centred bass\nbass: note(\"<a1 f1 c2 g1>\").s(\"sine\").attack(.05).sustain(.7).release(.3).gain(.35)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "wandering-brightness",
+      "name": "Wandering Brightness",
+      "description": "Nothing is panned, yet the brightness drifts from ear to ear: an arpeggio has a low-pass on each ear alone, sweeping in opposite directions. The pad underneath is thinner in one ear than the other.",
+      "category": "Filtering",
+      "tags": ["lcutoff", "rcutoff", "D dorian", "72 bpm"],
+      "source": "setcpm(72/4)\n\n// A low-pass on each ear alone, sweeping in opposite directions\n// The level stays the same; only the brightness wanders between the ears\narp: n(\"0 2 4 6 7 6 4 2\").scale(\"D:dorian\").s(\"sawtooth\")\n  .lcutoff(saw.range(400, 5000).slow(8)).rcutoff(isaw.range(400, 5000).slow(8))\n  .decay(.2).sustain(.2).release(.2).gain(.18)\n\n// A high-pass on the right ear only: the pad sounds fuller on the left\npad: note(\"<[d3,f3,a3,c4] [g2,b2,d3,f3]>\").slow(2).s(\"triangle\")\n  .rhcutoff(1200).attack(1).sustain(1).release(2).room(.5).gain(.16)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "ear-hops",
+      "name": "Ear Hops",
+      "description": "Bells lean to the right with a level difference between the ears, and a patterned ear swap flips some of them to the left, so the melody hops between your ears.",
+      "category": "Level",
+      "tags": ["ild", "earswap", "C major", "90 bpm"],
+      "source": "setcpm(90/4)\n\n// ild makes the right ear louder; earswap flips the ears on the steps marked 1\nbells: n(\"0 4 2 5 4 7 5 9\").scale(\"C:major\").transpose(12).s(\"sine\").fm(2).fmh(3)\n  .ild(9).earswap(\"0 1 0 1 1 0 1 0\")\n  .decay(.3).sustain(0).release(.4).gain(.22)\n\n// A softer counter-line that swaps once per bar\ncounter: n(\"<[0 ~ 2 ~] [4 ~ 2 ~]>\").scale(\"C:major\").s(\"triangle\").timbre(\"soft\")\n  .ild(6).earswap(\"<0 1>\").decay(.4).sustain(.2).release(.4).gain(.16)\n\n// A centred kit and bass\ndrums: s(\"bd ~ ~ bd, ~ rim ~ rim\").gain(.35)\nbass: note(\"<c2 a1 f1 g1>\").s(\"sine\").attack(.02).sustain(.6).release(.3).gain(.32)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "scale-illusion",
+      "name": "Scale Illusion",
+      "description": "Diana Deutsch's scale illusion. A rising and a falling C major scale are played together, alternating ears on every note. Each ear's part jumps around, but many listeners hear smooth lines regroup by pitch instead.",
+      "category": "Illusions",
+      "tags": ["dichotic", "illusion", "C major", "pan"],
+      "source": "setcpm(60/4)\n\n// A rising and a falling scale, alternating ears on every note\n// Each ear's part jumps around; many listeners hear smooth lines grouped by pitch instead\nright: note(\"c5 d4 a4 f4 f4 a4 d4 c5\").s(\"sine\").pan(1)\n  .attack(.01).decay(.3).sustain(.5).release(.1).gain(.3)\nleft: note(\"c4 b4 e4 g4 g4 e4 b4 c4\").s(\"sine\").pan(0)\n  .attack(.01).decay(.3).sustain(.5).release(.1).gain(.3)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    },
+    {
+      "id": "slow-rotation",
+      "name": "Slow Rotation",
+      "description": "The phase between the ears turns continuously, once every four seconds, then every two, then once and twice a second. The drone seems to roll around inside your head, staying below the rates that trigger a pulse warning.",
+      "category": "Phase",
+      "tags": ["irate", "E", "drone"],
+      "source": "setcpm(50/4)\n\n// irate rotates the interaural phase, in turns per second\n// All rates stay below 3 Hz, so no pulse warning is needed\ndrone: note(\"[e2,b2]\").s(\"sine\").irate(\"<.25 .5 1 2>\")\n  .attack(1).sustain(1).release(1).gain(.3)\n\n// A still pad above, the same in both ears\npad: note(\"[e3,g#3,b3]\").slow(4).s(\"triangle\").timbre(\"soft\")\n  .attack(2).sustain(1).release(3).lpf(1000).room(.6).gain(.12)\n\n// A bell at each change of rate\nbell: note(\"b4\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(3).sustain(0).release(3).room(.6).gain(.1)\n",
+      "savedAt": "2026-11-02T12:00:00.000Z"
+    }
+  ]
+}
