@@ -180,6 +180,71 @@
       <!-- ---- right dock -->
       <div class="dock" data-dock="right">
         <section
+          id="panel-queue"
+          class="panel library queue"
+          data-panel="queue"
+          data-title="Play queue"
+          data-short="Queue"
+          data-icon="≡"
+        >
+          <div class="panel-body">
+            <div class="queue-now">
+              <span id="q-now" class="queue-now-name">The queue is empty</span>
+              <span id="q-countdown" class="queue-countdown" aria-live="off"></span>
+            </div>
+            <progress id="q-progress" class="queue-progress" max="1" value="0"></progress>
+            <div class="queue-transport">
+              <button id="q-prev" type="button" aria-label="Previous sketch" title="Previous sketch">⏮</button>
+              <button id="q-play" type="button" class="primary">Play queue</button>
+              <button id="q-next" type="button" aria-label="Next sketch" title="Next sketch">⏭</button>
+            </div>
+            <div class="queue-settings">
+              <label class="field">
+                <span>Switch every</span>
+                <span class="queue-interval">
+                  <input id="q-interval" type="number" min="5" step="5" value="30" aria-label="Switch interval" />
+                  <select id="q-unit" aria-label="Interval unit">
+                    <option value="1">seconds</option>
+                    <option value="60">minutes</option>
+                  </select>
+                </span>
+              </label>
+              <label class="field">
+                <span>Order</span>
+                <select id="q-order">
+                  <option value="sequential">In order</option>
+                  <option value="shuffle">Shuffle</option>
+                  <option value="random">Random</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Repeat</span>
+                <select id="q-repeat">
+                  <option value="all">Whole queue</option>
+                  <option value="one">Current sketch</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="queue-check">
+                <input id="q-auto" type="checkbox" checked />
+                Switch automatically (the countdown pauses while the player is stopped)
+              </label>
+            </div>
+            <ul id="q-list" class="library-list" aria-label="Queued sketches"></ul>
+            <p id="q-empty" class="library-empty">
+              Nothing queued yet. Add the current sketch, or every sketch listed in the Albums window.
+            </p>
+            <div class="queue-actions">
+              <button id="q-add-current" type="button">Add current</button>
+              <button id="q-add-shown" type="button" title="Adds every sketch listed in the Albums window">
+                Add listed
+              </button>
+              <button id="q-clear" type="button" class="library-delete">Clear queue</button>
+            </div>
+          </div>
+        </section>
+
+        <section
           id="library"
           class="panel library"
           data-panel="library"

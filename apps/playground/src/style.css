@@ -1421,6 +1421,80 @@ tartlet-player {
 .library-status.error {
   color: var(--err);
 }
+/* ============================================================================
+   Play queue (the panel also carries .library, so buttons and rows share its look)
+   ========================================================================== */
+.queue-now {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.queue-now-name {
+  min-width: 0;
+  font: 700 15px/1.3 var(--font-display);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queue-countdown {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.queue-progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  accent-color: var(--accent);
+}
+.queue-transport {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.library.queue .queue-transport #q-play {
+  flex: 1;
+  justify-content: center;
+}
+.queue-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.queue-settings .field {
+  flex-basis: 120px;
+}
+.queue-interval {
+  display: flex;
+  gap: 6px;
+}
+.queue-interval input {
+  flex: 1 1 4em;
+  width: 4em;
+}
+.queue-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-basis: 100%;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.queue-check input {
+  accent-color: var(--accent);
+}
+.queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
 
 /* ============================================================================
    Assistant

@@ -1,0 +1,230 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "biomes",
+  "name": "Seasons of the Earth",
+  "description": "Six biomes through four seasons: tundra, boreal forest, temperate forest, grassland, desert and tropical rainforest, each heard in spring, summer, autumn and winter. Every sketch paints its place with ambiences, creatures and weather, and its season with key, tempo and texture: thaw and birdsong, long bright days, falling leaves and storms, then the hush of cold. In the rainforest, the seasons follow flowering, the monsoon, fruiting and the dry season.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Nature",
+  "tags": ["nature", "biomes", "seasons", "ambience", "spatial"],
+  "exportedAt": "2026-11-04T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "tundra-spring",
+      "name": "Tundra · Spring Thaw",
+      "description": "Meltwater drips off the ice, a stream finds its way and geese return far overhead, under glassy D lydian chords.",
+      "category": "Tundra",
+      "tags": ["tundra", "spring", "66 bpm", "D lydian"],
+      "source": "setcpm(66/4)\n\n// Meltwater: drips off the ice and a stream finding its way\ndrips: s(\"drip*8?0.6\").pan(rand).gain(rand.range(.05, .15)).space(\"outdoor\")\nstream: s(\"stream\").slow(4).intensity(.3).distance(3).gain(.2)\n\n// The first geese returning, far overhead\ngeese: s(\"bird\").slow(4).azimuth(saw.range(-120, 120).slow(8)).elevation(40).distance(8).posglide(.4).gain(.18)\n\n// Glassy chords opening over the snow: D, A, E, D with the raised fourth\nchords: note(\"<[d3,a3,e4] [a2,e3,c#4] [e2,b2,g#3] [d3,a3,g#4]>\").slow(2)\n  .s(\"triangle\").timbre(\"glass\").attack(1).release(3).room(.7).size(.9).gain(.18)\n\n// A few bright notes, like light on the melting ice\nmelody: n(\"<[4 ~ 5 ~] [~ 3 ~ ~] [2 ~ ~ 4] [~ ~ 3 ~]>\").scale(\"D:lydian\").transpose(12)\n  .s(\"sine\").fm(2).fmh(4).decay(1).sustain(0).release(1.5)\n  .delay(.3).delaytime(3/8).room(.6).gain(.16)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "tundra-summer",
+      "name": "Tundra · Midnight Sun",
+      "description": "The sun never sets: insects over the bogs, a plover calling, a herd on the move far off and a lilting folk tune in E major.",
+      "category": "Tundra",
+      "tags": ["tundra", "summer", "80 bpm", "E major"],
+      "source": "setcpm(80/4)\n\n// The sun never sets: a bright pad that never quite comes to rest\npad: note(\"<[e3,b3,f#4] [c#3,g#3,e4] [a2,e3,b3] [b2,f#3,c#4]>\").slow(2)\n  .s(\"sawtooth\").unison(3).detune(.2)\n  .lpf(sine.range(800, 2200).slow(16)).attack(1.5).release(3).room(.6).gain(.14)\n\n// Insects swarming over the bogs, and a light wind\ninsects: s(\"insect\").slow(4).azimuth(60).distance(2).gain(.14)\nwind: s(\"wind\").slow(8).intensity(.2).gain(.08)\n\n// A plover's call, and a herd on the move far off\nplover: s(\"bird\").slow(3).azimuth(-50).distance(5).gain(.22)\nherd: s(\"lt*4?0.5\").speed(.8).lpf(400).distance(8).gain(.18)\n\n// A lilting folk tune\ntune: n(\"<[0 2 4 2] [5 4 2 ~] [4 5 7 5] [4@3 ~]>\").scale(\"E:major\").transpose(12)\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.1)\n  .attack(.05).sustain(.5).release(.4).room(.5).gain(.2)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "tundra-autumn",
+      "name": "Tundra · First Frost",
+      "description": "The wind rises, cranes leave for the south and footsteps crunch on frozen moss while a choir sings slow A minor chords.",
+      "category": "Tundra",
+      "tags": ["tundra", "autumn", "60 bpm", "A minor"],
+      "source": "setcpm(60/4)\n\n// A rising wind across the open land\nwind: s(\"wind\").slow(8).intensity(.45).gain(.16)\n\n// Cranes leaving, crossing the sky from one side to the other\ncranes: s(\"bird\").slow(5).azimuth(saw.range(0, 180).slow(16)).elevation(30).distance(9).posglide(.5).gain(.16)\n\n// A choir on slow chords: Am, F, Dm, E\nchoir: note(\"<[a2,e3,c4] [f2,c3,a3] [d3,f3,a3] [e2,b2,g#3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo ah oo oh>\")\n  .attack(2).release(3).space(\"hall\").gain(.24)\n\n// Footsteps crunching on frozen moss\ncrunch: s(\"step ~ step ~\").lpf(2000).gain(.12)\n\n// Cold, far-off bells\nbells: note(\"<e5 ~ c5 ~ a4 ~ ~ ~>\").s(\"sine\").fm(3).fmh(2.76)\n  .decay(3).sustain(0).release(3).room(.8).gain(.1)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "tundra-winter",
+      "name": "Tundra · Polar Night",
+      "description": "Endless dark: a low drone, hissing snow and a cold wind, the aurora drifting overhead in slow glassy tones and sea ice cracking far away.",
+      "category": "Tundra",
+      "tags": ["tundra", "winter", "44 bpm", "C minor"],
+      "source": "setcpm(44/4)\n\n// Polar night: a low drone under endless dark\ndrone: note(\"[c2,g2]\").slow(8).s(\"sawtooth\").unison(3).detune(.15)\n  .lpf(400).attack(4).sustain(1).release(6).gain(.16)\n\n// A cold wind and blowing snow\nwind: s(\"wind\").slow(8).intensity(.5).gain(.14)\nsnow: s(\"pink\").slow(8).hpf(3000).lpf(7000).gain(.02)\n\n// The aurora: slow, shimmering tones drifting across the sky\naurora: n(irand(8).segment(4)).scale(\"C:minor pentatonic\").transpose(24)\n  .degradeBy(.5).seed(\"aurora\")\n  .s(\"triangle\").timbre(\"glass\").attack(.8).decay(2).sustain(0).release(3)\n  .pan(sine.slow(16)).delay(.5).delaytime(3/8).delayfeedback(.5)\n  .room(.9).size(.95).gain(.1)\n\n// Ice cracking far out on the frozen sea\nice: s(\"~ ~ ~ creak\").mask(\"<0 0 1 0 0 0 0 0>\").speed(.5).distance(9).gain(.14)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "taiga-spring",
+      "name": "Boreal Forest · Snowmelt Woods",
+      "description": "A stream runs high with snowmelt, a woodpecker drums in the pines and a cuckoo calls while a fiddle greets the returning light.",
+      "category": "Boreal Forest",
+      "tags": ["taiga", "spring", "84 bpm", "G major"],
+      "source": "setcpm(84/4)\n\n// The stream runs high with snowmelt\nstream: s(\"stream\").slow(4).azimuth(-40).distance(3).gain(.22)\n\n// A woodpecker drumming somewhere in the pines\nwoodpecker: s(\"rim*8 ~ ~ ~\").mask(\"<1 0 0 1 0 0 0 0>\").speed(2).lpf(3000).azimuth(70).distance(6).gain(.2)\n\n// A cuckoo: the falling third of spring\ncuckoo: note(\"<[~ ~ e5 c5] ~ ~ ~>\").s(\"sine\").timbre(\"hollow\")\n  .attack(.02).decay(.3).sustain(.2).release(.3).distance(5).room(.5).gain(.2)\n\n// A fiddle tune for the returning light, over a picked guitar\nfiddle: note(\"<[g4 b4 d5 b4] [c5 b4 a4 g4] [a4 b4 c5 d5] [b4@2 a4 g4]>\")\n  .s(\"sawtooth\").timbre(\"reed\").lpf(2800).vib(5.5).vibdepth(.1)\n  .attack(.03).decay(.2).sustain(.5).release(.2).room(.4).gain(.2)\nguitar: note(\"<[g2,d3,g3,b3] [c3,e3,g3] [d3,a3,d4,f#4] [g2,d3,g3,b3]>\")\n  .struct(\"x ~ x x ~ x x ~\")\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(0).release(.3).pan(.4).gain(.22)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "taiga-summer",
+      "name": "Boreal Forest · Loon Lake",
+      "description": "Long evenings by a northern lake: lapping water, insects in the reeds, a loon wailing across the water and a gentle guitar in A.",
+      "category": "Boreal Forest",
+      "tags": ["taiga", "summer", "72 bpm", "A major"],
+      "source": "setcpm(72/4)\n\n// Water lapping at the shore, insects in the reeds\nlake: s(\"surf\").slow(8).intensity(.15).gain(.14)\ninsects: s(\"insect\").slow(4).azimuth(90).distance(3).gain(.12)\n\n// A loon calling across the lake: a slow, gliding wail\nloon: note(\"<[a4@2 e5@6] ~ [e5@3 c#5 e5@4] ~>\").s(\"sine\").timbre(\"hollow\")\n  .mono(1).glide(.3).vib(4).vibdepth(.2)\n  .attack(.2).sustain(.7).release(1).distance(8).room(.8).gain(.16)\n\n// A warm pad and a picked guitar: A, F#m, D, E\npad: note(\"<[a2,e3,c#4] [f#2,c#3,a3] [d3,a3,f#4] [e3,b3,g#4]>\").slow(2)\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(1400).attack(1).release(2).room(.6).gain(.14)\nguitar: n(\"0 2 4 7 4 2 0 4\").add(\"<0 0 5 5 3 3 4 4>\").scale(\"A:major\")\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(0).release(.4).pan(.4).gain(.2)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "taiga-autumn",
+      "name": "Boreal Forest · Larch Gold",
+      "description": "Golden larches in light rain: a bull elk bugles across the valley, leaves tick down, a cello holds the roots and a piano wanders in D dorian.",
+      "category": "Boreal Forest",
+      "tags": ["taiga", "autumn", "68 bpm", "D dorian"],
+      "source": "setcpm(68/4)\n\n// Light rain and wind in the treetops\nrain: s(\"rain\").slow(4).intensity(.25).gain(.18)\nwind: s(\"wind\").slow(8).intensity(.3).gain(.1)\n\n// A bull elk bugling across the valley\nelk: note(\"<[d4 a5@4 g5] ~ ~ ~>\").s(\"sawtooth\").timbre(\"reed\").mono(1).glide(.2)\n  .lpf(2500).attack(.1).sustain(.6).release(.6).distance(8).room(.7).gain(.12)\n\n// Larch needles ticking down\nleaves: s(\"click*16?0.2\").hpf(2500).pan(rand).gain(rand.range(.02, .06))\n\n// A cello holds the roots while a piano wanders\ncello: note(\"<d2 c2 bb1 a1>\").slow(2).s(\"sawtooth\").vib(4.5).vibdepth(.08)\n  .lpf(700).attack(.8).sustain(.7).release(1.5).room(.5).gain(.2)\npiano: n(\"<[0 ~ 2 4] [3 ~ 2 ~] [1 ~ 0 ~] [4@2 3 2]>\").scale(\"D:dorian\").transpose(12)\n  .degradeBy(.2).seed(\"larch\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(1).sustain(.1).release(1.2)\n  .room(.6).gain(.24)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "taiga-winter",
+      "name": "Boreal Forest · Snow Under Spruce",
+      "description": "Footsteps in deep snow, wind muffled by the spruce, an owl hooting from the dark and a hushed choir under falling bell-flakes.",
+      "category": "Boreal Forest",
+      "tags": ["taiga", "winter", "54 bpm", "D minor"],
+      "source": "setcpm(54/4)\n\n// Wind muffled by the spruce, and footsteps in deep snow\nwind: s(\"wind\").slow(8).intensity(.3).occlude(.4).gain(.12)\nsteps: s(\"step ~ step ~\").lpf(1200).gain(.14)\n\n// An owl hooting from deep in the trees\nowl: note(\"<[~ ~ d4 [d4 a3]] ~ ~ ~>\").s(\"hum\").attack(.05).release(.5).distance(7).room(.7).gain(.18)\n\n// A hushed choir: Dm, Bb, Gm, A\nchoir: note(\"<[d3,f3,a3] [bb2,d3,f3] [g2,bb2,d3] [a2,c#3,e3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo oo ah oo>\")\n  .attack(2).release(3).space(\"hall\").gain(.2)\n\n// Snowflakes: high bells, a few at a time\nbells: note(\"<[a5 ~ f5 ~] [~ d5 ~ ~] [~ ~ e5 ~] [c#5 ~ ~ ~]>\")\n  .degradeBy(.25).seed(\"spruce\")\n  .s(\"sine\").fm(3).fmh(2.76).decay(2).sustain(0).release(2)\n  .pan(rand).space(\"hall\").gain(.07)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "temperate-spring",
+      "name": "Temperate Forest · Bluebell Morning",
+      "description": "Headphones on: a dawn chorus placed all around you, a soft shower, a pastoral flute and a harp in C major.",
+      "category": "Temperate Forest",
+      "tags": ["temperate forest", "spring", "92 bpm", "C major"],
+      "source": "setcpm(92/4)\n\n// The dawn chorus, placed around the listener\nrobin: s(\"bird\").slow(2).azimuth(-40).distance(3).gain(.3)\nwren: s(\"bird\").slow(3).azimuth(50).elevation(20).distance(4).gain(.24)\nthrush: s(\"bird\").slow(5).azimuth(140).distance(6).gain(.18)\n\n// A soft spring shower\nshower: s(\"rain\").slow(4).intensity(.2).gain(.1)\n\n// A flute over a harp: C, F, Am, G\nflute: note(\"<[c5@2 d5 e5 g5@3 e5] [f5@2 e5 d5 c5@4] [a4 c5 d5 e5 d5@2 c5 a4] [g4@6 ~@2]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.12)\n  .attack(.05).sustain(.6).release(.5)\n  .delay(.25).delaytime(3/8).room(.5).gain(.26)\nharp: note(\"<[c3 e3 g3 e3] [f3 a3 c4 a3] [a2 c3 e3 c3] [g2 b2 d3 b2]>\")\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(0).release(.5).room(.5).gain(.22)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "temperate-summer",
+      "name": "Temperate Forest · Green Canopy",
+      "description": "A lazy afternoon under thick leaves: insects, a brook and an oriole flitting overhead, with a soft swung groove and Rhodes chords in F.",
+      "category": "Temperate Forest",
+      "tags": ["temperate forest", "summer", "96 bpm", "F major"],
+      "source": "setcpm(96/4)\n\n// Insects on one side, a brook on the other\ninsects: s(\"insect\").slow(4).azimuth(-90).distance(3).gain(.12)\nstream: s(\"stream\").slow(4).azimuth(40).distance(4).gain(.16)\n\n// An oriole flitting through the canopy\noriole: s(\"bird\").slow(3).azimuth(saw.range(-60, 60).slow(8)).elevation(30).distance(5).posglide(.3).gain(.2)\n\n// A soft, swung kit\ndrums: s(\"bd ~ [~ bd] ~, ~ rim ~ rim, hh*8\").swing(4).lpf(4000).gain(.4)\n\n// Rhodes chords and a round bass: Fmaj7, Dm7, Bbmaj7, C7\nkeys: note(\"<[f3,a3,c4,e4] [d3,f3,a3,c4] [bb2,d3,f3,a3] [c3,e3,g3,bb3]>\")\n  .struct(\"x ~ ~ [~ x] ~ x ~ ~\")\n  .s(\"sine\").fm(1.1).fmh(2).decay(.8).sustain(.3).release(.6).lpf(2400).room(.4).gain(.28)\nbass: note(\"<f2 d2 bb1 c2>\").struct(\"x ~ ~ x ~ ~ x ~\")\n  .s(\"sine\").shape(.1).decay(.4).sustain(.3).release(.2).gain(.45)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "temperate-autumn",
+      "name": "Temperate Forest · Falling Leaves",
+      "description": "An autumn waltz in A minor: gusting wind, leaves skittering past, a far-off crow and a bowed melody over guitar.",
+      "category": "Temperate Forest",
+      "tags": ["temperate forest", "autumn", "3/4", "A minor"],
+      "source": "setcpm(78/3)\n\n// One cycle is a bar of 3/4\n// Gusting wind, leaves skittering past and a light rain\nwind: s(\"wind\").slow(8).intensity(.4).gain(.14)\nleaves: s(\"click*12?0.3\").hpf(2000).pan(rand).gain(rand.range(.02, .07))\nrain: s(\"rain\").slow(4).intensity(.2).gain(.12)\ncrow: s(\"bird\").slow(6).azimuth(-70).distance(7).gain(.14)\n\n// Guitar waltz: Am, F, Dm, E\nguitar: note(\"<[a2 [c3,e3] [c3,e3]] [f2 [a2,c3] [a2,c3]] [d3 [f3,a3] [f3,a3]] [e2 [g#2,b2] [g#2,b2]]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(.4).sustain(0).release(.3).gain(.26)\n\n// A bowed melody falling like the leaves\nmelody: note(\"<[e4 a4 c5] [c5@2 a4] [f4 a4 d5] [b4 g#4 e4] [a4 c5 e5] [d5@2 c5] [f4 e4 d4] [g#4@2 b4]>\")\n  .s(\"sawtooth\").vib(5).vibdepth(.1).lpf(2200)\n  .attack(.06).sustain(.6).release(.4).room(.5).gain(.18)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "temperate-winter",
+      "name": "Temperate Forest · Bare Branches",
+      "description": "Inside by the fire while wind moves through bare branches outside: a sparse piano in G minor, soft chords and a winter robin at the window.",
+      "category": "Temperate Forest",
+      "tags": ["temperate forest", "winter", "58 bpm", "G minor"],
+      "source": "setcpm(58/4)\n\n// The fire inside, the wind outside the window\nfire: s(\"fire\").slow(4).intensity(.3).density(6).gain(.22)\nwind: s(\"wind\").slow(8).intensity(.3).occlude(.6).gain(.1)\n\n// A winter robin, heard through the glass\nrobin: s(\"bird\").slow(8).azimuth(60).distance(6).occlude(.5).gain(.12)\n\n// Sparse piano over soft chords: Gm, Eb, Cm, D\npiano: n(\"<[0 ~ 4 ~] [~ 2 ~ ~] [5 ~ ~ 4] [~ ~ 2 ~]>\").scale(\"G:minor\").transpose(12)\n  .degradeBy(.2).seed(\"branches\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(1.5).sustain(.1).release(2)\n  .room(.6).gain(.26)\nchords: note(\"<[g2,d3,bb3] [eb2,bb2,g3] [c3,g3,eb4] [d2,a2,f#3]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(1).sustain(.5).release(3)\n  .lpf(900).room(.6).gain(.2)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "grassland-spring",
+      "name": "Grassland · Prairie Bloom",
+      "description": "Wind in the new grass and a meadowlark singing, with a banjo roll, a fiddle and a bouncing bass in D.",
+      "category": "Grassland",
+      "tags": ["grassland", "spring", "108 bpm", "D major"],
+      "source": "setcpm(108/4)\n\n// Wind in the new grass and a meadowlark singing\nwind: s(\"wind\").slow(8).intensity(.25).gain(.1)\nmeadowlark: s(\"bird\").slow(2).azimuth(-60).distance(4).gain(.28)\n\n// A banjo roll through D, G, A, D\nbanjo: n(\"0 4 7 9 7 4 2 4\").add(\"<0 3 4 0>\").scale(\"D:major\")\n  .s(\"triangle\").timbre(\"bright\").attack(.002).decay(.2).sustain(0).release(.2)\n  .pan(.35).gain(.24)\n\n// The fiddle tune\nfiddle: note(\"<[a4@2 b4 d5 e5@3 d5] [g5@2 f#5 e5 d5@4] [a4@2 b4 a4 f#4@3 e4] [d4@6 ~@2]>\")\n  .s(\"sawtooth\").timbre(\"reed\").lpf(3000).vib(6).vibdepth(.12)\n  .attack(.03).sustain(.6).release(.2).pan(.6).room(.4).gain(.2)\n\n// A bouncing bass and brushes\nbass: note(\"<[d2 a1]*2 [g1 d2]*2 [a1 e2]*2 [d2 a1]*2>\")\n  .s(\"triangle\").decay(.2).sustain(.3).release(.1).gain(.4)\ndrums: s(\"bd ~ bd ~, ~ rim ~ rim\").lpf(3000).gain(.3)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "grassland-summer",
+      "name": "Grassland · Thunderhead",
+      "description": "Eight cycles of a summer storm on the plains: heat and insects, gathering wind, thunder and rain, then the air clearing.",
+      "category": "Grassland",
+      "tags": ["grassland", "summer", "96 bpm", "E minor", "storm"],
+      "source": "setcpm(96/4)\n\n// Eight cycles: heat (1-2), gathering clouds (3-4), the storm (5-7), clearing (8)\ninsects: s(\"insect\").slow(4).gain(.12)\n\n// The wind builds with the clouds and dies away\nwind: s(\"pink\").hpf(200).lpf(sine.range(400, 2000).slow(8))\n  .gain(\"<.03 .04 .08 .14 .22 .25 .15 .05>\").pan(sine.slow(3))\n\n// Thunder rolls closer, then the rain comes down\nthunder: s(\"<~ ~ ~ [~ lt] ~ [lt ~ ~ lt] lt ~>\").speed(.5).lpf(300).room(.9).size(.95).gain(.5)\nrain: s(\"rain\").intensity(.6).mask(\"<0 0 0 0 1 1 1 0>\").gain(.3)\n\n// A pad that darkens and opens with the storm: Em, C, Am, B\npad: note(\"<[e3,b3,d4] [e3,b3,d4] [c3,g3,b3] [c3,g3,b3] [a2,e3,c4] [a2,e3,c4] [b2,f#3,a3] [e3,b3,d4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2)\n  .lpf(sine.range(600, 2400).slow(8)).attack(.5).release(1.5).room(.6).gain(.16)\n\n// Drums arrive with the clouds and leave with the storm\ndrums: s(\"bd ~ ~ bd ~ ~ bd ~, ~ ~ sd ~\").mask(\"<0 0 1 1 1 1 1 0>\").gain(.45)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "grassland-autumn",
+      "name": "Grassland · Harvest Moon",
+      "description": "A bonfire after the harvest: crickets in the stubble, a strummed guitar and a harmonica crying the blues in A.",
+      "category": "Grassland",
+      "tags": ["grassland", "autumn", "76 bpm", "A blues"],
+      "source": "setcpm(76/4)\n\n// Crickets in the stubble, a bonfire crackling\ncrickets: s(\"insect\").slow(4).distance(5).gain(.1)\nfire: s(\"fire\").slow(4).intensity(.3).density(8).gain(.18)\n\n// A strummed guitar: A, D, A, E\nguitar: note(\"<[a2,e3,a3,c#4] [d3,a3,d4,f#4] [a2,e3,a3,c#4] [e2,b2,e3,g#3]>\")\n  .struct(\"x ~ [~ x] ~ x ~ [~ x] ~\")\n  .s(\"triangle\").timbre(\"bright\").decay(.3).sustain(0).release(.3).pan(.4).gain(.24)\nbass: note(\"<a1 d2 a1 e2>\").struct(\"x ~ x ~\")\n  .s(\"sine\").decay(.4).sustain(.3).release(.2).gain(.4)\n\n// The harmonica under the harvest moon\nharp: n(\"<[~ 4 [5 4] 3] [2 0 ~ ~] [~ 3 [4 3] 2] [0 ~ ~ ~]>\").scale(\"A:blues\").transpose(12)\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"o\")\n  .mono(1).glide(.05).vib(5.5).vibdepth(.3)\n  .attack(.03).sustain(.6).release(.2)\n  .lpf(2600).pan(.65).room(.4).gain(.24)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "grassland-winter",
+      "name": "Grassland · Wind over the Steppe",
+      "description": "A frozen steppe: a hard wind and blowing snow, overtone singing, a horse-head fiddle and hooves trotting through the drifts.",
+      "category": "Grassland",
+      "tags": ["grassland", "winter", "64 bpm", "steppe", "overtones"],
+      "source": "setcpm(64/4)\n\n// A hard wind and blowing snow\nwind: s(\"wind\").slow(8).intensity(.6).gain(.18)\nsnow: s(\"white\").slow(8).hpf(4000).lpf(8000).pan(sine.slow(6)).gain(.02)\n\n// Overtone singing over the open steppe\nthroat: note(\"a1\").slow(8).s(\"hum\").overtone(8).gain(.22)\n\n// A horse-head fiddle, long and reedy\nfiddle: note(\"<[e3@3 d3] [e3@2 a3 g3] [e3@3 d3] [a2@4]>\")\n  .s(\"sawtooth\").timbre(\"reed\").vib(5).vibdepth(.15).lpf(1600)\n  .attack(.1).sustain(.7).release(.5).room(.5).gain(.18)\n\n// A horse trotting through the snow\nhooves: s(\"lt [~ lt] lt [~ lt]\").speed(.8).lpf(500).distance(4).gain(.2)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "desert-spring",
+      "name": "Desert · Superbloom",
+      "description": "After rare rain the desert flowers: drips from the cactus, bees in the blossoms, a wren, and an oud and flute in bright E lydian.",
+      "category": "Desert",
+      "tags": ["desert", "spring", "88 bpm", "E lydian"],
+      "source": "setcpm(88/4)\n\n// The last drops of a rare rain, bees in the blossoms, a cactus wren\ndrips: s(\"drip*8?0.4\").pan(rand).gain(rand.range(.04, .12))\nbees: s(\"insect\").slow(4).azimuth(40).distance(2).gain(.1)\nwren: s(\"bird\").slow(3).azimuth(-50).distance(4).gain(.24)\n\n// A reedy drone and a bright oud figure\ndrone: note(\"[e2,b2]\").slow(4).s(\"sawtooth\").timbre(\"reed\")\n  .lpf(600).attack(1).sustain(1).release(2).gain(.14)\noud: note(\"<[e3 f#3 g#3 a#3 b3 a#3 g#3 f#3] [e3 ~ b3 ~ g#3 f#3 e3 ~]>\")\n  .s(\"triangle\").timbre(\"bright\").attack(.002).decay(.3).sustain(0).release(.2)\n  .pan(.4).gain(.26)\n\n// A flute opening like a flower\nflute: n(\"<[4@3 5] [6@2 4 2] [7@4] [4@2 2 0]>\").scale(\"E:lydian\").transpose(12)\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.15)\n  .attack(.06).sustain(.6).release(.4)\n  .delay(.3).delaytime(3/8).room(.5).gain(.2)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "desert-summer",
+      "name": "Desert · Mirage",
+      "description": "Midday heat: hot wind and cicadas, a darbuka in maqsum, a wavering pad like heat over sand and an ornamented ney.",
+      "category": "Desert",
+      "tags": ["desert", "summer", "100 bpm", "E phrygian dominant"],
+      "source": "setcpm(100/4)\n\n// Hot wind and cicadas\nwind: s(\"wind\").slow(8).intensity(.4).gain(.14)\ncicadas: s(\"insect\").slow(2).azimuth(70).distance(3).gain(.12)\n\n// Maqsum on the darbuka\ndarbuka: s(\"lt rim ~ rim lt ~ rim ~\").lpf(2500).room(.3).gain(.45)\n\n// A mirage: a pad that wavers like heat over the sand\nmirage: note(\"[e3,b3,f4]\").slow(4).s(\"sawtooth\").unison(4).detune(.4)\n  .vib(3).vibdepth(.15).lpf(sine.range(600, 1800).slow(8))\n  .attack(2).release(3).room(.7).gain(.12)\n\n// A ney flute in E phrygian dominant: e f g# a b c d\nney: note(\"<[e4@2 f4 g#4 a4@4] [b4@3 a4 g#4@2 f4 e4] [c5@2 b4 a4 g#4@4] [f4 e4 f4 g#4 e4@4]>\")\n  .s(\"sine\").timbre(\"reed\").mono(1).glide(.07).vib(5).vibdepth(.25)\n  .attack(.06).sustain(.7).release(.4)\n  .pan(.6).delay(.3).delaytime(3/8).room(.6).gain(.24)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "desert-autumn",
+      "name": "Desert · Dust Devils",
+      "description": "Headphones on: gusts across the mesa, a dust devil spinning around your head, a coyote far away and a twangy guitar in A minor.",
+      "category": "Desert",
+      "tags": ["desert", "autumn", "84 bpm", "A minor", "spatial"],
+      "source": "setcpm(84/4)\n\n// Gusts across the mesa\nwind: s(\"wind\").slow(8).intensity(.45).gain(.14)\n\n// A dust devil spinning around your head\ndustdevil: s(\"pink*16\").hpf(800).lpf(3000)\n  .azimuth(saw.range(-180, 180).slow(2)).distance(3).posglide(.3)\n  .attack(.05).release(.1).gain(.05)\n\n// A coyote howling far across the desert\ncoyote: note(\"<[~ a4 e5@4 c5 a4] ~ ~ ~>\").s(\"sine\").timbre(\"hollow\")\n  .mono(1).glide(.25).vib(5).vibdepth(.3)\n  .attack(.1).sustain(.6).release(.6).distance(9).room(.8).gain(.14)\n\n// A twangy guitar: Am, G, F, E\nguitar: note(\"<[a2 e3 a3 c4 e4 c4 a3 e3] [g2 d3 g3 b3 d4 b3 g3 d3] [f2 c3 f3 a3 c4 a3 f3 c3] [e2 b2 e3 g#3 b3 g#3 e3 b2]>\")\n  .s(\"triangle\").timbre(\"bright\").attack(.002).decay(.4).sustain(0).release(.4)\n  .lpf(2400).delay(.3).delaytime(3/8).room(.5).gain(.24)\n\n// A lonesome horn over the chords\nhorn: note(\"<[e4@3 a4 c5@4] [b4@2 a4 g4 a4@4] [c5@3 b4 a4@2 f4 e4] [e4@8]>\")\n  .s(\"sawtooth\").timbre(\"reed\").lpf(2000).vib(5).vibdepth(.12)\n  .attack(.05).sustain(.6).release(.5).room(.7).gain(.16)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "desert-winter",
+      "name": "Desert · Cold Stars",
+      "description": "A clear, freezing desert night: a small fire, a still drone, stars twinkling in random high notes and a slow oud in D.",
+      "category": "Desert",
+      "tags": ["desert", "winter", "52 bpm", "D minor"],
+      "source": "setcpm(52/4)\n\n// A small fire and a faint, cold wind\nfire: s(\"fire\").slow(4).intensity(.25).density(4).gain(.18)\nwind: s(\"wind\").slow(8).intensity(.15).gain(.06)\n\n// A still drone on D and A\ndrone: note(\"[d2,a2]\").slow(8).s(\"sawtooth\").timbre(\"reed\")\n  .lpf(500).attack(3).sustain(1).release(4).gain(.14)\n\n// Stars: a few random high notes twinkling in the delay\nstars: n(irand(10).segment(16)).scale(\"D:minor pentatonic\").transpose(24)\n  .degradeBy(.8).seed(\"stars\")\n  .s(\"sine\").decay(.1).sustain(0).release(.3)\n  .pan(rand).delay(.4).delaytime(3/8).delayfeedback(.45).room(.8).gain(.1)\n\n// A slow oud by the fire\noud: note(\"<[d3 ~ f3 g3] [a3@2 g3 f3] [e3 f3 e3 c3] [d3@4]>\")\n  .s(\"triangle\").timbre(\"bright\").attack(.002).decay(.6).sustain(0).release(.6)\n  .room(.6).gain(.22)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "rainforest-spring",
+      "name": "Rainforest · Canopy in Flower",
+      "description": "The flowering season: birds and parrots high in the canopy, frogs clicking below, a bright marimba and hand drums in G.",
+      "category": "Tropical Rainforest",
+      "tags": ["rainforest", "spring", "flowering", "104 bpm", "G major"],
+      "source": "setcpm(104/4)\n\n// Birds high in the flowering canopy, parrots crossing overhead\nbirds: s(\"bird\").slow(2).azimuth(-60).elevation(30).distance(4).gain(.24)\nparrots: s(\"bird\").slow(3).azimuth(saw.range(20, 160).slow(8)).elevation(40).distance(6).posglide(.3).gain(.2)\n\n// Frogs clicking in the leaf litter\nfrogs: s(\"click*8?0.5\").speed(.6).lpf(1500).pan(rand).gain(.1)\n\n// A bright marimba through G, C, D, G\nmarimba: n(\"0 2 4 [7 4] 2 4 [0 2] ~\").add(\"<0 3 4 0>\").scale(\"G:major\").transpose(12)\n  .s(\"sine\").fm(.6).fmh(4).decay(.35).sustain(0).room(.4).gain(.24)\npad: note(\"<[g3,b3,d4] [c4,e4,g4] [d4,f#4,a4] [g3,b3,d4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(1500).attack(.5).release(1.5).room(.6).gain(.12)\n\n// Hand drums\nperc: s(\"lt ~ [~ lt] mt, ~ rim ~ rim\").room(.3).gain(.35)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "rainforest-summer",
+      "name": "Rainforest · Monsoon",
+      "description": "The wet season: a downpour on the leaves, water dripping everywhere, rolling thunder and a deep, slow groove in D minor.",
+      "category": "Tropical Rainforest",
+      "tags": ["rainforest", "summer", "monsoon", "90 bpm", "D minor"],
+      "source": "setcpm(90/4)\n\n// A downpour, and water dripping from every leaf\nrain: s(\"rain\").slow(4).intensity(.8).gain(.3)\ndrips: s(\"drip*16?0.5\").pan(rand).gain(rand.range(.05, .15)).space(\"outdoor\")\n\n// Thunder rolling over the canopy\nthunder: s(\"<~ ~ [~ lt] ~ ~ ~ lt ~>\").speed(.5).lpf(250).room(.9).size(.95).gain(.45)\n\n// A deep, slow groove of low drums\ndrums: s(\"bd ~ ~ bd ~ ~ bd ~, ~ ~ rim ~ ~ rim ~ ~, ht ~ mt ~ ~ lt ~ ~\").lpf(2000).room(.3).gain(.4)\n\n// A heavy pad and bass: Dm7, Bbmaj7, Gm7, A7\npad: note(\"<[d3,f3,a3,c4] [bb2,d3,f3,a3] [g2,bb2,d3,f3] [a2,c#3,e3,g3]>\").slow(2)\n  .s(\"sawtooth\").unison(3).detune(.25)\n  .lpf(sine.range(500, 1400).slow(8)).attack(1).release(2).room(.7).gain(.14)\nbass: note(\"<d2 bb1 g1 a1>\").slow(2).struct(\"x ~ ~ x ~ ~ x ~\")\n  .s(\"sine\").shape(.15).decay(.4).sustain(.3).release(.2).gain(.42)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "rainforest-autumn",
+      "name": "Rainforest · Fruiting Season",
+      "description": "Trees heavy with fruit: howler monkeys roaring at dusk, a toucan, insects, and a playful marimba over hand drums in A minor.",
+      "category": "Tropical Rainforest",
+      "tags": ["rainforest", "autumn", "fruiting", "112 bpm", "A minor"],
+      "source": "setcpm(112/4)\n\n// Insects, a toucan, and howler monkeys calling across the treetops\ninsects: s(\"insect\").slow(2).azimuth(-80).distance(3).gain(.12)\ntoucan: s(\"bird\").slow(3).azimuth(50).elevation(30).distance(5).gain(.2)\nhowlers: note(\"<~ [a2@2 e3@6] ~ ~>\").s(\"aah\").attack(.3).release(1).distance(8).room(.7).gain(.18)\n\n// A playful marimba: Am, Am, Dm, G\nmarimba: note(\"[a3 ~ c4 e4] [~ g4 e4 ~] [d4 ~ c4 a3] [~ e4 ~ g4]\").add(\"<0 0 5 -2>\")\n  .s(\"sine\").fm(.6).fmh(4).decay(.3).sustain(0).pan(.35).room(.3).gain(.24)\n\n// Hand drums and shakers, and a bouncing bass\nperc: s(\"lt rim [~ lt] rim, hh*8?0.4\").sometimesBy(.2, x => x.ply(2)).room(.3).gain(.38)\nbass: note(\"<a1 a1 d2 g1>\").struct(\"x ~ x ~ ~ x ~ x\")\n  .s(\"sawtooth\").lpf(700).lpq(3).decay(.2).sustain(.3).release(.1).gain(.4)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "rainforest-winter",
+      "name": "Rainforest · Dry Season Dawn",
+      "description": "The dry season: morning mist, a low stream, gibbons singing their rising duet and a plucked line in E minor pentatonic.",
+      "category": "Tropical Rainforest",
+      "tags": ["rainforest", "winter", "dry season", "70 bpm", "E minor"],
+      "source": "setcpm(70/4)\n\n// Morning mist, a low stream and a few insects\nmist: s(\"pink\").slow(8).hpf(400).lpf(1200).gain(.04)\nstream: s(\"stream\").slow(4).intensity(.2).distance(5).gain(.16)\ninsects: s(\"insect\").slow(4).distance(6).gain(.06)\n\n// Gibbons singing their rising dawn duet\ngibbons: note(\"<[e4 g4 a4 b4 d5 e5@2 ~] ~ ~ ~>\").s(\"sine\").timbre(\"hollow\")\n  .mono(1).glide(.12).vib(5).vibdepth(.15)\n  .attack(.05).sustain(.6).release(.4).distance(7).room(.7).gain(.16)\n\n// A plucked line over a quiet drone\npluck: n(\"<[0 ~ 2 ~] [4 ~ ~ 2] [3 ~ 1 ~] [0@4]>\").scale(\"E:minor pentatonic\").transpose(12)\n  .s(\"triangle\").timbre(\"bright\").attack(.002).decay(.6).sustain(0).release(.6)\n  .delay(.3).delaytime(3/8).room(.6).gain(.22)\ndrone: note(\"[e2,b2]\").slow(8).s(\"sine\").attack(3).sustain(1).release(4).gain(.16)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    }
+  ]
+}

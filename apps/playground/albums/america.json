@@ -1,0 +1,248 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "america",
+  "name": "American Decades",
+  "description": "A musical road trip through the United States, one original sketch for every decade since 1776: fife and drum, minuets and reels, shape-note hymns, spirituals and parlor songs, Civil War bugles and cowboy trails, Sousa-style marches, ragtime, barbershop, Dixieland and the Charleston, swing and boogie-woogie, doo-wop, Motown and disco, electro and boom bap, pop-punk, EDM and hyperpop. Every tune is newly written in the style of its era.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "History",
+  "tags": ["history", "usa", "americana", "decades", "genres"],
+  "exportedAt": "2026-11-04T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "1770s-liberty-fife",
+      "name": "1770s · Liberty Fife",
+      "description": "The Revolution marches by: a fife and drum corps in G, the shrill fife over snare rudiments, a bass drum and boots on a dirt road.",
+      "category": "Colonial & Revolution",
+      "tags": ["1770s", "fife and drum", "2/4 march", "G major"],
+      "source": "setcpm(112/2)\n\n// One cycle is a bar of 2/4: a fife and drum corps on the march, in G\nfife: note(\"<[g5 a5 b5 g5] [a5 b5 [c6 b5] a5] [b5 c6 d6 b5] [a5 [b5 a5] g5 d5] [g5 a5 b5 g5] [a5 b5 [c6 b5] a5] [b5 [a5 g5] a5 f#5] [g5@2 g5 ~]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(6).vibdepth(.06)\n  .attack(.01).decay(.1).sustain(.6).release(.05)\n  .space(\"outdoor\").room(.3).gain(.28)\n\n// Snare rudiments: open strokes and buzzing doubles\nsnare: s(\"[sd sd] [sd sd sd sd] [sd sd] [sd sd sd sd]\").gain(\".45 .25 .4 .25\")\n  .hpf(400).space(\"outdoor\").room(.3)\n\n// The bass drum on the beat, and boots on the road\nbassdrum: s(\"lt ~ lt ~\").speed(.7).lpf(500).gain(.5)\nsteps: s(\"step ~ step ~\").distance(3).gain(.18)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1780s-philadelphia-minuet",
+      "name": "1780s · Philadelphia Minuet",
+      "description": "Candlelit drawing rooms of the new republic: a minuet in D for harpsichord and string quartet, with a clock ticking on the mantel.",
+      "category": "Colonial & Revolution",
+      "tags": ["1780s", "minuet", "3/4", "harpsichord", "D major"],
+      "source": "setcpm(96/3)\n\n// One cycle is a bar of 3/4: a minuet for the drawing rooms of the new republic, in D\nharpsichord: note(\"<[d5 f#5 a5] [g5@2 e5] [f#5 d5 b4] [a4@3] [b4 d5 g5] [f#5 e5 d5] [e5 a4 c#5] [d5@3]>\")\n  .s(\"square\").pw(.15).attack(.002).decay(.25).sustain(0).release(.15)\n  .lpf(3500).room(.35).gain(.18)\n\n// The left hand: a broken bass on each beat\nleft: note(\"<[d3 a3 f#3] [g2 b3 g3] [d3 b3 g3] [a2 c#3 e3] [g2 d3 b3] [d3 a3 f#3] [a2 e3 g3] [d3 a3 d4]>\")\n  .s(\"square\").pw(.2).attack(.002).decay(.2).sustain(0).release(.1)\n  .lpf(2200).room(.35).gain(.14)\n\n// A string quartet holding the harmony\nstrings: note(\"<[d4,f#4] [b3,e4] [b3,d4] [c#4,e4] [b3,d4] [a3,d4] [c#4,g4] [d4,f#4]>\")\n  .s(\"sawtooth\").vib(5).vibdepth(.08).lpf(1800)\n  .attack(.15).sustain(.6).release(.4).room(.5).gain(.12)\n\n// A clock on the mantel\nclock: s(\"tick ~ ~\").gain(.05)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1790s-federal-reel",
+      "name": "1790s · Federal Reel",
+      "description": "A country dance in a tavern hall: a fiddle reel in A over a drone, a vamping keyboard and dancers' feet on the wooden floor.",
+      "category": "Colonial & Revolution",
+      "tags": ["1790s", "reel", "contra dance", "fiddle", "A major"],
+      "source": "setcpm(116/4)\n\n// A contra dance reel in A: the fiddle calls, the dancers answer with their feet\nfiddle: note(\"<[a4 c#5 e5 c#5 a4 c#5 e5 a5] [f#5 e5 d5 c#5 b4 a4 b4 c#5] [d5 f#5 a5 f#5 e5 c#5 a4 c#5] [b4 g#4 e4 g#4 a4@2 ~ e4]>\")\n  .s(\"sawtooth\").timbre(\"reed\").lpf(3000)\n  .vib(6).vibdepth(.1).attack(.02).decay(.15).sustain(.5).release(.08)\n  .room(.3).gain(.28)\n\n// A second fiddle drones the open strings\ndrone: note(\"[a3,e4]\").s(\"sawtooth\").timbre(\"reed\").lpf(1400)\n  .attack(.1).sustain(1).release(.3).gain(.1)\n\n// A keyboard vamping A, D, A, E: bass on the beat, chords off it\nvamp: note(\"<a2 d2 a2 e2>\").struct(\"x ~ x ~ x ~ x ~\")\n  .s(\"triangle\").timbre(\"soft\").decay(.2).sustain(0).gain(.3)\nchords: note(\"<[c#4,e4,a4] [d4,f#4,a4] [c#4,e4,a4] [b3,e4,g#4]>\").struct(\"~ x ~ x ~ x ~ x\")\n  .s(\"triangle\").timbre(\"soft\").decay(.15).sustain(0).gain(.2)\n\n// Feet on the wooden floor\nfeet: s(\"step ~ step ~ step ~ step step\").lpf(1500).gain(.25)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1800s-fuguing-tune",
+      "name": "1800s · Fuguing Tune",
+      "description": "Shape-note singing from the new tunebooks: three parts in a hollow square, open fifths in A minor, and the leader's hand beating time.",
+      "category": "Early Republic",
+      "tags": ["1800s", "shape-note", "hymn", "choir", "A minor"],
+      "source": "setcpm(84/4)\n\n// Shape-note singing: parts facing each other in a hollow square, open fifths and all\ntreble: note(\"<[a4 c5 b4 a4] [g4@2 e4@2] [a4 b4 c5 d5] [e5@4] [d5 c5 b4 a4] [g4 a4 b4 g4] [a4 e4 g4 e4] [a4@4]>\")\n  .s(\"choir\").syl(\"ah\").attack(.1).release(.4).pan(.3).room(.4).gain(.22)\ntenor: note(\"<[e4 e4 d4 e4] [d4@2 b3@2] [e4 g4 a4 b4] [a4@4] [g4 a4 g4 e4] [d4 e4 d4 b3] [c4 b3 d4 b3] [e4@4]>\")\n  .s(\"choir\").syl(\"oh\").attack(.1).release(.4).pan(.6).room(.4).gain(.24)\nbass: note(\"<[a2 a2 g2 a2] [g2@2 e2@2] [a2 e2 a2 g2] [a2@4] [g2 a2 e2 c3] [g2 e2 g2 e2] [a2 e2 e2 e2] [a2@4]>\")\n  .s(\"choir\").syl(\"oo\").attack(.1).release(.4).room(.4).gain(.26)\n\n// The leader's hand beating time on the bench\nbeat: s(\"rim ~ rim ~\").lpf(1200).gain(.12)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1810s-ramparts-at-dawn",
+      "name": "1810s · Ramparts at Dawn",
+      "description": "The War of 1812: a military band on the fort walls, massed brass in Bb, a bugle above, a rolling snare and cannon on the far shore.",
+      "category": "Early Republic",
+      "tags": ["1810s", "military band", "brass", "Bb major"],
+      "source": "setcpm(104/4)\n\n// A military band on the ramparts: massed brass in Bb\nbrass: note(\"<[[bb3,d4,f4]@3 [bb3,d4,f4]] [c4,eb4,f4,a4] [[bb3,d4,f4,bb4] [eb4,g4,bb4]] [[d4,f4,bb4] [c4,f4,a4]]>\")\n  .s(\"sawtooth\").unison(3).detune(.15)\n  .lpf(1400).lpenv(1.5).lpattack(.05)\n  .attack(.04).sustain(.7).release(.3).room(.5).gain(.22)\n\n// A bugle melody above\nbugle: note(\"<[f4@3 f4 bb4@2 d5@2] [c5@4 a4@2 f4@2] [bb4@2 d5 f5 eb5@2 g5@2] [f5@2 d5@2 c5@3 ~]>\")\n  .s(\"sawtooth\").timbre(\"bright\").lpf(2600).vib(5).vibdepth(.06)\n  .attack(.03).sustain(.7).release(.2).room(.5).gain(.22)\n\n// Snare and bass drum keeping the cadence\nsnare: s(\"[sd ~ sd sd] [sd ~ sd ~] [sd ~ sd sd] [sd sd sd sd]\").hpf(300).gain(.3)\nbassdrum: s(\"bd ~ bd ~\").speed(.8).lpf(600).gain(.45)\n\n// Cannon on the far shore, now and then\ncannon: s(\"<~ ~ ~ [bd ~ ~ ~]>\").speed(.4).lpf(300).distance(8).room(.8).gain(.7)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1820s-canal-days",
+      "name": "1820s · Canal Days",
+      "description": "Down the new Erie Canal: a hammered dulcimer and a fiddle in D mixolydian, a boot on the deck, a jug for a bass and water lapping the hull.",
+      "category": "Early Republic",
+      "tags": ["1820s", "old-time", "dulcimer", "D mixolydian"],
+      "source": "setcpm(100/4)\n\n// A hammered dulcimer rippling through D, D, G and A\ndulcimer: n(\"0 2 4 2 6 4 2 4\").add(\"<0 0 3 4>\").scale(\"D:mixolydian\").transpose(12)\n  .s(\"sine\").fm(2.5).fmh(3).decay(.4).sustain(0).release(.5)\n  .pan(.35).room(.4).gain(.22)\n\n// The fiddle plays the tune\nfiddle: note(\"<[a4@2 b4 c5 d5@2 c5 a4] [g4@3 a4 b4@2 g4 e4] [d4 e4 g4 a4 b4@2 a4 g4] [a4 g4 e4 c5 a4@4]>\")\n  .s(\"sawtooth\").timbre(\"reed\").lpf(2800).vib(6).vibdepth(.12)\n  .attack(.03).sustain(.6).release(.15).pan(.65).room(.4).gain(.24)\n\n// A boot stomping on the deck, and a jug for the bass\nstomp: s(\"bd ~ bd ~\").lpf(400).gain(.4)\njug: note(\"<[d2 ~ a1 ~] [d2 ~ a1 ~] [g1 ~ d2 ~] [a1 ~ e2 ~]>\")\n  .s(\"sine\").vowel(\"o\").shape(.1).decay(.25).sustain(.2).gain(.4)\n\n// Water against the hull\nwater: s(\"stream\").slow(4).distance(3).gain(.15)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1830s-call-and-response",
+      "name": "1830s · Call and Response",
+      "description": "In the tradition of the spirituals and work songs that became the roots of American music: a leader calls, voices answer, hands clap and feet stomp.",
+      "category": "Early Republic",
+      "tags": ["1830s", "spiritual", "call and response", "voices"],
+      "source": "setcpm(76/4)\n\n// The leader calls...\nleader: note(\"<[g4@2 a4 c5 a4@4] ~ [c5@2 d5 c5 a4@2 g4@2] ~>\")\n  .s(\"voice\").syl(\"<[oh@2 lo ro da@4] ~ [wa@2 ko mi ho@2 ma@2] ~>\")\n  .voicetype(\"alto\").mono(1).vglide(.1).attack(.05).release(.8).room(.5).gain(.34)\n\n// ...and the voices answer\nanswer: note(\"<~ [[g3,b3,d4]@2 [a3,c4,e4] [g3,b3,d4]@5] ~ [[c4,e4,g4]@2 [a3,c4,e4]@2 [g3,b3,d4]@4]>\")\n  .s(\"choir\").syl(\"<~ oh ~ ah>\").attack(.1).release(1).room(.5).gain(.3)\n\n// Hands and feet keep the time\nclaps: s(\"~ cp ~ cp\").room(.3).gain(.3)\nstomp: s(\"bd ~ bd ~\").lpf(300).gain(.45)\ndrone: note(\"g2\").slow(4).s(\"hum\").gain(.12)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1840s-forty-niner-campfire",
+      "name": "1840s · Forty-Niner Campfire",
+      "description": "The Gold Rush, 1849: a banjo, a concertina and a pair of spoons around a campfire under the Sierra stars, with crickets in the dark.",
+      "category": "Early Republic",
+      "tags": ["1840s", "gold rush", "banjo", "C major"],
+      "source": "setcpm(120/4)\n\n// The campfire\nfire: s(\"fire\").slow(4).intensity(.4).density(8).gain(.25)\n\n// Banjo rolls through C, F, C and G\nbanjo: note(\"<[c4 e4 g4 c5 g4 e4 g4 e4] [f4 a4 c5 f5 c5 a4 c5 a4] [c4 e4 g4 c5 g4 e4 g4 e4] [g3 b3 d4 g4 f4 d4 b3 g3]>\")\n  .s(\"triangle\").timbre(\"bright\").attack(.001).decay(.15).sustain(0).release(.15)\n  .pan(.35).gain(.26)\n\n// A wheezing concertina sings the tune\nconcertina: note(\"<[e5@2 d5 c5 e5@2 g5@2] [a5@2 g5 f5 c5@4] [e5 f5 g5 e5 c5@2 d5 e5] [d5@2 b4 g4 d5@4]>\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"a\").lpf(2200)\n  .attack(.04).sustain(.7).release(.15).trem(6).tremdepth(.15)\n  .pan(.65).room(.3).gain(.2)\n\n// A plucked bass, spoons on a knee, crickets in the dark\nbass: note(\"<[c2 g2]*2 [f2 c3]*2 [c2 g2]*2 [g1 d2]*2>\")\n  .s(\"triangle\").decay(.2).sustain(.2).gain(.4)\nspoons: s(\"rim*8\").speed(1.4).lpf(4000).gain(\"[.25 .1 .15 .1]*2\")\ncrickets: s(\"insect\").slow(4).distance(6).gain(.06)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1850s-parlor-ballad",
+      "name": "1850s · Parlor Ballad",
+      "description": "A sentimental song around the family piano, in the manner of the era's parlor songwriters: a singing tune in F over gentle arpeggios.",
+      "category": "Civil War & Frontier",
+      "tags": ["1850s", "parlor song", "piano", "voice", "F major"],
+      "source": "setcpm(72/4)\n\n// Gentle piano arpeggios: F, Bb, F, C7, F, Dm, C7, F\npiano: note(\"<[f2 c3 a3 c3 f3 c3 a3 c3] [bb1 f2 d3 f2 bb2 f2 d3 f2] [f2 c3 a3 c3 f3 c3 a3 c3] [c2 g2 e3 g2 bb2 g2 e3 g2] [f2 c3 a3 c3 f3 c3 a3 c3] [d2 a2 f3 a2 d3 a2 f3 a2] [c2 g2 e3 g2 bb2 g2 e3 g2] [f2 c3 a3 c3 f3 c3 a3 c3]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(.8).sustain(.1).release(.8)\n  .room(.4).gain(.3)\n\n// A voice sings the ballad\nsinger: note(\"<[a4@3 g4 f4@2 a4@2] [bb4@3 a4 g4@4] [a4@2 c5@2 d5 c5 a4@2] [g4@6 ~@2] [a4@3 g4 f4@2 d4@2] [d4@2 f4@2 a4@2 g4@2] [f4@2 a4@2 g4@2 e4@2] [f4@6 ~@2]>\")\n  .s(\"voice\").syl(\"<[la@3 li lo@2 ma@2] [ho@3 ma la@4] [do@2 ri@2 ma no la@2] [ho@6 ~@2] [la@3 li lo@2 ma@2] [so@2 ri@2 mi@2 na@2] [lo@2 va@2 ho@2 mo@2] [ho@6 ~@2]>\")\n  .mono(1).vglide(.08).attack(.1).release(.6).room(.4).gain(.32)\n\n// The clock in the parlor\nclock: s(\"tick ~ tick ~\").gain(.05)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1860s-evening-in-camp",
+      "name": "1860s · Evening in Camp",
+      "description": "The Civil War: a bugle call drifts across the field at dusk, then a fiddle plays a lament by the fire over a soft harmonium and a muffled drum.",
+      "category": "Civil War & Frontier",
+      "tags": ["1860s", "civil war", "bugle", "lament", "A minor"],
+      "source": "setcpm(66/4)\n\n// A bugle sounds across the field\nbugle: note(\"<[g3@2 g3 c4@5] [e4@2 c4 e4 g4@4] [e4@2 c4 g3 c4@4] ~ ~ ~ ~ ~>\")\n  .s(\"sawtooth\").timbre(\"bright\").lpf(2000)\n  .attack(.05).sustain(.7).release(.6).distance(6).room(.7).gain(.3)\n\n// Then a fiddle plays a lament by the fire\nfiddle: note(\"<~ ~ ~ ~ [e4@3 a4 c5@2 b4 a4] [g4@4 e4@4] [f4@2 e4 d4 c4@2 b3 c4] [a3@8]>\")\n  .s(\"sawtooth\").vib(5).vibdepth(.15).lpf(2400)\n  .attack(.1).sustain(.7).release(.5).room(.5).gain(.24)\nharmonium: note(\"<~ ~ ~ ~ [a2,e3,a3] [c3,e3,g3] [d3,f3,a3] [a2,e3,a3]>\")\n  .s(\"sawtooth\").timbre(\"organ\").lpf(900).attack(.5).sustain(.6).release(1).gain(.1)\n\n// A muffled drum, the fire and the crickets\ndrum: s(\"<[lt ~ ~ ~] ~ [lt ~ ~ ~] ~ [lt ~ lt ~] [lt ~ lt ~] [lt ~ lt ~] [lt ~ ~ ~]>\")\n  .speed(.8).lpf(600).room(.5).gain(.35)\nfire: s(\"fire\").slow(4).intensity(.3).gain(.2)\ncrickets: s(\"insect\").slow(4).distance(6).gain(.06)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1870s-up-the-cattle-trail",
+      "name": "1870s · Up the Cattle Trail",
+      "description": "Driving cattle north: a horse's lope, a strummed guitar, a harmonica under a big sky and the prairie wind.",
+      "category": "Civil War & Frontier",
+      "tags": ["1870s", "cowboy", "harmonica", "G major"],
+      "source": "setcpm(96/4)\n\n// A horse's lope\nhooves: s(\"[rim@2 rim]*4\").speed(.7).lpf(1800).pan(.4).gain(.25)\n\n// A guitar strumming in the lope rhythm: G, C, G, D7\nguitar: note(\"<[g2,d3,g3,b3] [c3,e3,g3,c4] [g2,d3,g3,b3] [d3,f#3,a3,c4]>\").struct(\"[x@2 x]*4\")\n  .s(\"triangle\").timbre(\"bright\").attack(.003).decay(.25).sustain(0).release(.2)\n  .lpf(2400).gain(.24)\nbass: note(\"<[g1 d2] [c2 g1] [g1 d2] [d2 a1]>\").s(\"triangle\").decay(.3).sustain(.3).gain(.4)\n\n// A harmonica sings over the herd\nharmonica: note(\"<[d5@2 b4 g4 b4@2 d5@2] [e5@4 c5@2 g4@2] [d5@2 b4 d5 g5@2 e5 d5] [c5@2 a4@2 f#4@2 d4@2]>\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"o\").mono(1).glide(.04)\n  .vib(5).vibdepth(.2).attack(.04).sustain(.6).release(.2)\n  .lpf(2400).room(.4).gain(.24)\n\n// The prairie wind\nwind: s(\"wind\").slow(8).intensity(.25).gain(.08)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1880s-bandstand-march",
+      "name": "1880s · Bandstand March",
+      "description": "Sunday in the park: a brass band strikes up a march in 6/8, with oom-pah tuba, bright cornets, piccolo trills and crashing cymbals.",
+      "category": "Civil War & Frontier",
+      "tags": ["1880s", "march", "6/8", "brass band", "Eb major"],
+      "source": "setcpm(120/2)\n\n// One cycle is a bar of 6/8: oom-pah tuba through Eb, Bb7 and Ab\ntuba: note(\"<[eb2 ~ ~ bb1 ~ ~] [eb2 ~ ~ bb1 ~ ~] [bb1 ~ ~ f2 ~ ~] [eb2 ~ ~ bb1 ~ ~] [ab1 ~ ~ eb2 ~ ~] [eb2 ~ ~ bb1 ~ ~] [bb1 ~ ~ f2 ~ ~] [eb2 ~ ~ ~ ~ ~]>\")\n  .s(\"sawtooth\").lpf(500).attack(.01).decay(.2).sustain(.4).release(.1).gain(.45)\nhorns: note(\"<[eb3,g3,bb3] [eb3,g3,bb3] [d3,f3,ab3,bb3] [eb3,g3,bb3] [eb3,ab3,c4] [eb3,g3,bb3] [d3,f3,ab3,bb3] [eb3,g3,bb3]>\")\n  .struct(\"~ ~ x ~ ~ x\")\n  .s(\"sawtooth\").unison(2).detune(.1).lpf(1500).decay(.15).sustain(.2).release(.1).gain(.2)\n\n// Cornets carry the tune\ncornet: note(\"<[bb4@2 g4 eb5@2 bb4] [c5@2 bb4 g4@3] [ab4@2 f4 d5@2 bb4] [eb5@6] [c5@2 eb5 ab5@2 g5] [g5@2 f5 eb5@3] [d5@2 eb5 f5@2 ab5] [g5@3 eb5@3]>\")\n  .s(\"sawtooth\").timbre(\"bright\").lpf(3000).vib(5).vibdepth(.05)\n  .attack(.02).sustain(.7).release(.1).room(.4).gain(.26)\n\n// Piccolo trills at the end of each phrase\npiccolo: note(\"<~ ~ ~ [g6 ab6 g6 ab6 g6 ab6] ~ ~ ~ [eb6 f6 eb6 f6 eb6 f6]>\")\n  .s(\"sine\").decay(.1).sustain(.3).release(.05).gain(.12)\n\n// Bass drum, snare and cymbals\ndrums: s(\"bd ~ ~ bd ~ ~, sd ~ sd sd ~ sd\").gain(.45)\ncymbals: s(\"cr ~ ~ ~ ~ ~\").gain(.12)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1890s-riverboat-rag",
+      "name": "1890s · Riverboat Rag",
+      "description": "Ragtime on a Mississippi riverboat: the left hand strides between bass notes and chords while the right hand syncopates against it.",
+      "category": "Ragtime & Jazz Age",
+      "tags": ["1890s", "ragtime", "piano", "2/4", "C major"],
+      "source": "setcpm(96/2)\n\n// One cycle is a bar of 2/4: the left hand strides\nleft: note(\"<[c2 [e3,g3,c4] g1 [e3,g3,c4]] [c2 [e3,g3,c4] g1 [e3,g3,c4]] [f2 [f3,a3,c4] c2 [f3,a3,c4]] [f2 [f3,a3,c4] c2 [f3,a3,c4]] [c2 [e3,g3,c4] g1 [e3,g3,c4]] [a1 [e3,a3,c#4] e2 [e3,a3,c#4]] [d2 [f3,a3,c4] g1 [f3,g3,b3]] [c2 [e3,g3,c4] ~ ~]>\")\n  .s(\"triangle\").timbre(\"bright\").attack(.003).decay(.3).sustain(.1).release(.2)\n  .lpf(2400).gain(.3)\n\n// The right hand syncopates against it\nright: note(\"<[e5 g5 ~ e5 c6@2 g5 e5] [g5@2 e5 c5@2 d5 e5@2] [f5 a5 ~ f5 c6@2 a5 f5] [a5@2 f5 c5@2 d5 f5@2] [e5 g5 ~ e5 c6@2 g5 e5] [e5 a5 ~ c#6 e6@2 c#6 a5] [d6@2 c6 a5 g5@2 f5 d5] [c5@3 c6 ~@4]>\")\n  .s(\"triangle\").timbre(\"bright\").attack(.002).decay(.25).sustain(.15).release(.15)\n  .lpf(3500).gain(.26)\n\n// The chatter of the saloon deck\ncrowd: s(\"crowd\").slow(8).intensity(.25).gain(.08)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1900s-streetlamp-harmony",
+      "name": "1900s · Streetlamp Harmony",
+      "description": "A barbershop quartet under a gas lamp: a lead voice with three close-harmony parts swinging around the circle of fifths in Bb.",
+      "category": "Ragtime & Jazz Age",
+      "tags": ["1900s", "barbershop", "quartet", "Bb major"],
+      "source": "setcpm(80/4)\n\n// The lead sings the tune: Bb, G7, C7, F7, Bb, C7, F7, Bb\nlead: note(\"<[d4@2 c4 bb3 d4@2 f4@2] [d4@4 b3@4] [c4@2 d4 e4 g4@2 e4@2] [eb4@4 c4@4] [d4@2 f4@2 bb4@2 a4 g4] [f4@4 e4@4] [eb4@2 d4@2 c4@2 a3@2] [bb3@8]>\")\n  .s(\"voice\").syl(\"<[la@2 li la lo@2 ma@2] [ho@4 nu@4] [wa@2 la ro mi@2 nu@2] [so@4 mu@4] [la@2 di@2 lo@2 ma ri] [mo@4 nu@4] [ho@2 na@2 so@2 wa@2] [ho@8]>\")\n  .mono(1).vglide(.12).attack(.08).release(.4).room(.3).gain(.3)\n\n// Tenor, baritone and bass ring the chords around it\nharmony: note(\"<[bb2,f3,f4] [g2,f3,d4] [c3,g3,bb3] [f2,c3,a3] [bb2,f3,d4] [c3,g3,bb3] [f2,a3,f4] [bb2,f3,d4,f4]>\")\n  .s(\"ooh\").attack(.2).release(.6).room(.3).gain(.22)\n\n// Footsteps on the boardwalk\nsteps: s(\"step ~ ~ ~ step ~ ~ ~\").distance(6).gain(.1)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1910s-levee-stomp",
+      "name": "1910s · Levee Stomp",
+      "description": "Early New Orleans jazz: trumpet lead, a noodling clarinet and a sliding trombone over tuba, banjo and a two-beat drum.",
+      "category": "Ragtime & Jazz Age",
+      "tags": ["1910s", "dixieland", "new orleans", "Bb major"],
+      "source": "setcpm(176/4)\n\n// Tuba and banjo: Bb, Bb, Eb, Ebm6, Bb, Gm7, Cm7-F7, Bb\ntuba: note(\"<[bb1 ~ f1 ~] [bb1 ~ f1 ~] [eb2 ~ bb1 ~] [eb2 ~ bb1 ~] [bb1 ~ f2 ~] [g1 ~ d2 ~] [c2 ~ f1 ~] [bb1 ~ f1 ~]>\")\n  .s(\"sawtooth\").lpf(500).decay(.25).sustain(.3).release(.1).gain(.45)\nbanjo: note(\"<[bb2,d3,f3] [bb2,d3,f3] [eb3,g3,bb3] [eb3,gb3,bb3,c4] [bb2,d3,f3] [g2,bb2,d3,f3] [[c3,eb3,g3,bb3] [f3,a3,eb4]] [bb2,d3,f3]>\")\n  .struct(\"x x x x\").s(\"triangle\").timbre(\"bright\").decay(.12).sustain(0).gain(.18)\n\n// The trumpet leads\ntrumpet: note(\"<[d5@3 f5 d5@2 bb4@2] [c5 d5 ~ bb4 f4@4] [g4@2 bb4 eb5 g5@2 f5 eb5] [eb5@2 db5 bb4 gb4@4] [f4 bb4 d5 f5 ~ d5 bb4@2] [bb4@2 d5 f5 g5@2 f5 d5] [eb5@2 c5 bb4 a4@2 c5 eb5] [d5@4 bb4@2 ~@2]>\")\n  .s(\"sawtooth\").timbre(\"bright\").lpf(2800).vib(5.5).vibdepth(.1)\n  .attack(.02).sustain(.6).release(.1).swing(4).gain(.24)\n\n// The clarinet noodles above, the trombone slides below\nclarinet: n(\"[7 9 11 9 7 4 2 4]\").add(\"<0 0 3 0 0 5 1 0>\").scale(\"C:major\").transpose(10)\n  .mask(\"<1 1 1 0 1 1 1 1>\")\n  .s(\"square\").pw(.4).lpf(2400).decay(.15).sustain(.3).swing(4).pan(.7).gain(.12)\ntrombone: note(\"<[bb2@4 f3@4] [d3@4 bb2@4] [eb3@4 g3@4] [eb3@4 gb2@4] [d3@4 f3@4] [bb2@4 d3@4] [c3@4 a2@4] [bb2@6 ~@2]>\")\n  .s(\"sawtooth\").mono(1).glide(.12).lpf(1200)\n  .attack(.04).sustain(.6).release(.15).pan(.35).gain(.2)\n\n// A two-beat drum and woodblocks\ndrums: s(\"bd ~ bd ~, ~ sd ~ sd\").swing(4).gain(.45)\nblocks: s(\"rim*4\").speed(.8).gain(.15)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1920s-charleston-fever",
+      "name": "1920s · Charleston Fever",
+      "description": "The Roaring Twenties: hot cornet over the Charleston rhythm, piano and handclaps on the famous dotted kick, tuba, banjo and a crisp kit.",
+      "category": "Ragtime & Jazz Age",
+      "tags": ["1920s", "charleston", "hot jazz", "C major"],
+      "source": "setcpm(216/4)\n\n// Piano and claps on the Charleston rhythm: C, C, E7, E7, A7, D7, G7, C\npiano: note(\"<[c3,e3,g3] [c3,e3,g3] [e3,g#3,b3,d4] [e3,g#3,b3,d4] [a2,c#3,e3,g3] [d3,f#3,a3,c4] [g2,b2,d3,f3] [c3,e3,g3,c4]>\")\n  .struct(\"x@3 x@5\").s(\"triangle\").timbre(\"bright\")\n  .decay(.3).sustain(.1).release(.2).lpf(2600).gain(.28)\nclaps: s(\"cp\").struct(\"x@3 x@5\").room(.2).gain(.25)\n\n// Banjo on every beat, tuba on one and three\nbanjo: note(\"<[c3,e3,g3] [c3,e3,g3] [e3,g#3,b3,d4] [e3,g#3,b3,d4] [a2,c#3,e3,g3] [d3,f#3,a3,c4] [g2,b2,d3,f3] [c3,e3,g3,c4]>\")\n  .struct(\"x x x x\").s(\"triangle\").timbre(\"bright\").decay(.1).sustain(0).pan(.3).gain(.14)\ntuba: note(\"<[c2 g1] [c2 g1] [e2 b1] [e2 b1] [a1 e2] [d2 a1] [g1 d2] [c2 g1]>\")\n  .s(\"sawtooth\").lpf(600).decay(.25).sustain(.3).release(.1).gain(.45)\n\n// Hot cornet with a growl\ncornet: note(\"<[e5 g5 ~ e5 c5@2 ~@2] [g4 a4 c5 e5 d5@4] [g#4 b4 ~ d5 e5@2 ~@2] [d5 b4 g#4 e4 g#4@4] [a4 c#5 ~ e5 g5@2 e5 c#5] [d5@2 c5 a4 f#4@4] [g4 b4 d5 f5 e5@2 d5 b4] [c5@4 ~@4]>\")\n  .s(\"sawtooth\").timbre(\"bright\").vowel(\"a\").lpf(3000).vib(6).vibdepth(.12)\n  .attack(.02).sustain(.6).release(.1).pan(.6).room(.3).gain(.24)\n\n// A crisp kit\ndrums: s(\"bd ~ bd ~, ~ sd ~ sd, hh*4\").gain(.4)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1930s-ballroom-swing",
+      "name": "1930s · Ballroom Swing",
+      "description": "The big band era: a swinging ride cymbal, a walking bass, a sax section trading riffs and brass shouts at the end of each phrase.",
+      "category": "Swing & Rock 'n' Roll",
+      "tags": ["1930s", "swing", "big band", "F major"],
+      "source": "setcpm(144/4)\n\n// A swinging kit: feathered kick, hats on two and four, ride ding-ding-a-ding\ndrums: stack(\n  s(\"bd*4\").lpf(200).gain(.35),\n  s(\"~ hh ~ hh\").gain(.3),\n  s(\"rd [rd@2 rd] rd [rd@2 rd]\").gain(.25),\n  s(\"~ ~ ~ [~@2 sd?0.4]\").gain(.2)\n)\n\n// A walking bass: F, F, Bb, Bb, F, C, F, C\nbass: note(\"<[f2 a2 c3 a2] [f2 a2 c3 eb3] [bb1 d2 f2 d2] [bb1 d2 f2 b1] [f2 a2 c3 d3] [c2 e2 g2 bb2] [f2 a2 c3 a2] [c2 e2 g2 e2]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.3).release(.1).gain(.5)\n\n// The sax section riffs, moving with the chords\nsaxes: note(\"[[a3,c4,f4]@2 [a3,c4,f4]] [~@2 [bb3,d4,f4]] [[a3,c4,f4]@2 ~] ~\").add(\"<0 0 5 5 0 7 0 7>\")\n  .s(\"sawtooth\").timbre(\"reed\").unison(2).detune(.1).lpf(1800)\n  .attack(.03).sustain(.6).release(.1).pan(.4).gain(.2)\n\n// Brass shouts at the end of each phrase\nshout: note(\"<~ ~ ~ [~ ~ [[f4,g4,bb4,d5]@2 [f4,g4,bb4,d5]] [f4,g4,bb4,d5]] ~ ~ ~ [~ ~ [[e4,g4,bb4,c5]@2 [e4,g4,bb4,c5]] [e4,g4,bb4,c5]]>\")\n  .s(\"sawtooth\").unison(2).detune(.1).lpf(2400).lpenv(2).lpattack(.02)\n  .attack(.02).decay(.2).sustain(.4).release(.1).pan(.6).room(.3).gain(.24)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1940s-home-front-boogie",
+      "name": "1940s · Home Front Boogie",
+      "description": "Wartime boogie-woogie: a rolling eight-to-the-bar left hand through a twelve-bar blues in G, right-hand chord stabs, close-harmony 'ooh' voices and a shuffle beat.",
+      "category": "Swing & Rock 'n' Roll",
+      "tags": ["1940s", "boogie-woogie", "12-bar", "G major"],
+      "source": "setcpm(132/4)\n\n// Left-hand boogie figures for G, C and D\nconst lg = note(\"g1 b1 d2 e2 f2 e2 d2 b1\")\nconst lc = note(\"c2 e2 g2 a2 bb2 a2 g2 e2\")\nconst ld = note(\"d2 f#2 a2 b2 c3 b2 a2 f#2\")\n// Right-hand chords\nconst rg = note(\"[b4,d5,f5,g5]\")\nconst rc = note(\"[bb4,c5,e5,g5]\")\nconst rd = note(\"[a4,c5,d5,f#5]\")\n\n// Twelve bars, eight to the bar\nleft: cat(lg, lg, lg, lg, lc, lc, lg, lg, ld, lc, lg, ld).swing(4)\n  .s(\"triangle\").timbre(\"bright\").decay(.25).sustain(.2).lpf(1800).gain(.35)\nright: cat(rg, rg, rg, rg, rc, rc, rg, rg, rd, rc, rg, rd)\n  .struct(\"x [~@2 x] ~ [~@2 x]\")\n  .s(\"triangle\").timbre(\"bright\").decay(.2).sustain(.1).lpf(3000).gain(.2)\n\n// Close-harmony voices on the off-beats\nvoices: note(\"<[b3,d4,g4] [b3,d4,g4] [b3,d4,g4] [b3,d4,g4] [c4,e4,g4] [c4,e4,g4] [b3,d4,g4] [b3,d4,g4] [a3,d4,f#4] [c4,e4,g4] [b3,d4,g4] [a3,d4,f#4]>\")\n  .struct(\"~ [x@2 x] ~ x\").s(\"ooh\").attack(.02).release(.3).room(.3).gain(.2)\n\n// A shuffle beat\ndrums: s(\"bd ~ bd ~, ~ sd ~ sd, [hh@2 hh]*4\").gain(.45)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1950s-street-corner-doo-wop",
+      "name": "1950s · Street Corner Doo-Wop",
+      "description": "Rock 'n' roll's sweet side: triplet piano, a walking bass, a honking sax and 'ooh' harmonies around C, Am, F and G, over a backbeat.",
+      "category": "Swing & Rock 'n' Roll",
+      "tags": ["1950s", "doo-wop", "rock and roll", "12/8", "C major"],
+      "source": "setcpm(72/4)\n\n// Triplet piano: C, Am, F, G\npiano: note(\"<[c4,e4,g4] [a3,c4,e4] [a3,c4,f4] [b3,d4,g4]>\").struct(\"[x x x]*4\")\n  .s(\"triangle\").timbre(\"bright\").decay(.15).sustain(.1).release(.1).lpf(2600).gain(.18)\n\n// A walking bass\nbass: note(\"<[c2 e2 g2 e2] [a1 c2 e2 c2] [f1 a1 c2 a1] [g1 b1 d2 b1]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.4).gain(.5)\n\n// A backbeat with triplet hats\ndrums: stack(\n  s(\"bd ~ bd ~\").gain(.5),\n  s(\"~ sd ~ sd\").room(.2).gain(.45),\n  s(\"[hh hh hh]*4\").hpf(6000).gain(.2)\n)\n\n// The group sings ooh, ooh-ooh\nbacking: note(\"<[e3,g3,c4] [e3,a3,c4] [f3,a3,c4] [d3,g3,b3]>\").struct(\"x@2 x x@3 x x\")\n  .s(\"ooh\").attack(.03).release(.3).room(.4).gain(.2)\n\n// A honking tenor sax\nsax: note(\"<[g4@2 e4 g4 c5@4] [a4@2 c5 e5 c5@4] [a4@2 f4 a4 c5@2 a4@2] [b4@2 d5 b4 g4@4]>\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"o\").lpf(2200).vib(5).vibdepth(.15)\n  .attack(.02).sustain(.6).release(.15).pan(.6).gain(.22)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1960s-motor-city-soul",
+      "name": "1960s · Motor City Soul",
+      "description": "The Detroit sound: snare and tambourine on every beat, a melodic bass, piano on the quarters, soaring strings, horn stabs and 'ooh' backing voices.",
+      "category": "Soul to Hip-Hop",
+      "tags": ["1960s", "soul", "motown-style", "C major"],
+      "source": "setcpm(120/4)\n\n// Snare on every beat, bright tambourine-like hats and claps\ndrums: stack(\n  s(\"bd ~ [~ bd] ~ bd ~ [~ bd] ~\").gain(.6),\n  s(\"sd*4\").gain(.4),\n  s(\"hh*8\").hpf(6000).gain(\"[.3 .15]*4\"),\n  s(\"~ cp ~ cp\").room(.2).gain(.3)\n)\n\n// A melodic bass: C, Am, Dm, G\nbass: note(\"<[c2 ~ c2 e2 g2 ~ a2 g2] [a1 ~ a1 c2 e2 ~ g2 e2] [d2 ~ d2 f2 a2 ~ c3 a2] [g1 ~ g1 b1 d2 ~ f2 d2]>\")\n  .s(\"sine\").shape(.2).decay(.25).sustain(.4).release(.1).gain(.5)\n\n// Piano on the quarters, backing voices underneath\npiano: note(\"<[e4,g4,c5] [e4,a4,c5] [f4,a4,d5] [f4,g4,b4,d5]>\").struct(\"x x x x\")\n  .s(\"triangle\").timbre(\"bright\").decay(.2).sustain(.1).lpf(2600).gain(.2)\nvoices: note(\"<[e3,g3] [e3,a3] [f3,a3] [f3,b3]>\").s(\"ooh\").attack(.2).release(.6).gain(.18)\n\n// Soaring strings and horn stabs\nstrings: note(\"<[g4@2 e5@2 d5 c5@3] [c5@4 e5@4] [f5@2 d5@2 a4 c5@3] [b4@4 d5@4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(3000)\n  .attack(.15).sustain(.7).release(.4).room(.5).gain(.14)\nhorns: note(\"<~ [~ ~ ~ ~ ~ [e4,g4,c5] ~ [e4,g4,c5]] ~ [~ ~ ~ ~ [f4,b4,d5]@2 [g4,b4,d5]@2]>\")\n  .s(\"sawtooth\").unison(2).detune(.1).lpf(2000).lpenv(2).lpattack(.02)\n  .attack(.02).decay(.2).sustain(.3).release(.1).pan(.65).gain(.24)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1970s-mirror-ball",
+      "name": "1970s · Mirror Ball",
+      "description": "Saturday night at the discotheque: four on the floor, an octave-jumping bass, chicken-scratch guitar, electric piano and sweeping strings.",
+      "category": "Soul to Hip-Hop",
+      "tags": ["1970s", "disco", "A minor", "strings"],
+      "source": "setcpm(120/4)\n\n// Four on the floor with open hats on the off-beat\ndrums: stack(\n  s(\"bd*4\").gain(.8),\n  s(\"[~ oh]*4\").gain(.35),\n  s(\"~ cp ~ cp\").room(.3).gain(.45),\n  s(\"hh*16\").hpf(8000).gain(\"[.18 .08]*8\")\n)\n\n// The octave bass: Am7, D9, Fmaj7, E7\nbass: note(\"<[a1 a2]*4 [d2 d3]*4 [f1 f2]*4 [e1 e2]*4>\")\n  .s(\"sawtooth\").lpf(900).lpenv(1.5).lpdecay(.1)\n  .decay(.12).sustain(.3).release(.05).gain(.45)\n\n// Chicken-scratch guitar and electric piano\nguitar: note(\"<[c4,e4,g4] [c4,f#4,a4] [c4,f4,a4] [b3,e4,g#4]>\")\n  .struct(\"~ x ~ x ~ x ~ x ~ x ~ x ~ x ~ x\")\n  .s(\"square\").pw(.2).hpf(900).decay(.05).sustain(0).pan(.35).gain(.12)\nkeys: note(\"<[a3,c4,e4,g4] [c4,e4,f#4,a4] [a3,c4,e4,f4] [g#3,b3,d4,e4]>\").struct(\"x ~ ~ x ~ ~ x ~\")\n  .s(\"sine\").fm(1.1).fmh(2).decay(.5).sustain(.3).release(.4).pan(.6).gain(.22)\n\n// Sweeping strings\nstrings: note(\"<[e5@3 g5 a5@4] [f#5@3 e5 d5@4] [c5@2 e5@2 f5 e5 c5 a4] [g#4@4 b4@4]>\")\n  .s(\"sawtooth\").unison(4).detune(.25).lpf(3500)\n  .attack(.1).sustain(.7).release(.4).room(.6).gain(.14)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1980s-electro-breakdance",
+      "name": "1980s · Electro Breakdance",
+      "description": "Drum machines take over: a syncopated electro kick, claps, orchestra-hit stabs, a robot voice from a vocoder and a square-wave lead.",
+      "category": "Soul to Hip-Hop",
+      "tags": ["1980s", "electro", "drum machine", "E minor"],
+      "source": "setcpm(126/4)\n\n// A drum machine with a tom fill every fourth bar\ndrums: stack(\n  s(\"bd ~ ~ bd ~ ~ bd ~ ~ ~ bd ~ ~ ~ ~ ~\").shape(.2).gain(.8),\n  s(\"~ cp ~ cp\").room(.2).gain(.5),\n  s(\"hh*16\").hpf(7000).gain(\"[.3 .12 .2 .12]*4\"),\n  s(\"<~ ~ ~ [~ ~ ~ ~ ~ ~ lt mt ht lt mt ht ht ht ht ht]>\").gain(.4)\n)\n\n// A synth bass: E, E, C, D\nbass: note(\"e1 ~ e1 ~ ~ e2 ~ e1 ~ ~ g1 ~ a1 ~ b1 ~\").add(\"<0 0 -4 -2>\")\n  .s(\"sine\").shape(.3).decay(.3).sustain(.3).release(.1).gain(.5)\n\n// Orchestra-hit stabs\nstabs: note(\"<[e3,g3,b3,e4] [e3,g3,b3,e4] [c3,e3,g3,c4] [d3,f#3,a3,d4]>\")\n  .struct(\"x ~ ~ x ~ ~ x ~ ~ ~ ~ ~ ~ ~ ~ ~\")\n  .s(\"sawtooth\").unison(4).detune(.3).attack(.002).decay(.25).sustain(0)\n  .lpf(3500).room(.4).gain(.22)\n\n// A robot voice through the vocoder\nrobot: note(\"<e3 e3 c3 d3>\").struct(\"~ ~ ~ ~ x ~ x x ~ ~ ~ ~ x ~ x ~\")\n  .s(\"sawtooth\").syl(\"<[ro bo ta ko mo] [ro ka lo ki mo]>\").talk(1).crush(8).pan(.6).gain(.3)\n\n// A square-wave lead\nlead: n(\"<[7 ~ 4 ~ 7 ~ 9 7] [~ ~ 4 ~ 2 ~ 0 ~]>\").scale(\"E:minor\").transpose(12)\n  .s(\"square\").pw(.3).decay(.15).sustain(.2)\n  .delay(.3).delaytime(3/16).gain(.15)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "1990s-boom-bap-crates",
+      "name": "1990s · Boom Bap Crates",
+      "description": "Golden-era hip-hop: dusty swung drums, a crate-dug jazz loop through a bit-crusher, an upright bass, a horn sample and vinyl crackle.",
+      "category": "Soul to Hip-Hop",
+      "tags": ["1990s", "boom bap", "hip-hop", "D minor"],
+      "source": "setcpm(90/4)\n\n// Dusty, swung drums\ndrums: stack(\n  s(\"bd ~ ~ bd ~ ~ bd ~, ~ ~ sd ~ ~ ~ sd ~\").swing(4).crush(10).lpf(4500).gain(.75),\n  s(\"hh*8\").swing(4).hpf(6000).gain(\"[.3 .15]*4\")\n)\n\n// A jazz loop off an old record: Dm7, Dm7, Gm7, A7\nloop: note(\"<[d3,f3,a3,c4] [d3,f3,a3,c4] [g3,bb3,d4,f4] [a3,c#4,e4,g4]>\").struct(\"x ~ ~ x ~ x ~ ~\").swing(4)\n  .s(\"sine\").fm(1.1).fmh(2).trem(5).tremdepth(.2).crush(7)\n  .lpf(1800).decay(.6).sustain(.3).release(.4).gain(.3)\n\n// An upright bass\nbass: note(\"<[d2 ~ ~ d2 ~ ~ a1 c2] [d2 ~ ~ d2 ~ f2 e2 c2] [g1 ~ ~ g1 ~ ~ f1 g1] [a1 ~ ~ a1 ~ c#2 e2 a1]>\").swing(4)\n  .s(\"sine\").shape(.1).decay(.4).sustain(.3).release(.1).gain(.55)\n\n// A horn sample on the turnaround\nhorns: note(\"<~ ~ ~ [~ ~ ~ ~ [c#5,e5] ~ [e5,g5] ~]>\")\n  .s(\"sawtooth\").timbre(\"reed\").crush(8).lpf(2000).decay(.2).sustain(.3).room(.3).gain(.18)\n\n// Vinyl crackle\ncrackle: s(\"click*16?0.3\").hpf(3000).gain(rand.range(.03, .1))\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "2000s-pop-punk-summer",
+      "name": "2000s · Pop-Punk Summer",
+      "description": "Suburban pop-punk: driving power chords, an eighth-note bass, a skate-punk beat, a guitar melody and a gang 'whoa-oh' on the second half.",
+      "category": "Digital Age",
+      "tags": ["2000s", "pop-punk", "power chords", "D major"],
+      "source": "setcpm(168/4)\n\n// The gang vocal joins on the second half\nconst refrain = \"<0 0 0 0 1 1 1 1>\"\n\n// A skate-punk beat\ndrums: stack(\n  s(\"bd ~ sd ~ bd bd sd ~\").gain(.7),\n  s(\"hh*8\").hpf(6000).gain(.25),\n  s(\"<cr ~ ~ ~>\").gain(.3)\n)\n\n// Power chords: D, A, Bm, G\nguitar: note(\"<[d3,a3,d4] [a2,e3,a3] [b2,f#3,b3] [g2,d3,g3]>\").struct(\"x*8\")\n  .s(\"sawtooth\").unison(2).detune(.15).shape(.6).lpf(2400)\n  .decay(.12).sustain(.5).release(.05).gain(.18)\nbass: note(\"<d2 a1 b1 g1>\").ply(8)\n  .s(\"sawtooth\").lpf(700).decay(.1).sustain(.4).release(.05).gain(.42)\n\n// A guitar melody\nlead: note(\"<[f#4@3 e4 d4@2 e4@2] [c#4@6 a3@2] [d4 e4 f#4 a4 b4@2 a4 f#4] [g4@4 f#4@2 e4@2]>\")\n  .s(\"sawtooth\").shape(.4).lpf(3000).attack(.01).sustain(.6).release(.1).pan(.6).gain(.18)\n\n// Whoa-oh-oh\ngang: note(\"<[a3,d4,f#4] [a3,c#4,e4] [b3,d4,f#4] [b3,d4,g4]>\").struct(\"x@3 x x@4\")\n  .mask(refrain).s(\"choir\").syl(\"wo\").attack(.05).release(.3).room(.3).gain(.3)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "2010s-festival-drop",
+      "name": "2010s · Festival Drop",
+      "description": "Main-stage EDM: four bars of build-up with an accelerating snare roll and a white-noise riser, then four bars of drop with a pumping supersaw.",
+      "category": "Digital Age",
+      "tags": ["2010s", "EDM", "build and drop", "F minor"],
+      "source": "setcpm(128/4)\n\n// Four bars of build-up, then four bars of drop\nconst rising = \"<1 1 1 1 0 0 0 0>\"\nconst peak = \"<0 0 0 0 1 1 1 1>\"\n\n// A plucked arpeggio whose filter opens over each half: Fm, Db, Ab, Eb\nplucks: n(\"0 2 4 7 4 2 0 4\").add(\"<0 -2 2 -1>\").scale(\"F:minor\").transpose(12)\n  .s(\"square\").pw(.3).lpf(saw.range(600, 4000).slow(4)).decay(.1).sustain(0)\n  .delay(.3).delaytime(3/16).gain(.2)\n\n// The build-up: a snare roll that speeds up and a rising noise sweep\nroll: s(\"<sd*2 sd*4 sd*8 sd*16 ~ ~ ~ ~>\").gain(saw.range(.15, .5)).hpf(400).room(.3)\nriser: s(\"white\").mask(rising).hpf(saw.range(300, 8000).slow(4)).gain(.07)\n\n// The drop: kick, claps, a pumping supersaw and an off-beat bass\nkick: s(\"bd*4\").mask(peak).shape(.25).gain(.85)\nclap: s(\"~ cp ~ cp\").mask(peak).room(.3).gain(.45)\nsupersaw: note(\"<[f3,ab3,c4] [db3,f3,ab3] [ab3,c4,eb4] [eb3,g3,bb3]>\").struct(\"x*8\")\n  .mask(peak).s(\"sawtooth\").unison(4).detune(.4).lpf(4000)\n  .gain(\"[.08 .2 .26 .3]*2\").room(.4)\nbass: note(\"<f1 db1 ab1 eb1>\").struct(\"~ x ~ x ~ x ~ x\").mask(peak)\n  .s(\"sawtooth\").lpf(600).decay(.15).sustain(.3).gain(.45)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "2020s-bedroom-hyperpop",
+      "name": "2020s · Bedroom Hyperpop",
+      "description": "Made on a laptop in a bedroom: sugary crushed supersaws, a distorted gliding 808, glitchy seeded hi-hat stutters, pitched-up vocal chops and glassy sparkles.",
+      "category": "Digital Age",
+      "tags": ["2020s", "hyperpop", "808", "C minor"],
+      "source": "setcpm(150/4)\n\n// Half-time drums and glitchy, seeded hats\ndrums: s(\"bd ~ ~ bd ~ ~ bd ~, ~ ~ ~ ~ [cp,sd] ~ ~ ~\").shape(.3).gain(.75)\nhats: s(\"hh*8\").sometimesBy(.4, x => x.ply(\"<2 3 4>\")).seed(\"glitch\").hpf(7000).gain(.3)\n\n// A distorted 808 that glides between notes\nb808: note(\"<[c2@3 c2 eb2@2 g1@2] [ab1@4 bb1@4]>\")\n  .s(\"sine\").mono(1).glide(.06).shape(.5)\n  .decay(1).sustain(.6).release(.1).gain(.5)\n\n// Sugary, bit-crushed supersaw chords: Cm7, Abmaj7\nchords: note(\"<[c4,eb4,g4,bb4] [ab3,c4,eb4,g4]>\").struct(\"x ~ x ~ ~ x ~ x\")\n  .s(\"sawtooth\").unison(4).detune(.35).crush(10).lpf(5000)\n  .decay(.3).sustain(.4).release(.2).room(.3).gain(.18)\n\n// Pitched-up vocal chops that stutter every other bar\nchops: note(\"<[g5 eb5 c5 g5] [ab5 g5 eb5 c5]>\").s(\"voice\").syl(\"ya yi yo ya\")\n  .every(2, x => x.ply(2)).crush(9).delay(.3).delaytime(3/16).pan(sine.slow(2)).gain(.22)\n\n// Glassy sparkles\nsparkle: n(irand(8).segment(16)).scale(\"C:minor pentatonic\").transpose(24)\n  .degradeBy(.6).seed(\"sparkle\")\n  .s(\"triangle\").timbre(\"glass\").decay(.1).sustain(0).pan(rand).gain(.1)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    }
+  ]
+}

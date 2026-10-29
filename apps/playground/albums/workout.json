@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "workout",
+  "name": "Pulse & Iron",
+  "description": "High-energy sketches for training, running and movement: locked-in running cadences (160, 170 and 180 SPM), heavy lifting grooves, a timed Tabata interval bell, cardio house, synthwave and a cool-down stretch.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Workout",
+  "tags": ["workout", "running", "cardio", "gym", "cadence", "HIIT"],
+  "exportedAt": "2026-11-03T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "warm-up-stride",
+      "name": "Warm-Up Stride",
+      "description": "Ease into motion at 118 BPM: a crisp four-on-the-floor kick, bright Dorian chord stabs and a rising arpeggio to get the blood moving.",
+      "category": "Warm-Up",
+      "tags": ["118 bpm", "D dorian", "warm-up", "house"],
+      "source": "setcpm(118/4)\n\n// Crisp four-on-the-floor with off-beat open hats\ndrums: stack(\n  s(\"bd*4\").shape(.15).gain(.75),\n  s(\"[~ oh]*4\").gain(.3),\n  s(\"~ cp ~ cp\").room(.25).gain(.45),\n  s(\"hh*16\").hpf(7000).gain(\"[.15 .3]*8\")\n)\n\n// Bouncy Dorian bassline\nbass: note(\"<[d2 ~ d2 a1 ~ d2 f2 g2] [c2 ~ c2 g1 ~ c2 e2 f2]>\")\n  .s(\"sawtooth\").lpf(800).lpenv(2).lpdecay(.12)\n  .decay(.2).sustain(.3).release(.08).gain(.5)\n\n// Warm chord stabs opening up over eight bars\nchords: note(\"<[d3,f3,a3,c4] [g3,b3,d4,f4] [e3,g3,b3,d4] [a3,c4,e4,g4]>\")\n  .struct(\"x ~ ~ x ~ ~ x ~\")\n  .s(\"sawtooth\").unison(3).detune(.2)\n  .lpf(sine.range(900, 2600).slow(8)).decay(.3).sustain(.2).release(.2)\n  .room(.4).gain(.24)\n\n// Bright rising arpeggio\narp: n(\"0 2 4 6 7 6 4 2\").scale(\"D:dorian\").transpose(12)\n  .s(\"triangle\").timbre(\"bright\").decay(.12).sustain(0)\n  .delay(.3).delaytime(3/16).pan(sine.slow(4)).gain(.22)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    },
+    {
+      "id": "cadence-160",
+      "name": "Easy Jog (160 SPM)",
+      "description": "A steady 160 steps-per-minute cruising cadence: every quarter-note kick and snare matches a footstrike, carried by an upbeat synthwave bass and arpeggio.",
+      "category": "Running",
+      "tags": ["160 bpm", "160 spm", "cadence", "A minor", "jog"],
+      "source": "setcpm(160/4)\n\n// Every beat is a footstrike at 160 steps per minute\ndrums: stack(\n  s(\"bd*4\").shape(.2).gain(.8),\n  s(\"~ sd ~ sd\").room(.3).gain(.55),\n  s(\"[~ hh]*4\").hpf(6000).gain(.35)\n)\n\n// Driving eighth-note octave bass: Am, F, C, G\nbass: note(\"<[a1 a2]*4 [f1 f2]*4 [c2 c3]*4 [g1 g2]*4>\")\n  .s(\"sawtooth\").lpf(1100).lpq(3)\n  .decay(.12).sustain(.3).release(.05).gain(.48)\n\n// Forward-moving arpeggio\narp: n(\"0 2 4 7 4 2 0 4\").add(\"<0 5 2 6>\").scale(\"A:minor\").transpose(12)\n  .s(\"square\").pw(.3).lpf(2400).decay(.1).sustain(0)\n  .delay(.3).delaytime(3/16).gain(.2)\n\n// Wide horizon pad\npad: note(\"<[a3,c4,e4] [f3,a3,c4] [c4,e4,g4] [g3,b3,d4]>\").slow(2)\n  .s(\"sawtooth\").unison(3).detune(.25)\n  .attack(.3).release(1).lpf(1800).room(.6).gain(.18)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    },
+    {
+      "id": "cadence-170",
+      "name": "Tempo Run (170 SPM)",
+      "description": "A 170 SPM tempo-run metronome disguised as melodic drum and bass: a crisp click-kick on every step, rolling breaks, a reese bass and uplifting chords.",
+      "category": "Running",
+      "tags": ["170 bpm", "170 spm", "cadence", "dnb", "E minor"],
+      "source": "setcpm(170/4)\n\n// A clear pulse on all four beats for 170 SPM, plus a fast break\ndrums: stack(\n  s(\"bd*4\").lpf(400).gain(.75),\n  s(\"rim*4\").hpf(1800).gain(.28),\n  s(\"~ sd ~ sd\").room(.2).gain(.6),\n  s(\"hh*16\").hpf(8000).gain(\"[.35 .15 .25 .15]*4\")\n)\n\n// Warm reese bass propelling the low end\nreese: note(\"<e1 c1 g1 d1>\").s(\"sawtooth\").unison(4).detune(.35)\n  .lpf(sine.range(300, 900).slow(4)).lpq(3)\n  .attack(.03).sustain(1).release(.2).gain(.4)\n\n// Uplifting chord progression: Em, C, G, D\npad: note(\"<[e3,g3,b3,d4] [c3,e3,g3,b3] [g3,b3,d4,f#4] [d3,f#3,a3,c#4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2)\n  .attack(.2).release(.8).lpf(2000).room(.6).gain(.2)\n\n// Sparkling lead motif\nlead: n(\"<[4 ~ 6 ~ 7 ~ 9 ~] [7 ~ 6 ~ 4 ~ 2 ~]>\").scale(\"E:minor\").transpose(12)\n  .s(\"triangle\").timbre(\"bright\").decay(.2).sustain(0)\n  .delay(.35).delaytime(3/16).room(.5).gain(.28)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    },
+    {
+      "id": "cadence-180",
+      "name": "Race Pace (180 SPM)",
+      "description": "Classic 180 steps-per-minute race cadence: a relentless footstrike pulse with an energetic lead and fast arpeggios to hold turnover on fast kilometres.",
+      "category": "Running",
+      "tags": ["180 bpm", "180 spm", "cadence", "race", "F minor"],
+      "source": "setcpm(180/4)\n\n// 180 SPM: three steps every second, locked to the four-on-the-floor\ndrums: stack(\n  s(\"bd*4\").shape(.25).gain(.82),\n  s(\"~ [sd,cp] ~ [sd,cp]\").room(.2).gain(.6),\n  s(\"[~ oh]*4\").gain(.32),\n  s(\"hh*8\").hpf(7500).gain(.25)\n)\n\n// Galloping bass on Fm, Db, Ab, Eb\nbass: note(\"<f1 db1 ab1 eb1>\").ply(8)\n  .s(\"sawtooth\").lpf(1200).lpenv(1.5).lpdecay(.08)\n  .decay(.1).sustain(.25).release(.04).gain(.48)\n\n// High-energy arpeggiator\narp: n(\"[0 2 4 7]*2\").add(\"<0 5 2 6>\").scale(\"F:minor\").transpose(12)\n  .s(\"square\").pw(.25).decay(.08).sustain(0)\n  .delay(.25).delaytime(3/16).gain(.22)\n\n// Anthem lead on every second 4-bar phrase\nlead: note(\"<[f4@3 g4 ab4@2 bb4 c5] [db5@3 c5 bb4@2 ab4 g4] [ab4@3 bb4 c5@2 db5 eb5] [c5@4 bb4@2 g4@2]>\")\n  .mask(\"<1 1 1 1 0 0 1 1>\")\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(3200)\n  .attack(.01).decay(.2).sustain(.6).release(.15)\n  .room(.4).gain(.26)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    },
+    {
+      "id": "tabata-timer",
+      "name": "Tabata HIIT (20s On / 10s Off)",
+      "description": "A built-in interval timer at 120 BPM: four bars (8s) of high-intensity work with driving synths, followed by two bars (4s) of recovery breathing, marked by a boxing bell.",
+      "category": "HIIT",
+      "tags": ["120 bpm", "intervals", "HIIT", "timer", "C minor"],
+      "source": "setcpm(120/4)\n\n// 6-bar loop: 4 bars WORK (1 1 1 1), 2 bars REST (0 0)\nconst work = \"<1 1 1 1 0 0>\"\nconst rest = \"<0 0 0 0 1 1>\"\n\n// Boxing bell: triple ring to start work, single low bell to rest\nbell: note(\"<[c5*3 ~ ~ ~] ~ ~ ~ [c4 ~ ~ ~] ~>\")\n  .s(\"sine\").fm(3.5).fmh(2.41).decay(.8).sustain(0).release(.8)\n  .room(.4).gain(.5)\n\n// WORK: relentless kick, clap and driving acid bass\ndrums: s(\"bd*4, ~ cp ~ cp, [~ oh]*4, hh*16\").mask(work).shape(.2).gain(.8)\nbass: note(\"c2 c2 eb2 c2 g1 bb1 c2 d2\").mask(work)\n  .s(\"sawtooth\").lpf(sine.range(600, 2400).fast(2)).lpq(6).lpenv(2).lpdecay(.1)\n  .decay(.12).sustain(.2).release(.05).gain(.5)\nstabs: note(\"[c3,eb3,g3,bb3]\").struct(\"x ~ x ~ ~ x ~ x\").mask(work)\n  .s(\"sawtooth\").unison(3).detune(.25).lpf(2200).decay(.15).sustain(0).gain(.28)\n\n// REST: a calm pad and a steady heartbeat pulse while you catch your breath\nrecover: note(\"[c3,g3,eb4]\").mask(rest)\n  .s(\"triangle\").timbre(\"soft\").attack(.5).release(1.5).room(.7).gain(.25)\nheart: s(\"bd ~ ~ ~\").mask(rest).lpf(180).gain(.4)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    },
+    {
+      "id": "iron-temple",
+      "name": "Iron Temple",
+      "description": "Heavy half-time lifting music at 140 BPM: aggressive brass stabs, a distorted 808 sub, snapping snares and triplet hat rolls for heavy sets.",
+      "category": "Strength",
+      "tags": ["140 bpm", "trap", "brass", "heavy", "D minor"],
+      "source": "setcpm(140/4)\n\n// Half-time stadium beat: huge snare on beat 3\ndrums: stack(\n  s(\"bd ~ ~ ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ ~ ~\").shape(.3).gain(.85),\n  s(\"~ ~ ~ ~ ~ ~ ~ ~ [sd,cp] ~ ~ ~ ~ ~ ~ ~\").room(.35).gain(.75),\n  s(\"hh*8\").sometimesBy(.4, x => x.ply(\"<2 3 4>\")).hpf(6500).gain(.35)\n)\n\n// Heavy 808 sub with grit and glide\nsub: note(\"<[d1@6 d1 ~ f1@4 a1@4] [bb0@6 bb0 ~ a0@4 c1@4]>\")\n  .s(\"sine\").mono(1).glide(.06).shape(.35)\n  .attack(.005).decay(1.2).sustain(.5).release(.15).gain(.6)\n\n// Menacing low brass hits\nbrass: note(\"<[[d2,a2,d3,f3]@3 ~ [d2,a2,d3,f3] ~@3] [[bb1,f2,bb2,d3]@3 ~ [a1,e2,a2,c#3]@4]>\")\n  .s(\"sawtooth\").unison(4).detune(.3)\n  .lpf(1100).lpenv(2.5).lpattack(.02).lpdecay(.25)\n  .attack(.02).decay(.4).sustain(.3).release(.2).room(.4).gain(.36)\n\n// High tension bell ostinato\nbell: note(\"d4 a4 bb4 a4 f4 a4 d4 e4\")\n  .s(\"sine\").fm(2.5).fmh(3).decay(.2).sustain(0)\n  .delay(.3).delaytime(3/16).gain(.2)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    },
+    {
+      "id": "cardio-engine",
+      "name": "Cardio Engine",
+      "description": "Peak-hour tech-house at 128 BPM: a rolling sub-bass groove, filtered synth hooks, crisp claps and a build-and-release filter sweep for bikes, rowers and circuits.",
+      "category": "Cardio",
+      "tags": ["128 bpm", "tech house", "G minor", "cycling"],
+      "source": "setcpm(128/4)\n\n// Punchy club kit\ndrums: stack(\n  s(\"bd*4\").shape(.2).gain(.82),\n  s(\"[~ oh]*4\").gain(.35),\n  s(\"~ cp ~ cp\").room(.2).gain(.55),\n  s(\"hh*16\").hpf(8000).gain(saw.range(.12, .32).fast(4)),\n  s(\"~ ~ rim ~ ~ rim ~ ~\").pan(.35).gain(.3)\n)\n\n// Rolling off-beat tech-house bassline\nbass: note(\"~ g1 g1 ~ g1 ~ bb1 c2 ~ g1 g1 ~ f1 ~ eb1 f1\")\n  .s(\"sawtooth\").lpf(550).lpq(4).lpenv(2).lpdecay(.1)\n  .decay(.15).sustain(.2).release(.05).shape(.15).gain(.55)\n\n// Hypnotic synth hook sweeping through the filter\nhook: note(\"[g3 bb3 d4 g3 eb4 d4 bb3 g3]*2\")\n  .s(\"square\").pw(.2).unison(2).detune(.15)\n  .lpf(sine.range(500, 3200).slow(8)).lpq(5)\n  .decay(.1).sustain(0).delay(.3).delaytime(3/16).gain(.22)\n\n// Vocal chop accent on the turnaround\nvox: note(\"<~ [~ d4 ~ f4 ~ g4 ~ ~]>\").s(\"aah\")\n  .attack(.01).decay(.15).sustain(0).release(.1)\n  .delay(.35).delaytime(3/8).room(.4).gain(.3)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    },
+    {
+      "id": "cyber-sprint",
+      "name": "Cyber Sprint",
+      "description": "Dark outrun synthwave at 134 BPM: relentless sixteenth-note bass, gated snares and a heroic minor-key lead for pushing through the final set.",
+      "category": "Cardio",
+      "tags": ["134 bpm", "synthwave", "outrun", "C minor"],
+      "source": "setcpm(134/4)\n\n// Punchy 80s drums with big gated reverb on the snare\ndrums: stack(\n  s(\"bd*4\").shape(.25).gain(.82),\n  s(\"~ [sd,cp] ~ [sd,cp]\").room(.65).size(.8).gain(.6),\n  s(\"hh*16\").hpf(7000).gain(\"[.3 .15]*8\"),\n  s(\"<~ ~ ~ [lt*2 mt*2 ht*4]>\").room(.5).gain(.5)\n)\n\n// Relentless sixteenth-note bass: Cm, Ab, Fm, G\nbass: note(\"<c1 ab0 f1 g1>\").ply(16)\n  .s(\"sawtooth\").lpf(1100).lpq(4).lpenv(1.8).lpdecay(.07)\n  .decay(.09).sustain(.15).release(.03).gain(.48)\n\n//Heroic synth lead\nlead: note(\"<[c4@2 d4 eb4 g4@3 f4] [eb4@2 d4 c4 bb3@4] [ab3@2 bb3 c4 f4@3 eb4] [d4@4 g4@4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2).mono(1).glide(.04)\n  .lpf(3000).vib(5).vibdepth(.12)\n  .attack(.01).decay(.3).sustain(.6).release(.15)\n  .delay(.3).delaytime(3/8).room(.5).gain(.28)\n\n// Shimmering chord bed\npad: note(\"<[c3,eb3,g3] [ab2,c3,eb3] [f2,ab2,c3] [g2,b2,d3]>\")\n  .s(\"sawtooth\").unison(4).detune(.3).lpf(1600)\n  .attack(.2).release(.8).room(.6).gain(.18)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    },
+    {
+      "id": "boxers-jump-rope",
+      "name": "Boxer's Jump Rope",
+      "description": "High-stepping 112 BPM funk: a crisp skip-rope hi-hat, tight clavinet, punchy horn stabs and a slapping bass for footwork, shadowboxing and agility drills.",
+      "category": "Agility",
+      "tags": ["112 bpm", "funk", "jump rope", "E dorian"],
+      "source": "setcpm(112/4)\n\n// Tight breakbeat with a skip-rope sixteenth-note hat\ndrums: stack(\n  s(\"bd ~ ~ bd ~ ~ bd ~ ~ ~ bd ~ ~ ~ ~ ~\").shape(.15).gain(.8),\n  s(\"~ ~ ~ ~ sd ~ ~ sd?0.3 ~ sd?0.2 ~ ~ sd ~ ~ ~\").gain(.65),\n  s(\"hh*16\").hpf(7500).swing(3).gain(\"[.35 .15 .25 .15]*4\")\n)\n\n// Bouncy slap-style bass\nbass: note(\"e1 ~ e2 ~ g1 a1 b1 ~ e1 ~ d2 ~ b1 a1 g1 ~\").swing(3)\n  .s(\"sawtooth\").lpf(950).lpenv(2.5).lpdecay(.08)\n  .decay(.14).sustain(.2).release(.05).gain(.55)\n\n// Percussive clavinet comping\nclav: note(\"~ [e3,g3,b3] ~ [e3,g3,b3] [f#3,a3,c#4] ~ ~ [e3,g3,b3] ~ [e3,g3,b3] ~ [f#3,a3,c#4] ~ ~ [g3,b3,d4] ~\").swing(3)\n  .s(\"square\").pw(.2).lpf(2600).lpq(5)\n  .attack(.002).decay(.09).sustain(0).pan(.35).gain(.22)\n\n// Brass section punches\nhorns: note(\"<[~ ~ ~ [b4,d5,g5] ~ [a4,c#5,f#5] ~ ~] [~ ~ ~ [g4,b4,e5]@2 ~ ~ ~]>\")\n  .s(\"sawtooth\").unison(3).detune(.15)\n  .lpf(1800).lpenv(2).lpattack(.02).lpdecay(.15)\n  .attack(.01).decay(.2).sustain(.3).release(.1).pan(.65).room(.3).gain(.3)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    },
+    {
+      "id": "cool-down-stretch",
+      "name": "Cool-Down Stretch",
+      "description": "Bring the heart rate back down at 64 BPM: a gentle halftime pulse, warm Rhodes chords, a deep sub and a slow four-bar breathing guide for post-workout stretching.",
+      "category": "Cool-Down",
+      "tags": ["64 bpm", "cool-down", "stretch", "Eb major"],
+      "source": "setcpm(64/4)\n\n// Soft halftime pulse to ease the heart rate down\ndrums: stack(\n  s(\"bd ~ ~ ~ ~ ~ ~ ~\").lpf(220).gain(.45),\n  s(\"~ ~ ~ ~ rim ~ ~ ~\").room(.5).gain(.2),\n  s(\"hh*8\").hpf(7000).gain(.08)\n)\n\n// Warm Rhodes chords: Ebmaj7, Cm9, Abmaj7, Bb6 (hold each stretch for 4 bars)\nkeys: note(\"<[eb3,g3,bb3,d4] [c3,eb3,g3,d4] [ab2,c3,eb3,g3] [bb2,d3,f3,g3]>\")\n  .s(\"sine\").fm(.9).fmh(2).trem(3).tremdepth(.2)\n  .attack(.05).decay(1.5).sustain(.3).release(1.5)\n  .lpf(1800).room(.7).size(.85).gain(.28)\n\n// Deep, calm root bass\nbass: note(\"<eb2 c2 ab1 bb1>\").s(\"sine\")\n  .attack(.2).decay(1).sustain(.5).release(1).gain(.35)\n\n// A gentle chime marks every four-bar stretch change\nchime: note(\"<bb4 ~ ~ ~>\").s(\"sine\").fm(2).fmh(3.5)\n  .decay(3).sustain(0).release(3).room(.8).gain(.16)\n",
+      "savedAt": "2026-11-03T12:00:00.000Z"
+    }
+  ]
+}

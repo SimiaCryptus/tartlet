@@ -221,6 +221,8 @@ export interface CatalogView {
   markActive(id: string | undefined): void;
   /** Shows one album in the browser. */
   selectAlbum(id: string): void;
+  /** Sketches currently listed, after the album, category, tag and search filters. */
+  shown(): readonly CatalogSketch[];
 }
 
 const MAX_CHIPS = 24;
@@ -250,6 +252,7 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
   let catalog = EMPTY_CATALOG;
   let problems: readonly string[] = [];
   let activeId: string | undefined;
+  let shownList: readonly CatalogSketch[] = [];
   const activeTags = new Set<string>();
   const key = (t: string): string => t.toLowerCase();
 
@@ -423,6 +426,7 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
     const shown = pool.filter(
       (s) => [...activeTags].every((k) => s.tags.some((t) => key(t) === k)) && (!query || haystack(s).includes(query)),
     );
+    shownList = shown;
     renderTags(pool);
     renderInfo();
 
@@ -503,5 +507,6 @@ export function initCatalog(root: HTMLElement, onPick: (s: CatalogSketch) => voi
       }
     },
     selectAlbum,
+    shown: () => shownList,
   };
 }

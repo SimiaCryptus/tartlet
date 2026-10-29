@@ -25,6 +25,22 @@
     {
       "id": "binaural",
       "file": "binaural.json"
+    },
+    {
+      "id": "workout",
+      "file": "workout.json"
+    },
+    {
+      "id": "biomes",
+      "file": "biomes.json"
+    },
+    {
+      "id": "pantheon",
+      "file": "pantheon.json"
+    },
+    {
+      "id": "america",
+      "file": "america.json"
     }
   ]
 }

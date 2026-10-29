@@ -5,6 +5,7 @@ import type { Problem } from './assistant';
 import { initShare } from './share';
 import { initRingtone } from './ringtone';
 import { initLibrary } from './library';
+import { initQueue, type QueueEntry } from './queue';
 import { slugify, type SketchMeta } from './album-schema';
 import {
   EMPTY_CATALOG,
@@ -390,6 +391,36 @@ const library = initLibrary(el('library'), {
     applySeed(); // sets or clears the seed, then applies the source
     if (panels.isMobile()) panels.show('player');
   },
+  flash,
+});
+// ---- play queue
+function loadQueueEntry(entry: QueueEntry): void {
+  const known = catalog.bySource(entry.source);
+  editor.value = entry.source;
+  presetTitle.textContent = entry.name;
+  fileStem = known?.id ?? (slugify(entry.name) || 'sketch');
+  origin = known ?? null;
+  if (known) current = known;
+  browser.markActive(known?.id);
+  library.forget();
+  seedInput.value = entry.seed ?? '';
+  applySeed(); // sets or clears the seed, then applies the source
+}
+initQueue(el('panel-queue'), {
+  current() {
+    if (!editor.value.trim()) return null;
+    const seed = seedInput.value.trim();
+    return { name: presetTitle.textContent || 'Sketch', source: editor.value, ...(seed ? { seed } : {}) };
+  },
+  shown: () => browser.shown().map((s) => ({ name: s.name, source: s.source, ...(s.seed ? { seed: s.seed } : {}) })),
+  async play(entry) {
+    loadQueueEntry(entry);
+    if (!player.playing) await player.play();
+  },
+  stop() {
+    if (player.playing) player.stop();
+  },
+  isPlaying: () => player.playing,
   flash,
 });
 // ---- optional AI assistant (loaded the first time its window is shown)

@@ -1,0 +1,194 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "pantheon",
+  "name": "Pantheon",
+  "description": "Portraits of the extended Greek pantheon, from the primordials to the Olympians and the gods of the wild and the underworld: formless Chaos and patient Gaia, Nyx and her starlit children, devouring Kronos, the sun chariot of Helios, Zeus in the storm, Poseidon in the deep, Hades below and Persephone between two worlds, the forge of Hephaestus, the revels of Dionysus, the pipes of Pan and the cave of Hypnos. Old Greek modes, lyres, auloi, bronze and thunder.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Mythology",
+  "tags": ["mythology", "greek", "gods", "cinematic", "world"],
+  "exportedAt": "2026-11-04T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "chaos",
+      "name": "Chaos",
+      "description": "Before anything: unshaped noise, drifting filters, a cluster rubbing against itself and pitches that flicker without ever settling into a key.",
+      "category": "Primordials",
+      "tags": ["40 bpm", "noise", "cluster", "generative"],
+      "source": "setcpm(40/4)\n\n// Before anything: unshaped noise, drifting filters and no key at all\nvoid: s(\"brown\").slow(8).lpf(sine.range(200, 900).slow(24)).gain(.2)\nstatic: s(\"pink\").slow(8).hpf(1500).lpf(perlin.range(2000, 6000).slow(4)).pan(sine.slow(12)).gain(.04)\n\n// Pitches flicker in and out, never settling\nsparks: n(irand(12).segment(8)).scale(\"C:minor pentatonic\").transpose(12)\n  .degradeBy(.8).seed(\"chaos\")\n  .s(\"sine\").fm(4).fmh(1.41).decay(.6).sustain(0).release(1)\n  .pan(rand).room(.8).size(.95).gain(.1)\n\n// A cluster that slowly rubs against itself\ncluster: note(\"[c2,db2,gb2]\").slow(8).s(\"sawtooth\").unison(4).detune(.5)\n  .lpf(400).attack(6).sustain(1).release(8).gain(.12)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "gaia",
+      "name": "Gaia",
+      "description": "The earth mother: a deep fifth that never leaves, rivers and living things on her surface and a melody that grows slowly out of the soil.",
+      "category": "Primordials",
+      "tags": ["54 bpm", "C major", "drone", "nature"],
+      "source": "setcpm(54/4)\n\n// The ground: a deep open fifth that never leaves\nearth: note(\"[c1,g1,c2]\").slow(8).s(\"sawtooth\").lpf(300).attack(4).sustain(1).release(6).gain(.22)\nhum: note(\"c2\").slow(8).s(\"hum\").overtone(4).gain(.16)\n\n// Rivers and living things on her surface\nstream: s(\"stream\").slow(4).azimuth(-40).distance(3).gain(.22)\nbirds: s(\"bird\").slow(3).azimuth(50).distance(5).gain(.2)\ninsects: s(\"insect\").slow(4).azimuth(140).distance(2).gain(.08)\n\n// Slow growth: a melody rising out of the soil, a step at a time\ngrowth: n(\"<0 1 2 4 [4 5] 7 [5 4] 2>\").scale(\"C:major\").transpose(12)\n  .s(\"triangle\").timbre(\"soft\").attack(.4).decay(1.5).sustain(.3).release(2)\n  .room(.6).gain(.22)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "nyx",
+      "name": "Nyx",
+      "description": "Night herself: a low choir breathing in the dark, her sons Sleep and Death at either ear, and stars coming out one by one.",
+      "category": "Primordials",
+      "tags": ["46 bpm", "A minor", "choir", "spatial"],
+      "source": "setcpm(46/4)\n\n// Night herself: a low choir breathing in the dark\nchoir: note(\"<[a2,e3,c4] [f2,c3,a3] [d2,a2,f3] [e2,b2,g#3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo oh oo ah>\").attack(3).release(4).space(\"hall\").gain(.26)\n\n// Her sons Hypnos and Thanatos: a hum and a whisper at either ear\nsleep: note(\"a2\").slow(8).s(\"hum\").azimuth(-70).distance(3).gain(.12)\ndeath: s(\"whisper\").slow(4).syl(\"<sha ha>\").azimuth(70).distance(4).lpf(2000).gain(.08)\n\n// Stars coming out, one by one\nstars: n(irand(8).segment(8)).scale(\"A:minor pentatonic\").transpose(24)\n  .degradeBy(.85).seed(\"nyx\")\n  .s(\"sine\").fm(3).fmh(2.76).decay(1.5).sustain(0).release(2)\n  .pan(rand).room(.8).size(.95).gain(.08)\n\ncrickets: s(\"insect\").slow(4).distance(7).gain(.08)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "kronos",
+      "name": "Kronos",
+      "description": "The Titan who devoured his children: three clocks of five, six and seven ticks, a heavy pendulum, an hourglass that keeps turning over and a scythe every four bars.",
+      "category": "Titans",
+      "tags": ["84 bpm", "C minor", "polymeter", "clocks"],
+      "source": "setcpm(84/4)\n\n// Time devours its children: three clocks of five, six and seven ticks\nclock1: s(\"{tick tick tick tick tick}%8\").pan(.25).gain(.18)\nclock2: s(\"{rim ~ rim ~ rim ~}%8\").pan(.75).gain(.14)\nclock3: s(\"{click ~ ~ click ~ click ~}%8\").hpf(2000).gain(.12)\n\n// A heavy pendulum swinging between two low notes\npendulum: note(\"c2 g1\").s(\"sawtooth\").lpf(500)\n  .attack(.05).decay(.8).sustain(.3).release(.6).gain(.32)\n\n// A falling line that rotates its starting point, like an hourglass turned over\nsand: n(\"7 6 5 4 3 2 1 0\").scale(\"C:minor\").s(\"triangle\").timbre(\"glass\")\n  .iter(4).decay(.3).sustain(0).release(.4).delay(.3).delaytime(3/16).gain(.2)\n\n// The scythe: a dark swell every four bars\nscythe: note(\"<[c3,eb3,gb3] ~ ~ ~>\").s(\"sawtooth\").unison(3).detune(.3)\n  .lpf(800).lpenv(2).attack(1).release(3).room(.7).gain(.18)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "helios",
+      "name": "Helios",
+      "description": "The sun chariot climbs the sky: bright Lydian arpeggios, golden brass, the hoofbeats of four horses and a long line overhead.",
+      "category": "Titans",
+      "tags": ["116 bpm", "D lydian", "brass", "bright"],
+      "source": "setcpm(116/4)\n\n// The sun chariot climbs: bright lydian arpeggios\narp: n(\"0 2 4 6 7 9 11 14\").scale(\"D:lydian\").s(\"square\").pw(.3)\n  .decay(.1).sustain(0).lpf(3000).delay(.3).delaytime(3/16).delayfeedback(.4).gain(.16)\n\n// Golden brass holding wide chords: D, E/D, D, C\nbrass: note(\"<[d3,a3,f#4] [e3,b3,g#4] [d3,a3,f#4] [c3,g3,e4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(1400).lpenv(2).lpattack(.2)\n  .attack(.3).release(1.2).room(.5).gain(.24)\n\n// Hoofbeats of the four horses\nhorses: s(\"[lt ~ lt lt]*2, hh*8\").lpf(3000).room(.3).gain(.4)\n\nbass: note(\"<d2 e2 d2 c2>\").s(\"sine\").shape(.15).decay(.4).sustain(.5).release(.2).gain(.42)\n\n// A long bright line overhead\nlead: note(\"<a4 b4 [d5@3 c#5] [e5@2 g#4@2]>\").s(\"sine\").timbre(\"hollow\")\n  .vib(5).vibdepth(.1).attack(.1).sustain(.6).release(.6).room(.5).gain(.22)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "zeus",
+      "name": "Zeus",
+      "description": "The king of the gods in the storm over Olympus: rolling thunder, crashing bolts, commanding brass in D minor, driving strings and a choir.",
+      "category": "Olympians",
+      "tags": ["100 bpm", "D minor", "storm", "orchestral"],
+      "source": "setcpm(100/4)\n\n// Storm clouds gather over Olympus\nrain: s(\"rain\").slow(4).intensity(.6).gain(.26)\nwind: s(\"wind\").slow(8).intensity(.5).gain(.14)\n\n// Thunder: low drums rolling, a crash for each bolt\nthunder: s(\"<[bd ~ ~ ~] [bd ~ lt ~] [bd lt bd lt] [bd*2 lt*4 lt*2]>\")\n  .speed(.6).lpf(700).room(.8).size(.9).gain(.6)\nbolts: s(\"<~ ~ cr ~ ~ cr ~ cr>\").room(.8).gain(.35)\n\n// The king of the gods: brass in D minor, commanding\nbrass: note(\"<[d3,a3,d4] [d3,a3,d4] [bb2,f3,d4] [c3,g3,e4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2)\n  .lpf(1000).lpenv(2.5).lpattack(.1)\n  .attack(.1).release(1).room(.6).gain(.28)\n\n// Strings driving underneath\nstrings: note(\"d3 d3 a2 d3 f3 d3 a2 d3\").add(\"<0 0 -4 -2>\")\n  .s(\"sawtooth\").attack(.01).decay(.12).sustain(.4).release(.08)\n  .lpf(sine.range(800, 2600).slow(8)).room(.4).gain(.24)\n\nchoir: note(\"<~ [d4,f4,a4] ~ [e4,g4,c5]>\").s(\"choir\").syl(\"ah\")\n  .attack(.4).release(1.5).room(.7).gain(.28)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "hera",
+      "name": "Hera",
+      "description": "The queen of the gods in procession: a stately waltz-time organ, a proud, ornamented peacock melody, a choir and hall bells.",
+      "category": "Olympians",
+      "tags": ["66 bpm", "3/4", "G major", "organ"],
+      "source": "setcpm(66/3)\n\n// Queen of the gods: a stately processional in 3/4\norgan: note(\"<[g2,d3,g3,b3] [c3,e3,g3,c4] [a2,e3,a3,c4] [d3,f#3,a3,c4]>\")\n  .s(\"sawtooth\").timbre(\"organ\").lpf(1600)\n  .attack(.2).sustain(.8).release(1).room(.6).gain(.2)\n\n// Her peacock: a proud, ornamented melody\nmelody: note(\"<[d5 b4 g4] [e5@2 c5] [c5 b4 a4] [a4@2 f#4]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.12).attack(.05).sustain(.6).release(.5)\n  .delay(.25).delaytime(1/3).room(.5).gain(.26)\n\n// Processional drums on the downbeat\ndrums: s(\"lt ~ ~, ~ rim rim\").room(.4).gain(.38)\n\n// The court sings, and bells ring in the hall\nchoir: note(\"<[g3,b3,d4] [g3,c4,e4] [a3,c4,e4] [a3,d4,f#4]>\")\n  .s(\"choir\").syl(\"<ah oh ah oh>\").attack(.8).release(2).space(\"hall\").gain(.22)\nbells: note(\"<g5 ~ ~ ~ d5 ~ ~ ~>\").s(\"sine\").fm(3).fmh(2.41)\n  .decay(3).sustain(0).release(3).space(\"hall\").gain(.12)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "poseidon",
+      "name": "Poseidon",
+      "description": "The earthshaker: heavy surf, a deep bass swell that rises and falls like a wave, a conch horn calling and light glinting on the water.",
+      "category": "Olympians",
+      "tags": ["60 bpm", "D dorian", "sea", "drone"],
+      "source": "setcpm(60/4)\n\n// The sea, wide and heavy\nsurf: s(\"surf\").slow(8).intensity(.6).gain(.32)\n\n// The earthshaker: a deep bass swell rising and falling like a wave\ndeep: note(\"<d1 d1 bb0 c1>\").slow(2).s(\"sawtooth\").unison(3).detune(.3)\n  .lpf(sine.range(150, 600).slow(8)).attack(2).sustain(1).release(3).gain(.3)\n\n// A conch horn calling across the water\nconch: note(\"<[a3@3 d4] ~ [c4@3 a3] ~>\").s(\"sawtooth\").timbre(\"reed\").vowel(\"o\")\n  .attack(.3).sustain(.7).release(1).lpf(1500).space(\"hall\").gain(.22)\n\n// Light dancing on the waves\nglints: n(\"<[0 ~ 4 ~] [~ 2 ~ 5] [7 ~ ~ 4] [~ 2 ~ ~]>\").scale(\"D:dorian\").transpose(12)\n  .s(\"triangle\").timbre(\"glass\").decay(.5).sustain(0).release(1)\n  .pan(sine.slow(8)).delay(.4).delaytime(3/8).delayfeedback(.5).gain(.16)\n\npad: note(\"<[d3,a3,e4] [d3,a3,f4] [bb2,f3,d4] [c3,g3,e4]>\").slow(2)\n  .s(\"sawtooth\").unison(4).detune(.3)\n  .attack(2).release(4).lpf(1100).room(.8).size(.9).gain(.14)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "hades",
+      "name": "Hades",
+      "description": "Beneath the earth: a drone in the dark, a choir of shades heard through stone, water dripping into the Styx, Cerberus growling behind you and the ferryman's bell.",
+      "category": "Underworld",
+      "tags": ["44 bpm", "C minor", "dark", "spatial"],
+      "source": "setcpm(44/4)\n\n// The underworld: a low drone deep beneath the earth\ndrone: note(\"[c1,g1]\").slow(8).s(\"sawtooth\").unison(3).detune(.2).lpf(250)\n  .attack(4).sustain(1).release(6).gain(.28)\n\n// A choir of shades, heard through stone\nshades: note(\"<[c3,eb3,g3] [ab2,c3,eb3] [f2,ab2,c3] [g2,b2,d3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo oh oo ah>\").occlude(.6)\n  .attack(3).release(4).space(\"church\").gain(.26)\n\n// Water dripping into the Styx\ndrips: s(\"drip*8?0.75\").pan(rand).gain(rand.range(.05, .15)).space(\"church\")\nstyx: s(\"stream\").slow(4).distance(6).lpf(800).gain(.14)\n\n// Cerberus growls somewhere in the dark behind you\ncerberus: s(\"engine\").slow(8).lpf(300).azimuth(160).distance(4).gain(.12)\n\n// The ferryman's bell\nbell: note(\"<c4 ~ ~ ~ ~ ~ ~ ~>\").s(\"sine\").fm(1.5).fmh(1.41)\n  .decay(6).sustain(0).release(6).space(\"church\").gain(.14)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "persephone",
+      "name": "Persephone",
+      "description": "Between two worlds: four bars of spring above ground, with a flute, harp and birdsong, then four bars of winter in the halls below, as the same harp turns minor. A low pulse carries the pomegranate through both.",
+      "category": "Underworld",
+      "tags": ["80 bpm", "G major", "E minor", "seasons"],
+      "source": "setcpm(80/4)\n\n// Four bars of spring above ground, four bars of winter below\nconst spring = \"<1 1 1 1 0 0 0 0>\"\nconst winter = \"<0 0 0 0 1 1 1 1>\"\n\n// Spring: a bright flute, a harp and birdsong\nflute: note(\"<[e5 g5 a5 b5] [d6@2 b5 a5] [g5 e5 d5 e5] [g5@4]>\").mask(spring)\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.1).attack(.05).sustain(.5).release(.4)\n  .delay(.25).delaytime(3/8).room(.5).gain(.24)\nharp: note(\"<[g3 b3 d4 b3] [c4 e4 g4 e4] [e3 g3 b3 g3] [d3 f#3 a3 f#3]>\").mask(spring)\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(0).release(.5).room(.5).gain(.22)\nbirds: s(\"bird\").slow(2).mask(spring).azimuth(40).distance(4).gain(.2)\n\n// Winter: the harp turns minor, slow and dark in the halls of Hades\ndark: note(\"<[e3 g3 b3 g3] [c3 eb3 g3 eb3] [a2 c3 e3 c3] [b2 d#3 f#3 d#3]>\").mask(winter)\n  .s(\"triangle\").timbre(\"soft\").decay(.8).sustain(0).release(1)\n  .lpf(1200).space(\"church\").gain(.22)\nwind: s(\"wind\").slow(4).mask(winter).intensity(.4).gain(.14)\n\n// Pomegranate seeds: a low pulse that carries through both worlds\nseeds: note(\"<g2 c2 e2 d2>\").s(\"sine\").attack(.3).sustain(.7).release(1).gain(.3)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "athena",
+      "name": "Athena",
+      "description": "Wisdom and strategy: a measured two-voice invention in the old Greek Dorian mode (E to E on the white keys), a disciplined march and an owl watching from above.",
+      "category": "Olympians",
+      "tags": ["96 bpm", "Greek dorian", "counterpoint"],
+      "source": "setcpm(96/4)\n\n// Wisdom: a measured two-voice invention in the old Greek Dorian mode, E to E\nupper: note(\"<[e4 f4 g4 a4 b4 a4 g4 f4] [e4 g4 c5 b4 a4 g4 a4 b4] [c5 b4 a4 g4 f4 e4 f4 d4] [e4@4 ~ e4 f4 g4]>\")\n  .s(\"triangle\").timbre(\"bright\").decay(.25).sustain(.3).release(.2)\n  .pan(.35).room(.4).gain(.26)\nlower: note(\"<[e3@2 c3@2 d3@2 b2@2] [c3@2 a2@2 f2@2 g2@2] [a2@2 c3@2 d3@2 b2@2] [e2@4 b2@4]>\")\n  .s(\"sawtooth\").lpf(900).attack(.02).decay(.3).sustain(.5).release(.2)\n  .pan(.65).gain(.24)\n\n// A disciplined march: shields and spears in formation\ndrums: s(\"lt ~ lt ~ lt ~ [lt lt] ~, ~ ~ ~ ~ rim ~ ~ ~\").room(.3).gain(.4)\n\n// The owl watches from above\nowl: note(\"<~ ~ ~ [e5@3 c5]>\").s(\"hum\").elevation(40).distance(5).gain(.14)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "apollo",
+      "name": "Apollo",
+      "description": "The god of music and light: a lyre plucking a hymn over a kithara drone, a solo voice singing his praise and golden bells in the sun temple.",
+      "category": "Olympians",
+      "tags": ["72 bpm", "E minor", "lyre", "voice"],
+      "source": "setcpm(72/4)\n\n// The god of music: a lyre plucking a hymn\nlyre: note(\"<[e3 b3 e4 g4 b4 g4 e4 b3] [d3 a3 d4 f4 a4 f4 d4 a3] [c3 g3 c4 e4 g4 e4 c4 g3] [b2 f#3 b3 d4 f#4 d4 b3 f#3]>\")\n  .s(\"triangle\").timbre(\"bright\").attack(.002).decay(.6).sustain(0).release(.7)\n  .pan(.4).room(.5).gain(.28)\n\n// A solo voice sings his praise: i-o pa-i, a-po-lo\nhymn: note(\"<[b4@3 a4 g4@2 a4 b4] [a4@4 f4@2 e4@2] [g4@3 e4 c5@2 b4 a4] [b4@6 ~@2]>\")\n  .s(\"voice\").syl(\"<[i o pa i] [a po lo] [ka li] [o _]>\")\n  .voicetype(\"alto\").mono(1).vglide(.08).attack(.1).release(.8).space(\"hall\").gain(.34)\n\n// A drone of fifths, like a kithara's open strings\ndrone: note(\"[e2,b2]\").slow(4).s(\"sawtooth\").timbre(\"bright\").lpf(1200)\n  .attack(.02).decay(2).sustain(.4).release(3).room(.5).gain(.16)\n\n// Golden bells of the sun temple\nbells: note(\"<e5 ~ b4 ~>\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(3).sustain(0).release(3).space(\"hall\").gain(.12)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "artemis",
+      "name": "Artemis",
+      "description": "The huntress in 6/8: hunting horns through the moonlit forest, hooves and hounds, quick silver arrows of notes and birds flying overhead.",
+      "category": "Olympians",
+      "tags": ["120 bpm", "6/8", "D major", "hunt"],
+      "source": "setcpm(120/2)\n\n// One cycle is a bar of 6/8. The hunt is on: horns through the forest\nhorns: note(\"<[d4 ~ a4 a4 ~ f#4] [d4 ~ a4 d5 ~ a4] [b4 ~ a4 g4 ~ e4] [f#4 ~ e4 d4 ~ ~]>\")\n  .s(\"sawtooth\").unison(2).detune(.1).lpf(1600).lpenv(1.5).lpattack(.05)\n  .attack(.04).sustain(.6).release(.3).room(.5).gain(.26)\n\n// Hooves and hounds\ndrums: s(\"lt ~ lt lt ~ lt, ~ ~ ~ mt ~ ~, hh*6\").lpf(3000).room(.3).gain(.42)\nbass: note(\"<d2 d2 g2 a2>\").struct(\"x ~ ~ x ~ ~\").s(\"sine\")\n  .decay(.4).sustain(.4).release(.2).gain(.4)\n\n// Her silver bow: quick arrows of notes\narrows: note(\"<~ [d5 e5 f#5 a5 d6 ~] ~ [a5 f#5 e5 d5 ~ ~]>\")\n  .s(\"triangle\").timbre(\"glass\").decay(.15).sustain(0)\n  .pan(saw).delay(.3).delaytime(1/6).gain(.18)\n\n// The moonlit forest all around\nbirds: s(\"bird\").slow(2).azimuth(saw.range(-120, 120).slow(8)).distance(5).posglide(.3).gain(.2)\nbreeze: s(\"wind\").slow(8).intensity(.2).gain(.08)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "ares",
+      "name": "Ares",
+      "description": "The god of war: relentless drums, a distorted bronze riff in E Phrygian, battle horns and the roar of the army.",
+      "category": "Olympians",
+      "tags": ["132 bpm", "E phrygian", "war", "heavy"],
+      "source": "setcpm(132/4)\n\n// War drums: a relentless march\ndrums: stack(\n  s(\"bd*4\").shape(.3).gain(.8),\n  s(\"~ sd ~ [sd sd]\").room(.3).gain(.6),\n  s(\"lt lt mt lt lt mt ht mt\").speed(.8).lpf(1500).gain(.45),\n  s(\"<~ ~ ~ cr>\").room(.6).gain(.35)\n)\n\n// Bronze clashing: a distorted low riff in E Phrygian\nriff: note(\"e2 e2 f2 e2 g2 e2 f2 d2\")\n  .s(\"sawtooth\").unison(2).detune(.2).shape(.4).lpf(1200).lpq(4)\n  .decay(.15).sustain(.4).release(.05).gain(.38)\n\n// Battle horns\nhorns: note(\"[e3,b3,e4]@3 [f3,c4,f4] [e3,b3,e4]@2 [d3,a3,d4]@2\").slow(2)\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(1400).lpenv(2).lpattack(.02)\n  .attack(.02).release(.3).room(.5).gain(.28)\n\n// The army roars\ncrowd: s(\"crowd\").slow(8).intensity(.6).gain(.14)\nshout: note(\"<~ ~ ~ [e4 ~ e4 ~]>\").s(\"aah\").attack(.02).release(.4).room(.5).gain(.25)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "aphrodite",
+      "name": "Aphrodite",
+      "description": "Born from the sea foam: tender Rhodes chords, a voice singing of love, a lazy swung kit, soft surf and a shimmer in the echoes.",
+      "category": "Olympians",
+      "tags": ["76 bpm", "C major", "voice", "love"],
+      "source": "setcpm(76/4)\n\n// Born from the sea foam\nsurf: s(\"surf\").slow(8).intensity(.3).gain(.22)\n\n// Warm, tender chords: Fmaj9, Em7, Dm9, Cmaj7\nkeys: note(\"<[f3,a3,c4,e4,g4] [e3,g3,b3,d4] [d3,f3,a3,c4,e4] [c3,e3,g3,b3]>\")\n  .struct(\"x ~ ~ [~ x] ~ ~ x ~\")\n  .s(\"sine\").fm(1.1).fmh(2).trem(3).tremdepth(.2)\n  .decay(1).sustain(.3).release(1).lpf(2200).room(.5).gain(.28)\n\n// A voice sings of love\nvoice: note(\"<[a4@3 g4 e4@4] [g4@3 f4 d4@4] [f4@2 e4 d4 c4@4] [e4@6 ~@2]>\")\n  .s(\"voice\").syl(\"<la lo mo a>\")\n  .voicetype(\"alto\").mono(1).vglide(.1).attack(.1).release(1).room(.6).gain(.32)\n\n// Soft bass and a lazy kit\nbass: note(\"<f2 e2 d2 c2>\").s(\"sine\").shape(.1).decay(.6).sustain(.4).release(.4).gain(.4)\ndrums: s(\"bd ~ ~ bd, ~ rim ~ rim, hh*8\").swing(4).lpf(3500).gain(.32)\n\n// A shimmer of sea foam\nshimmer: note(\"<e5 ~ d5 ~>\").s(\"triangle\").timbre(\"glass\").decay(.6).sustain(0).release(1)\n  .delay(.4).delaytime(3/8).delayfeedback(.45).room(.6).gain(.12)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "hephaestus",
+      "name": "Hephaestus",
+      "description": "The forge under the volcano: roaring fire and bellows, hammer on a ringing anvil, mechanical automatons at work and molten metal glowing.",
+      "category": "Olympians",
+      "tags": ["92 bpm", "C minor", "industrial", "forge"],
+      "source": "setcpm(92/4)\n\n// The forge under the volcano\nfire: s(\"fire\").slow(4).intensity(.7).density(14).gain(.3)\nbellows: s(\"brown\").slow(2).lpf(sine.range(200, 800)).gain(.12)\n\n// Hammer on anvil: metal rings with every strike\nanvil: note(\"c5 ~ c5 ~ c5 [c5 c5] ~ c5\").s(\"sine\").fm(5).fmh(3.7)\n  .decay(.3).sustain(0).release(.4).room(.3).gain(.24)\nhammer: s(\"bd ~ bd ~ bd [bd bd] ~ bd\").lpf(400).shape(.3).gain(.55)\n\n// The automatons at work: a mechanical bass ostinato\ngears: note(\"c2 c2 eb2 c2 f2 c2 eb2 g1\").s(\"square\").pw(.3).lpf(700).lpq(4)\n  .decay(.12).sustain(.2).release(.05).gain(.3)\nmachine: s(\"engine\").slow(4).lpf(600).distance(3).gain(.14)\n\n// Molten metal glowing\nglow: note(\"<[c3,g3,eb4] [ab2,eb3,c4]>\").slow(2).s(\"sawtooth\").unison(3).detune(.25)\n  .lpf(900).attack(1).release(2).room(.5).gain(.14)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes",
+      "description": "The messenger on winged sandals: a fast break, notes darting from ear to ear, a trickster bass and two lines winding around each other like the caduceus.",
+      "category": "Olympians",
+      "tags": ["172 bpm", "A minor", "dnb", "fast"],
+      "source": "setcpm(172/4)\n\n// The messenger: winged sandals and a fast break\ndrums: stack(\n  s(\"bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ ~ ~ ~ sd ~ ~ sd?0.3 ~ ~ ~ ~ sd ~ ~ ~\").gain(.75),\n  s(\"hh*16\").hpf(8000).gain(\"[.3 .15 .2 .15]*4\")\n)\n\n// Notes darting from ear to ear\nrunner: n(\"0 2 4 7 9 7 4 2\").add(\"<0 3 5 4>\").scale(\"A:minor pentatonic\").transpose(12)\n  .s(\"square\").pw(.25).decay(.08).sustain(0).iter(4)\n  .pan(square).delay(.3).delaytime(3/16).gain(.16)\n\n// The trickster's bass\nbass: note(\"<a1 c2 d2 e2>\").struct(\"x ~ ~ x ~ ~ x ~\").s(\"sawtooth\").lpf(800).lpq(3)\n  .decay(.2).sustain(.4).release(.08).gain(.45)\n\n// The caduceus: two lines winding around each other\nsnake1: note(\"<[a4 c5 e5 c5] [g4 b4 d5 b4]>\").s(\"triangle\").timbre(\"glass\")\n  .decay(.2).sustain(0).pan(sine.fast(2)).gain(.16)\nsnake2: note(\"<[e5 c5 a4 c5] [d5 b4 g4 b4]>\").s(\"triangle\").timbre(\"glass\")\n  .decay(.2).sustain(0).pan(cosine.fast(2)).late(1/16).gain(.14)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "dionysus",
+      "name": "Dionysus",
+      "description": "The revel: a crowd and frame drums that get looser as the night goes on, a wild aulos over a reed drone, a slightly drunk lyre and maenads crying out.",
+      "category": "Olympians",
+      "tags": ["116 bpm", "E phrygian dominant", "aulos", "revel"],
+      "source": "setcpm(116/4)\n\n// The revel: a crowd, wine and dancing\ncrowd: s(\"crowd\").slow(8).intensity(.6).gain(.16)\n\n// Frame drums and finger cymbals, getting looser as the night goes on\ndrums: s(\"lt ~ rim lt ~ lt rim ~, hh*8?0.3\")\n  .sometimesBy(.3, x => x.ply(2)).swing(4).room(.3).gain(.45)\n\n// The aulos: a double reed, wild and ornamented\naulos: note(\"<[e4 f4 g#4 a4 b4 a4 g#4 f4] [e4@2 f4 e4 d4@2 e4@2] [a4 b4 c5 b4 a4 g#4 f4 g#4] [f4 e4 d4 f4 e4@4]>\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"a\").mono(1).glide(.05).vib(6).vibdepth(.25)\n  .attack(.03).sustain(.6).release(.2).lpf(2800).pan(.6).room(.4).gain(.28)\ndrone: note(\"[e2,b2]\").s(\"sawtooth\").timbre(\"reed\").lpf(700)\n  .attack(.3).sustain(1).release(1).gain(.18)\n\n// The lyre strums along, a little drunk\nlyre: note(\"<[e3,g#3,b3] [d3,f3,a3] [a2,c3,e3] [d3,f3,a3]>\").struct(\"x ~ x x ~ x ~ x\")\n  .degradeBy(.2).seed(\"wine\")\n  .s(\"triangle\").timbre(\"bright\").decay(.3).sustain(0).release(.3).pan(.35).gain(.24)\n\n// Maenads crying out\nmaenads: note(\"<~ ~ ~ [e4 ~ g#4 ~]>\").s(\"aah\").attack(.02).release(.5).room(.5).gain(.24)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "pan",
+      "name": "Pan",
+      "description": "The goat-footed god plays his pipes in a meadow in 6/8, with dancing hooves, insects, birds and a stream, and now and then a sudden panic.",
+      "category": "Rustic gods",
+      "tags": ["104 bpm", "6/8", "G major", "pipes"],
+      "source": "setcpm(104/2)\n\n// One cycle is a bar of 6/8. The goat-footed god plays his pipes in the meadow\npipes: note(\"<[g5 a5 b5 d6 b5 a5] [g5 ~ e5 d5 ~ e5] [g5 b5 d6 e6 d6 b5] [a5 g5 e5 g5@2 ~]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.15).attack(.04).sustain(.5).release(.3)\n  .gain(.24).off(1/12, x => x.add(-12).gain(.12))\n  .delay(.2).delaytime(1/6).room(.4)\n\n// Hooves dancing and a simple bass\ndrums: s(\"lt ~ rim lt rim ~, hh*6?0.4\").room(.3).gain(.36)\nbass: note(\"<g2 e2 c2 d2>\").struct(\"x ~ ~ x ~ ~\").s(\"triangle\")\n  .decay(.4).sustain(.3).release(.2).gain(.38)\n\n// Meadow life all around\ninsects: s(\"insect\").slow(4).azimuth(-90).distance(3).gain(.12)\nbirds: s(\"bird\").slow(3).azimuth(60).distance(4).gain(.2)\nstream: s(\"stream\").slow(4).distance(5).gain(.14)\n\n// And now and then, a sudden panic\npanic: note(\"<~ ~ ~ ~ ~ ~ ~ [g2,c#3,g3]>\").s(\"sawtooth\").unison(3).detune(.4).shape(.3)\n  .lpf(2000).attack(.01).release(.8).gain(.22)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "id": "hypnos",
+      "name": "Hypnos",
+      "description": "Headphones on: the god of sleep in his cave by the river Lethe. A gentle 2 Hz binaural drone, a poppy-warm pad and dreams drifting past from his sons Morpheus, Phobetor and Phantasos.",
+      "category": "Underworld",
+      "tags": ["40 bpm", "binaural", "F minor", "sleep"],
+      "source": "setcpm(40/4)\n\n// The god of sleep in his cave: a 2 Hz binaural drone, below the 3-30 Hz warning range\ndrone: note(\"<f1 f1 db1 eb1>\").slow(4).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.3)\n\n// Poppies: a warm pad that barely moves\npad: note(\"<[f2,c3,ab3,eb4] [db2,ab2,f3,c4]>\").slow(8).s(\"sawtooth\").unison(4).detune(.3)\n  .attack(6).release(8).lpf(600).room(.8).size(.95).gain(.1)\n\n// The river of forgetting\nlethe: s(\"stream\").slow(8).lpf(1200).distance(5).gain(.16)\n\n// Dreams drifting past: Morpheus, Phobetor and Phantasos\ndreams: n(irand(6).segment(4)).scale(\"F:minor pentatonic\").transpose(12)\n  .degradeBy(.7).seed(\"hypnos\")\n  .s(\"triangle\").timbre(\"glass\").decay(1.5).sustain(0).release(2)\n  .pan(rand).delay(.4).delaytime(3/8).delayfeedback(.45).room(.7).gain(.12)\n",
+      "savedAt": "2026-11-04T12:00:00.000Z"
+    }
+  ]
+}
