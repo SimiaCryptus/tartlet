@@ -41,6 +41,10 @@
     {
       "id": "america",
       "file": "america.json"
+    },
+    {
+      "id": "alchemy",
+      "file": "alchemy.json"
     }
   ]
 }

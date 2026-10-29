@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "alchemy",
+  "name": "Pattern Alchemy",
+  "description": "A workshop album for the newest parts of the language. Every sketch names its own functions (as methods, as function values, through apply, as pattern builders, with defaults and with functions as arguments) and leans on the standard library: within, chunk, zoom, compress, fastGap, linger, brak, press, swingBy, echo and superimpose; seeded shuffles, scrambles and cycle choices; arithmetic that grows melodies from counting; and the new scales, from hirajoshi and in sen to hungarian minor, whole tone and lydian dominant. Read the comments: each sketch explains the trick it plays.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Showcase",
+  "tags": ["functions", "library", "scales", "generative", "showcase"],
+  "exportedAt": "2026-11-05T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "hirajoshi-garden",
+      "name": "Hirajoshi Garden",
+      "description": "Two kotos built from one function and one phrase builder, rising and falling through the hirajoshi scale, under a legato shakuhachi, water and a temple bell.",
+      "category": "Functions",
+      "tags": ["84 bpm", "D hirajoshi", "builders", "defaults"],
+      "source": "setcpm(84/4)\n\n// A function names the koto's touch once; the decay d has a default\nconst koto = (x, d = .6) => x.s(\"triangle\").timbre(\"bright\").attack(.002).decay(d).sustain(0).release(d)\n// A builder makes a whole phrase from a starting degree\nconst phrase = (start) => n(run(5).add(start)).scale(\"D:hirajoshi\").transpose(12)\n\n// Rising and falling through five notes of the hirajoshi scale\npluck: phrase(0).palindrome().koto().pan(.35).room(.5).gain(.3)\n// A second koto answers two degrees higher, now and then an octave up\nanswer: phrase(2).late(1/8).koto(1.2).rarely(x => x.octave(1)).seed(\"koi\")\n  .pan(.65).delay(.3).delaytime(3/8).room(.5).gain(.18)\n\n// A shakuhachi drifts above in long, overlapping breaths\nflute: n(\"<4 [5@3 3] 2 ~ 6 [5@3 4] 3 ~>\").scale(\"D:hirajoshi\").transpose(12)\n  .s(\"sine\").timbre(\"hollow\").mono(1).glide(.15).vib(4.5).vibdepth(.25)\n  .attack(.3).sustain(.7).release(1).legato(1.2).room(.8).gain(.24)\n\n// Water, a low fifth and a temple bell every eight bars\nstream: s(\"stream\").slow(4).azimuth(-40).distance(3).gain(.2)\ndrone: note(\"[d2,a2]\").slow(4).s(\"sine\").attack(2).sustain(1).release(3).gain(.18)\nbell: note(\"<d3 ~ ~ ~ ~ ~ ~ ~>\").s(\"sine\").fm(3).fmh(2.76)\n  .decay(4).sustain(0).release(4).space(\"hall\").gain(.18)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    },
+    {
+      "id": "canon-engine",
+      "name": "Canon Engine",
+      "description": "A theme written once as scale degrees; a function turns it into each entry of a three-voice canon, another dresses every entry as a bowed string, over a ground bass and an echoing harpsichord.",
+      "category": "Functions",
+      "tags": ["76 bpm", "C major", "canon", "methods"],
+      "source": "setcpm(76/4)\n\n// One theme, written as scale degrees\nconst theme = n(\"<[0 2 4 2] [5 4 2 0] [1 3 5 3] [4@2 2 0]>\")\n// An entry waits some cycles, moves by some degrees, then picks the scale\nconst entry = (x, wait, step) => x.late(wait).add(step).scale(\"C:major\")\n// A bowed string, with a default brightness\nconst bowed = (x, bright = 2400) => x.s(\"sawtooth\").vib(5.5).vibdepth(.1).attack(.04).sustain(.6).release(.2).lpf(bright)\n\n// Three entries, a cycle apart, each at its own height\nfirst: theme.entry(0, 7).bowed(3200).pan(.3).room(.5).gain(.22)\nsecond: theme.entry(1, 9).bowed().pan(.7).room(.5).gain(.2)\nthird: theme.entry(2, 4).bowed(1800).room(.5).gain(.18)\n\n// The ground bass an octave down; on every fourth cycle it doubles its notes\nground: n(\"<0 5 1 4>\").scale(\"C:major\").octave(-1)\n  .s(\"sawtooth\").lpf(700).attack(.04).sustain(.5).release(.3).legato(.9)\n  .lastOf(4, x => x.ply(2)).room(.4).gain(.3)\n\n// A harpsichord taps the off-beats, each tap trailing fading echoes\nharpsichord: n(\"<[0,2,4] [5,7,9] [1,3,5] [4,6,8]>\").scale(\"C:major\").struct(\"~ x ~ x\")\n  .s(\"square\").pw(.15).decay(.15).sustain(0).echo(3, 1/8, .5).room(.3).gain(.1)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    },
+    {
+      "id": "ratchet-lab",
+      "name": "Ratchet Lab",
+      "description": "Acid techno built from two tiny functions: one that takes another function and stacks a changed copy, and a ratchet used as a method value, a partial application and through apply.",
+      "category": "Functions",
+      "tags": ["128 bpm", "C minor", "acid", "higher-order"],
+      "source": "setcpm(128/4)\n\n// A function can take another function: play the pattern and a changed copy together\nconst twice = (x, f) => stack(x, x.apply(f))\n// A ratchet repeats each step, a little quieter; n defaults to 2\nconst ratchet = (x, n = 2) => x.ply(n).gain(.5)\n\nkick: s(\"bd*4\").shape(.2).gain(.8)\n// As a partial application: every fourth bar the claps ratchet in threes\nclap: s(\"~ cp ~ cp\").every(4, ratchet(3)).room(.25).gain(.45)\n// The hats and a copy a sixteenth late, quieter and to the right\nhats: s(\"hh*8\").hpf(7000).gain(.3).twice(x => x.late(1/16).gain(.12).pan(.7))\n// chunk hurries a moving quarter of each bar\nrim: s(\"rim*8\").chunk(4, x => x.hurry(2)).pan(.35).gain(.22)\n\n// The acid line: sub drops it an octave, accents fall off the beat, notes stay short\nacid: n(\"0 0 7 0 3 0 10 5\").scale(\"C:minor\").sub(12)\n  .s(\"sawtooth\").lpf(perlin.range(400, 2400)).lpq(10).lpenv(2).lpdecay(.1)\n  .gain(.4).accent(\"~ ~ x ~ ~ ~ x ~\").legato(.5)\n  .sometimesBy(.2, x => x.apply(ratchet)).seed(\"303\")\n\n// Chords on a euclidean rhythm, with an octave ghost three sixteenths behind\nchords: note(\"[c3,eb3,g3,bb3]\").struct(\"x(3,8)\")\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(1800).decay(.2).sustain(0).gain(.2)\n  .twice(x => x.late(3/16).octave(1).gain(.08))\n  .room(.4)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    },
+    {
+      "id": "break-surgery",
+      "name": "Break Surgery",
+      "description": "Drum and bass cut up live: one break, dealt back in new orders with shuffle, rebuilt with repeats by scramble, held on its first quarter by linger, with brak stabs and a pressed bass.",
+      "category": "Library",
+      "tags": ["172 bpm", "E minor", "shuffle", "brak"],
+      "source": "setcpm(172/4)\n\n// One break, written once\nconst amen = s(\"bd ~ bd ~ sd ~ ~ sd ~ sd bd ~ sd ~ [~ bd] sd, hh*16\")\n// On the last bar of every four, hold the first quarter of the break\nconst stutterEnd = (x) => x.lastOf(4, y => y.linger(.25))\n\n// Some bars are dealt back in a new order (shuffle), some rebuilt with repeats (scramble)\nbreaks: amen.someCyclesBy(.4, x => x.shuffle(8)).someCyclesBy(.2, x => x.scramble(16))\n  .stutterEnd().seed(\"surgery\").gain(.6)\n\n// Ghost rims: a moving quarter, counted from the end, runs at double speed\nghosts: s(\"rim*16?0.3\").chunkBack(4, x => x.fast(2)).seed(\"ghost\").hpf(2000).gain(.15)\n\n// A reese bass, each note pushed half-way into its step\nreese: note(\"<e1 e1 c1 d1>\").struct(\"x ~ ~ x ~ ~ x ~\").press()\n  .s(\"sawtooth\").unison(4).detune(.4).lpf(sine.range(200, 700).slow(4)).lpq(3)\n  .attack(.02).sustain(.8).release(.2).gain(.38)\n\n// Stabs that brak squashes into a syncopated half every other bar\nstabs: note(\"<[e3,g3,b3,d4] [c3,e3,g3,b3]>\").struct(\"x ~ x ~\").brak()\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(2200).decay(.3).sustain(0).room(.5).gain(.2)\n\n// Rhodes arpeggios that leap an octave in the first half of each bar\nkeys: n(\"0 2 4 6 7 6 4 2\").add(\"<0 0 -2 -1>\").scale(\"E:minor\").transpose(12)\n  .within(0, .5, x => x.octave(1))\n  .s(\"sine\").fm(1).fmh(2).decay(.25).sustain(0)\n  .delay(.4).delaytime(3/16).delayfeedback(.45).pan(sine.slow(4)).gain(.18)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    },
+    {
+      "id": "hungarian-dance",
+      "name": "Hungarian Dance",
+      "description": "A csárdás in A hungarian minor: a fiddle and a cimbalom each defined once as a function, an accented oom-pah, and a band that rushes every eighth bar with hurry.",
+      "category": "Scales",
+      "tags": ["132 bpm", "A hungarian minor", "dance", "accent"],
+      "source": "setcpm(132/4)\n\n// Hungarian minor: the raised fourth makes two augmented seconds\nconst fiddle = (x) => x.scale(\"A:hungarian minor\").transpose(12).s(\"sawtooth\").vib(6).vibdepth(.12).lpf(3200).attack(.02).sustain(.6).release(.1)\nconst cimbalom = (x) => x.scale(\"A:hungarian minor\").s(\"sine\").fm(2.5).fmh(3).decay(.25).sustain(0).release(.3)\n\n// The fiddle tune; the last phrase of every four jumps an octave\nviolin: n(\"<[0 1 2 3 4@2 3 2] [4 5 6 7 6@2 4 2] [3 2 1 0 -1@2 0 1] [2 1 0 -1 0@4]>\").fiddle()\n  .lastOf(4, x => x.octave(1)).pan(.6).room(.4).gain(.24)\n\n// The cimbalom ripples under it\ncimb: n(\"0 2 4 2 7 4 2 4\").add(\"<0 0 3 -1>\").cimbalom().pan(.35).room(.3).gain(.2)\n\n// Oom-pah: short bass notes, chords louder on the last beat of each bar\nbass: note(\"<a1 a1 d2 e2>\").struct(\"x ~ x ~\").legato(.4)\n  .s(\"triangle\").decay(.3).sustain(.3).release(.1).gain(.42)\nchords: note(\"<[c3,e3,a3] [c3,e3,a3] [d3,f3,a3] [d3,e3,g#3,b3]>\").struct(\"~ x ~ x\").accent(\"~ ~ ~ x\")\n  .s(\"triangle\").timbre(\"bright\").decay(.15).sustain(0).gain(.18)\n\n// The band rushes the last bar of every eight: hurry doubles speed and pitch\ndrums: s(\"bd ~ bd ~, ~ rim ~ rim\").lastOf(8, x => x.hurry(2)).gain(.4)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    },
+    {
+      "id": "number-garden",
+      "name": "Number Garden",
+      "description": "Melodies grown from plain arithmetic: counting by threes modulo eight, halving and rounding down, even-only random degrees, rounded smooth noise and a sine squeezed into a narrow pan.",
+      "category": "Library",
+      "tags": ["96 bpm", "F lydian", "arithmetic", "generative"],
+      "source": "setcpm(96/4)\n\n// run(8).mul(3).mod(8) gives 0 3 6 1 4 7 2 5: every step once, in leaps\n// The pan is a sine made bipolar, scaled by .4 and mapped back, so it sways from .3 to .7\nleaps: n(run(8).mul(3).mod(8)).scale(\"F:lydian\").transpose(12)\n  .s(\"triangle\").timbre(\"glass\").decay(.3).sustain(0).release(.5)\n  .pan(sine.toBipolar().mul(.4).fromBipolar())\n  .delay(.3).delaytime(3/16).gain(.22)\n\n// run(8).div(2).floor() gives 0 0 1 1 2 2 3 3: the same count, each step twice, an octave down\nsteps: n(run(8).div(2).floor()).scale(\"F:lydian\").sub(12)\n  .s(\"sawtooth\").lpf(900).decay(.2).sustain(.3).release(.1).gain(.26)\n\n// irand(4).mul(2) picks only even degrees, so every bell is a chord tone\nbells: n(irand(4).mul(2).segment(4)).scale(\"F:lydian\").transpose(12)\n  .s(\"sine\").fm(2).fmh(2.76).decay(1).sustain(0).release(1.2).seed(\"even\").room(.6).gain(.16)\n\n// Smooth noise, rounded into scale steps and thinned out\nwander: n(perlin.range(-2, 6).segment(16).round()).scale(\"F:lydian\").transpose(24)\n  .degradeBy(.5).seed(\"numbers\")\n  .s(\"sine\").decay(.1).sustain(0).release(.3).pan(rand).room(.5).gain(.1)\n\n// ceil lifts a slow sine onto whole-number degrees for the pad's root\nroot: n(sine.range(0, 3).segment(2).ceil()).scale(\"F:lydian\").octave(-1).slow(2)\n  .s(\"sine\").attack(.5).sustain(.8).release(1).gain(.3)\npad: note(\"[f3,a3,c4,e4]\").slow(4).s(\"sawtooth\").unison(3).detune(.2)\n  .attack(2).release(3).lpf(1200).room(.7).gain(.12)\n\ndrums: s(\"bd ~ ~ bd ~ ~ bd ~, ~ ~ rim ~\").lpf(3000).gain(.32)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    },
+    {
+      "id": "whole-tone-dream",
+      "name": "Whole-Tone Dream",
+      "description": "One run up the whole-tone scale, reshaped four ways: a halo passed as a function value, a second half that plays the first backwards, a zoomed middle, a compressed bass and a clock that only ticks half the time.",
+      "category": "Library",
+      "tags": ["72 bpm", "C whole tone", "zoom", "compress"],
+      "source": "setcpm(72/4)\n\n// No half steps anywhere: the whole-tone scale floats with no home note\nconst dream = n(\"0 1 2 3 4 5 6 7\").scale(\"C:whole tone\")\nconst glassy = (x) => x.s(\"triangle\").timbre(\"glass\").decay(.4).sustain(0).release(.8)\n// A halo: an octave above, quiet, to the right\nconst halo = (x) => x.add(12).gain(.08).pan(.8)\n\n// The run with its halo; within makes the second half answer with the first half backwards\nupper: dream.transpose(12).glassy().gain(.2).superimpose(halo).within(.5, 1, x => x.rev())\n  .delay(.35).delaytime(3/8).delayfeedback(.4).room(.6)\n\n// zoom stretches the middle half of the run across the whole bar\nmiddle: dream.zoom(.25, .75).glassy().pan(.3).room(.6).gain(.16)\n\n// compress squeezes the whole run into the first half of the bar, an octave down\nlow: dream.compress(0, .5).octave(-1).s(\"sine\").fm(1.5).fmh(2)\n  .decay(.3).sustain(0).room(.6).gain(.2)\n\n// fastGap plays eight ticks in the first half and leaves the second half silent\nticks: s(\"tick*8\").fastGap(2).gain(.1)\n\n// Augmented chords, and a bass walking the augmented scale\npad: note(\"<[c3,e3,g#3] [d3,f#3,a#3]>\").slow(2).s(\"sawtooth\").unison(3).detune(.25)\n  .attack(2).release(3).lpf(1100).room(.8).size(.9).gain(.12)\nbass: n(\"<0 1 2 3>\").slow(2).scale(\"C:augmented\").octave(-1)\n  .s(\"sine\").attack(.5).sustain(.8).release(1.5).gain(.28)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    },
+    {
+      "id": "lydian-dominant-lift",
+      "name": "Lydian Dominant Lift",
+      "description": "Funk in G lydian dominant: swung drums with swingBy, a bass that sits a hair behind the beat with nudge and plays short with legato, pushed chords with press, and a lead with seeded flourishes.",
+      "category": "Scales",
+      "tags": ["100 bpm", "G lydian dominant", "funk", "swing"],
+      "source": "setcpm(100/4)\n\n// G lydian dominant: a raised fourth and a flat seventh, bright and bluesy at once\n// swingBy(1/3, 4) delays every second eighth by a third of a beat\ndrums: s(\"bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*8\").swingBy(1/3, 4).gain(.6)\n\n// The bass sits a hair behind the beat (nudge is in seconds) and plays short (legato)\nbass: n(\"0 ~ 0 4 ~ 6 7 ~\").scale(\"G:lydian dominant\").sub(24)\n  .s(\"sawtooth\").lpf(800).lpenv(2).lpdecay(.1)\n  .legato(.4).nudge(.015).accent(\"x ~ ~ x ~ ~ x ~\").swingBy(1/3, 4).gain(.4)\n\n// Chords pushed half-way into each step: G13 with the raised eleventh\nkeys: note(\"<[f3,b3,c#4,e4] [f3,a3,c#4,e4]>\").struct(\"x ~ ~ x ~ ~ x ~\").press()\n  .s(\"sine\").fm(1.1).fmh(2).decay(.5).sustain(.2).release(.3).lpf(2400).pan(.4).gain(.24)\n\n// The lead: rarely a stutter, almost always a little echo, and a fifth above as a horn\nlead: n(\"<[4 5 6 7] [9 7 6 4] [3 4 6 3] [4@4]>\").scale(\"G:lydian dominant\").transpose(12)\n  .s(\"square\").pw(.3).lpf(2800).attack(.01).decay(.2).sustain(.4).release(.1).gain(.18)\n  .almostNever(x => x.ply(2)).almostAlways(x => x.delay(.3).delaytime(3/16))\n  .superimpose(x => x.add(7).gain(.08)).seed(\"lift\").pan(.6)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    },
+    {
+      "id": "egyptian-night",
+      "name": "Egyptian Night",
+      "description": "A singer defined once as a function with a voice-type default: an alto sings a syllable line in the egyptian pentatonic, a tenor answers below, and a choir, a hum and a frame drum hold the night.",
+      "category": "Voices",
+      "tags": ["60 bpm", "D egyptian", "voices", "string defaults"],
+      "source": "setcpm(60/4)\n\n// The egyptian pentatonic: fourths and fifths and no thirds, open and unresolved\n// A singer is a function: the voice type has a default, the phrasing is shared\nconst singer = (x, type = \"alto\") => x.s(\"voice\").voicetype(type).mono(1).vglide(.1).attack(.1).release(.8)\n\n// The syllables use the same weights as the notes, so each lands on its note\nsolo: n(\"<[0@3 1 2@4] [4@2 3 2 1@4] [2@3 3 4@2 5 4] [3@6 ~@2]>\").scale(\"D:egyptian\").transpose(12)\n  .singer().syl(\"<[ya@3 ha la@4] [ma@2 ni ra so@4] [ka@3 li ma@2 na o] [hu@6 ~@2]>\")\n  .space(\"hall\").gain(.32)\n\n// A tenor answers below, with the same function and a different voice\ntenor: n(\"<0 [2 1] 3 [2 0]>\").scale(\"D:egyptian\").singer(\"tenor\")\n  .syl(\"<oh [ah oh] oo [ah oh]>\").space(\"hall\").gain(.22)\n\n// A choir on open chords, a hum with an overtone, a frame drum and the desert wind\nchoir: note(\"<[d3,a3,d4] [c3,g3,c4] [e3,a3,e4] [d3,g3,a3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo ah>\").attack(2).release(3).space(\"church\").gain(.2)\nhum: note(\"d2\").slow(8).s(\"hum\").overtone(6).gain(.14)\nframe: s(\"lt ~ ~ lt ~ ~ lt ~, ~ ~ rim ~\").room(.4).gain(.3)\nwind: s(\"wind\").slow(8).intensity(.25).gain(.08)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    },
+    {
+      "id": "seed-garden",
+      "name": "Seed Garden",
+      "description": "A generative garden in E in sen: one seeded melody shared by two hands, thinned by degradeBy and undegradeBy, ornamented by often and rarely, with bells that choose whole cycles to hurry. Change the seed for a new garden.",
+      "category": "Library",
+      "tags": ["90 bpm", "E in sen", "seeded", "generative"],
+      "source": "setcpm(90/4)\n\n// A melody drawn from the in sen scale, one seeded draw per eighth note\nconst melody = n(irand(8).segment(8)).scale(\"E:in sen\").transpose(12)\nconst bloom = (x) => x.s(\"triangle\").timbre(\"soft\").attack(.005).decay(.8).sustain(.1).release(1).room(.6)\n\n// Two hands share the melody: degradeBy drops some notes, undegradeBy keeps only some\nleft: melody.degradeBy(.5).bloom().often(x => x.octave(-1)).seed(\"garden\").pan(.3).gain(.24)\nright: melody.undegradeBy(.4).bloom().rarely(x => x.octave(1)).seed(\"garden\").pan(.7).gain(.2)\n\n// Bells decide once per cycle whether to hurry\nbells: note(\"<b4 ~ e5 ~>\").s(\"sine\").fm(2).fmh(2.76).decay(2).sustain(0).release(2)\n  .someCyclesBy(.3, x => x.fast(2)).seed(\"bells\").space(\"hall\").gain(.12)\n\n// Percussion: almost never a roll, some cycles played backwards\nperc: s(\"rim*8?0.5, ~ lt\").almostNever(x => x.ply(4)).someCycles(x => x.rev())\n  .seed(\"perc\").room(.3).gain(.22)\n\n// A drone breathing through smooth noise, and a stream\ndrone: note(\"[e2,b2]\").slow(4).s(\"sawtooth\").unison(2).detune(.15)\n  .lpf(perlin.range(300, 900).slow(4)).attack(2).sustain(1).release(3).gain(.14)\nstream: s(\"stream\").slow(4).distance(4).gain(.16)\n",
+      "savedAt": "2026-11-05T12:00:00.000Z"
+    }
+  ]
+}
