@@ -46,6 +46,7 @@ const SINCE_T9 = '0.9.0';
 const SINCE_T10 = '0.10.0';
 const SINCE_T11 = '0.11.0';
 const SINCE_T12 = '0.12.0';
+const SINCE_T13 = '0.13.0';
 
 function control(
   id: string,
@@ -1091,6 +1092,22 @@ export const ENTRIES: readonly RegistryEntry[] = [
     deterministic: 'pure',
     since: SINCE,
     description: 'Declares a sample bank. It is fetched only if the host allows it.',
+    category: 'directive',
+  },
+  {
+    id: 'sample',
+    names: ['sample'],
+    form: 'directive',
+    params: [
+      { name: 'name', type: 'string', patternable: false },
+      { name: 'path', type: 'string', patternable: false },
+    ],
+    returns: { kind: 'error' },
+    level: 'L3',
+    deterministic: 'pure',
+    since: SINCE_T13,
+    description:
+      'Binds a WAV file, given by a path relative to the sample collection, to a sound name. The host loads it; the document never fetches anything.',
     category: 'directive',
   },
 ];

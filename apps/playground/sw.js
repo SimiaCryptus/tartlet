@@ -66,7 +66,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirst(request, SCOPE));
     return;
   }
-  if (url.pathname.includes('/albums/')) {
+  if (url.pathname.includes('/albums/') || url.pathname.includes('/samples/')) {
     event.respondWith(networkFirst(request));
     return;
   }

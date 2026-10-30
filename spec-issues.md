@@ -466,3 +466,43 @@ defHash)`. `defHash` hashes the definition without layout. Method ids inside the
     track is `none` or absent. Non-constant `curve` patterns are not judged.
   - `I-DSP-ORBIT` (info) marks a track whose constant compressor settings differ from an earlier
     track on the same constant orbit (default 0).
+
+## Found while implementing samples (docs/samples.md)
+
+- **TS-90: sample directives and paths.**
+  - `sample(name, path)` binds one `.wav` file. `samples(path)` declares a bank: a directory
+    ending in `/` (its `manifest.json`) or a `.json` manifest.
+  - Paths follow the closed grammar of docs/samples.md §1.2. The rules live in `@tartlet/ir`
+    (`isSamplePath`), so the checker and `decodeProgram` share them.
+  - A `samples()` argument containing `:` is still a declared remote bank that is never fetched,
+    as before (X-31). It is not `E-RES-PATH`.
+  - The path is stored in `ResourceDecl.spec`; `kind` is `wav` or `bank`, and `wav` has `name`.
+  - Sound names start with a letter, then letters, digits, `_` or `-`.
+  - A single-file sample is played by the impulse interpreter.
+- **TS-91: loading.**
+  - Hosts load samples; the core never does. `<tartlet-player>` uses `resolveSample`, or else
+    `sample-base` on the page's own origin; without either, nothing loads and each declaration
+    gets `W-RES-MISSING`. Host diagnostics are appended to the element's diagnostics.
+  - While a single-file sample is loading, events naming it are skipped and counted.
+  - With a catalog, declared sample names are known sounds. Once any bank is declared, names
+    outside the kit get neither `I-RES-FALLBACK` nor `W-RES-MISSING`, because bank names are only
+    known after loading.
+- **TS-92: the sample standard.**
+  - The peak must be within 0.5 dB of -1 dBFS, channel means within 0.005, and leading silence
+    (below -60 dBFS) at most 1 ms. Length caps are 30 s (impulse) and 120 s (note).
+  - Hosts normalise files that break the standard on load and report `W-RES-FORMAT`. Loop points
+    are not shifted by trimming; imported files are already standard.
+  - Files at rates other than 44.1 or 48 kHz are resampled by the audio source; the importer
+    notes `I-RES-RATE`.
+- **TS-93: interpreters.**
+  - Core adds `rseed`, a draw keyed by (scope, output id, `whole.begin`, `s`), to events of
+    programs that declare a `wav` or `bank`. The note interpreter uses it for round robin.
+  - Zone ties go to the lower root; transposition is capped at ±24 semitones.
+  - Negative `speed` plays at its magnitude; `W-RANGE` for it is deferred.
+  - The General MIDI map applies to events with `note` and no `s` when a bank sets `gm: true`;
+    entries with their own `gm` note always apply.
+- **TS-94: the importer.**
+  - `samples import` guesses zones from `name_<note>[_v<k>]` file names and prints every guess.
+    Roots split the keyboard at midpoints; velocity layers split [0, 1] evenly.
+  - Output is normalised 24-bit PCM. `collection/index.json` lists the banks.
+  - Deferred: content-addressed uploads, `samples verify` in `pnpm check`, and MIDI file import.

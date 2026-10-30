@@ -59,6 +59,7 @@ import { SAFETY_WORKLET_SOURCE } from './safety-worklet';
 import { SPECTRAL_WORKLET_SOURCE } from './spectral-worklet';
 import { curveName, curveTable, shapeEnvelope, type CurveTable } from './dsp';
 import { GATE_WORKLET_SOURCE } from './gate-worklet';
+import { planImpulse, planNote, type DecodedTake, type SampleEntry, type SampleLibrary } from '@tartlet/samples';
 
 type ControlMap = Readonly<Record<string, unknown>>;
 
@@ -282,6 +283,10 @@ export class AudioEngine {
   private readonly compBuses = new Map<number, DynamicsCompressorNode>();
   private readonly curveTables = new Map<string, CurveTable>();
   private shortLeads = 0;
+  /** Host-supplied samples (docs/samples.md Part 4). */
+  private library: SampleLibrary | undefined;
+  private pendingSkips = 0;
+  private readonly sampleBuffers = new WeakMap<DecodedTake, AudioBuffer>();
 
   private constructor(
     readonly ctx: AudioContext,
@@ -342,6 +347,14 @@ export class AudioEngine {
   get shortenedLeads(): number {
     return this.shortLeads;
   }
+  /** Sets the decoded samples this engine plays; names in it win over kit sounds (TS-91). */
+  setLibrary(lib: SampleLibrary | undefined): void {
+    this.library = lib;
+  }
+  /** Events skipped because their sample was still loading. */
+  get skippedSamples(): number {
+    return this.pendingSkips;
+  }
 
   play(c: ControlMap, time: number, duration: number): void {
     const ctx = this.ctx;
@@ -366,21 +379,33 @@ export class AudioEngine {
     const note = c.note as { kind?: string; value?: unknown } | undefined;
     const midi = note?.kind === 'midi' ? fin(note.value, NaN) : NaN;
     const hz = num(c.freq);
-    const sound = typeof c.s === 'string' ? c.s : Number.isFinite(midi) || hz !== undefined ? 'triangle' : undefined;
+    const lib = this.library;
+    const gm = typeof c.s !== 'string' && Number.isFinite(midi) ? lib?.gmName(Math.round(midi)) : undefined;
+    const sound =
+      typeof c.s === 'string' ? c.s : (gm ?? (Number.isFinite(midi) || hz !== undefined ? 'triangle' : undefined));
     if (sound === undefined) return;
-    const res = resolveSound(sound);
-    if (res.status === 'missing') {
-      this.unknownSounds.add(sound);
+    if (lib?.isPending(sound) === true) {
+      this.pendingSkips++;
       return;
     }
-    const name = res.status === 'fallback' ? res.to : sound;
-    const osc = OSC_SET.has(name);
-    const noise = isNoise(name);
-    const vocal = VOICE_SET.has(name);
-    const amb = AMBIENCE_SET.has(name);
-    const foley = FOLEY_SET.has(name);
-    const creature = CREATURE_SET.has(name);
-    if (!osc && !noise && !vocal && !amb && !foley && !creature && !DRUM_SET.has(name)) {
+    const entry = lib?.get(sound);
+    let name = sound;
+    if (!entry) {
+      const res = resolveSound(sound);
+      if (res.status === 'missing') {
+        this.unknownSounds.add(sound);
+        return;
+      }
+      name = res.status === 'fallback' ? res.to : sound;
+    }
+    const kit = entry === undefined;
+    const osc = kit && OSC_SET.has(name);
+    const noise = kit && isNoise(name);
+    const vocal = kit && VOICE_SET.has(name);
+    const amb = kit && AMBIENCE_SET.has(name);
+    const foley = kit && FOLEY_SET.has(name);
+    const creature = kit && CREATURE_SET.has(name);
+    if (kit && !osc && !noise && !vocal && !amb && !foley && !creature && !DRUM_SET.has(name)) {
       this.unknownSounds.add(sound);
       return;
     }
@@ -420,6 +445,11 @@ export class AudioEngine {
       prev.voice.end = Math.min(prev.voice.end, t + 0.03);
     }
     const glideTime = clamp(fin(c.glide, 0), 0, 5);
+    const sampleFreq = entry?.kind === 'note' && Number.isFinite(midi) ? 440 * 2 ** ((midi - 69) / 12) : NaN;
+    const sampleGlide =
+      Number.isFinite(sampleFreq) && prev !== undefined && Number.isFinite(prev.freq) && glideTime > 0
+        ? { from: prev.freq, time: glideTime }
+        : undefined;
 
     const pitched = osc || noise || vocal;
     const freq = pitched
@@ -441,7 +471,9 @@ export class AudioEngine {
     const sp = clamp(Math.abs(fin(c.speed, 1)), 0.125, 8);
 
     let spec: Spec | undefined;
-    if ((osc || noise) && grain !== undefined && grain > 0) {
+    if (entry) {
+      spec = this.sampleVoice(entry, c, env, midi, vel, sampleGlide, t, dur, gain, gate);
+    } else if ((osc || noise) && grain !== undefined && grain > 0) {
       spec = this.granular(name, c, env, freq, t, dur, gain, gate);
     } else if (pitched) {
       const from =
@@ -474,7 +506,7 @@ export class AudioEngine {
     if (key !== undefined) {
       this.lines.set(key, {
         voice,
-        freq: osc || vocal ? freq : NaN,
+        freq: osc || vocal ? freq : sampleFreq,
         ...(plan ? { vowel: plan.vowel, bank: plan.last } : undefined),
       });
     }
@@ -1996,6 +2028,81 @@ export class AudioEngine {
     o.frequency.setValueAtTime(clamp(1700 * sp, 1, 20000), t);
     o.connect(this.env(t, gain * 0.5, 0.03 / sp)).connect(out);
     return { sources: [o], end: t + Math.max(0.01, 0.05 / sp) };
+  }
+  /** A decoded sample as an AudioBuffer; the source resamples files at other rates (TS-92). */
+  private sampleBuffer(take: DecodedTake): AudioBuffer {
+    const hit = this.sampleBuffers.get(take);
+    if (hit) return hit;
+    const { wav } = take;
+    const frames = Math.max(1, wav.channels[0]?.length ?? 0);
+    const buf = this.ctx.createBuffer(Math.max(1, wav.channels.length), frames, wav.sampleRate);
+    wav.channels.forEach((ch, i) => {
+      buf.copyToChannel(ch, i);
+    });
+    this.sampleBuffers.set(take, buf);
+    return buf;
+  }
+  /** Host samples through the impulse or note interpreter (docs/samples.md Part 4, TS-93). */
+  private sampleVoice(
+    entry: SampleEntry,
+    c: ControlMap,
+    env: Adsr,
+    midi: number,
+    vel: number,
+    glide: { readonly from: number; readonly time: number } | undefined,
+    t: number,
+    dur: number,
+    gain: number,
+    out: AudioNode,
+  ): Spec | undefined {
+    const ctx = this.ctx;
+    const speed = fin(c.speed, 1);
+    const note = Number.isFinite(midi) ? midi : undefined;
+    const plan =
+      entry.kind === 'note'
+        ? planNote(entry.takes, {
+            ...(note !== undefined ? { note } : {}),
+            velocity: vel,
+            speed,
+            rseed: fin(c.rseed, 0),
+          })
+        : planImpulse(entry.takes.length, { n: fin(c.n, 0), speed });
+    const take = plan ? entry.takes[plan.take] : undefined;
+    if (!plan || !take) return undefined;
+    const buf = this.sampleBuffer(take);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const rate = plan.rate;
+    if (glide && note !== undefined && entry.kind === 'note') {
+      const ratio = clamp(glide.from / (440 * 2 ** ((note - 69) / 12)), 0.125, 8);
+      src.playbackRate.setValueAtTime(rate * ratio, t);
+      src.playbackRate.exponentialRampToValueAtTime(rate, t + glide.time);
+    } else {
+      src.playbackRate.value = rate;
+    }
+    const amp = ctx.createGain();
+    src.connect(amp).connect(out);
+    const level = gain * 0.7;
+    const length = buf.duration / rate;
+    if (entry.kind === 'note') {
+      if (take.loop) {
+        src.loop = true;
+        src.loopStart = take.loop.start / buf.sampleRate;
+        src.loopEnd = take.loop.end / buf.sampleRate;
+      }
+      const pts = shapeEnvelope(envelope(t, dur, env, level), envShape(c));
+      amp.gain.setValueAtTime(0, t);
+      for (const [time, v] of pts.slice(1)) amp.gain.linearRampToValueAtTime(v, time);
+      const last = pts[pts.length - 1]?.[0] ?? t;
+      return { sources: [src], end: (take.loop ? last : Math.min(last, t + length)) + 0.02 };
+    }
+    // An impulse plays the whole file unless legato cuts it (docs/samples.md §4.1).
+    amp.gain.value = level;
+    if (typeof c.legato !== 'number') return { sources: [src], end: t + length + 0.01 };
+    const cut = t + Math.max(0.005, dur);
+    amp.gain.setValueAtTime(level, cut);
+    amp.gain.linearRampToValueAtTime(0, cut + env.r);
+    return { sources: [src], end: Math.min(t + length, cut + env.r) + 0.01 };
   }
   // ---- Textures (TS-73 to TS-76)
   private frame(c: ControlMap, env: Adsr, t: number, dur: number, peak: number, out: AudioNode): Frame {

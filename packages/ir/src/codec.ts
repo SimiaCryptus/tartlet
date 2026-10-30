@@ -19,6 +19,7 @@ import type {
   SourceRef,
   ValueKind,
 } from './index';
+import { isBankPath, isSoundName, isWavPath } from './paths';
 
 type Obj = Readonly<Record<string, unknown>>;
 
@@ -392,9 +393,19 @@ class Decoder {
     const resources: ResourceDecl[] = this.arr(o.resources, '$.resources').map((x, i) => {
       const p = `$.resources[${String(i)}]`;
       const ro = this.obj(x, p);
+      const kind = this.pick(ro.kind, `${p}.kind`, ['samples', 'wav', 'bank'] as const);
+      const spec = this.str(ro.spec, `${p}.spec`);
+      if (kind === 'wav' && !isWavPath(spec)) fail(`${p}.spec`, 'not a sample path');
+      if (kind === 'bank' && !isBankPath(spec)) fail(`${p}.spec`, 'not a bank path');
+      let name: string | undefined;
+      if (kind === 'wav') {
+        name = this.str(ro.name, `${p}.name`);
+        if (!isSoundName(name)) fail(`${p}.name`, 'not a sound name');
+      }
       return {
-        kind: this.pick(ro.kind, `${p}.kind`, ['samples'] as const),
-        spec: this.str(ro.spec, `${p}.spec`),
+        kind,
+        ...(name !== undefined ? { name } : undefined),
+        spec,
         range: this.range(ro.range, `${p}.range`),
       };
     });

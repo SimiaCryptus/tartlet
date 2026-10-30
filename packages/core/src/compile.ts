@@ -164,7 +164,7 @@ const ACCENT = 1.3;
  * it never rolls its own dice. Draws are keyed by the output, the whole's start and the sound
  * (plus the note for voices), so fragments agree.
  */
-function withEventSeeds(pat: Pattern<ControlMap>, id: string): Pattern<ControlMap> {
+function withEventSeeds(pat: Pattern<ControlMap>, id: string, sampled: boolean): Pattern<ControlMap> {
   return pattern((st) =>
     pat.query(st).map((ev) => {
       const v = ev.value;
@@ -173,7 +173,9 @@ function withEventSeeds(pat: Pattern<ControlMap>, id: string): Pattern<ControlMa
       const ears = typeof v.icorr === 'number';
       const textured = TEXTURE_SET.has(s) || typeof v.grain === 'number';
       const spectral = typeof v.spectral === 'string' && v.spectral !== 'none';
-      if (!vocal && !ears && !textured && !spectral) return ev;
+      // Round-robin take choice for host samples is decided here, never in the adapter (TS-93).
+      const rr = sampled && (s !== '' || typeof v.note === 'object');
+      if (!vocal && !ears && !textured && !spectral && !rr) return ev;
       const at = ratStr((ev.whole ?? ev.part).begin);
       const out = dict();
       Object.assign(out, v);
@@ -185,6 +187,7 @@ function withEventSeeds(pat: Pattern<ControlMap>, id: string): Pattern<ControlMa
       if (ears) out.iseed = draw(st.seed, id, 'iseed', at, s);
       if (textured) out.tseed = draw(st.seed, id, 'tseed', at, s);
       if (spectral) out.dseed = draw(st.seed, id, 'dseed', at, s);
+      if (rr) out.rseed = draw(st.seed, id, 'rseed', at, s);
       return { ...ev, value: out };
     }),
   );
@@ -641,9 +644,10 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
   const outputs = new Map<string, Pattern<ControlMap>>();
   const labels = new Map<string, string>();
   const ranges = new Map<string, PatternNode['range']>();
+  const sampled = program.resources.some((r) => r.kind === 'wav' || r.kind === 'bank');
   for (const o of program.outputs) {
     if (o.status !== 'ok') continue;
-    outputs.set(o.id, withEventSeeds(node(o.expr, NO_ENV) as Pattern<ControlMap>, o.id));
+    outputs.set(o.id, withEventSeeds(node(o.expr, NO_ENV) as Pattern<ControlMap>, o.id, sampled));
     labels.set(o.id, o.label ?? o.id);
     ranges.set(o.id, o.expr.range);
   }

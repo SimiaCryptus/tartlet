@@ -1,5 +1,5 @@
 import { defineConfig, type Plugin } from 'vite';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
@@ -26,6 +26,46 @@ function albums(): Plugin {
           fileName: `albums/${name}`,
           source: readFileSync(`${albumsDir}${name}`, 'utf8'),
         });
+      }
+    },
+  };
+}
+// The shared sample collection (docs/samples.md §3.3): repo-root collection/ is served and
+// copied under /samples/, next to the playground. Nothing is uploaded from the browser.
+const collectionDir = fileURLToPath(new URL('../../collection/', import.meta.url));
+function collectionFile(rel: string): string | undefined {
+  if (rel.split('/').includes('..')) return undefined;
+  const file = `${collectionDir}${rel}`;
+  return existsSync(file) && statSync(file).isFile() ? file : undefined;
+}
+/** Every file under `dir` (which ends in `/`), as paths relative to it with `/` separators. */
+function walkFiles(dir: string, prefix = ''): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const rel = `${prefix}${name}`;
+    return statSync(`${dir}${name}`).isDirectory() ? walkFiles(`${dir}${name}/`, `${rel}/`) : [rel];
+  });
+}
+function collection(): Plugin {
+  return {
+    name: 'tartlet-samples',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? '').split('?')[0] ?? '';
+        const rel = /\/samples\/([\w./-]+)$/.exec(path)?.[1];
+        const file = rel === undefined ? undefined : collectionFile(rel);
+        if (rel === undefined || file === undefined) {
+          next();
+          return;
+        }
+        res.setHeader('Content-Type', rel.endsWith('.json') ? 'application/json' : 'audio/wav');
+        res.end(readFileSync(file));
+      });
+    },
+    generateBundle() {
+      if (!existsSync(collectionDir)) return;
+      for (const rel of walkFiles(collectionDir)) {
+        const file = collectionFile(rel);
+        if (file) this.emitFile({ type: 'asset', fileName: `samples/${rel}`, source: readFileSync(file) });
       }
     },
   };
@@ -168,7 +208,7 @@ function pwa(): Plugin {
       const hash = createHash('sha256');
       const files: string[] = ['./', 'manifest.webmanifest'];
       for (const [fileName, item] of Object.entries(bundle).sort(([a], [b]) => a.localeCompare(b))) {
-        if (fileName.endsWith('.map') || fileName === 'sw.js') continue;
+        if (fileName.endsWith('.map') || fileName === 'sw.js' || fileName.startsWith('samples/')) continue;
         files.push(fileName === 'index.html' ? './' : fileName);
         hash.update(fileName);
         hash.update(item.type === 'chunk' ? item.code : item.source);
@@ -199,7 +239,7 @@ const CSP =
 
 export default defineConfig({
   resolve: { alias },
-  plugins: [albums(), pwa()],
+  plugins: [albums(), collection(), pwa()],
   preview: { headers: { 'Content-Security-Policy': CSP, 'Cross-Origin-Opener-Policy': 'same-origin' } },
   // Monaco is loaded lazily as its own large chunk.
   build: { target: 'es2022', chunkSizeWarningLimit: 4000 },

@@ -1,7 +1,8 @@
 // <tartlet-player> (idea.md §13.3). Check and query run in a worker by default (idea.md §11.3).
 // The mixer and source view land in T3.
-import type { Diagnostic, Program } from '@tartlet/ir';
+import type { Diagnostic, Program, ResourceDecl } from '@tartlet/ir';
 import type { ControlMap } from '@tartlet/core';
+import { SampleLibrary, loadSamples, sampleResources, type FetchBytes, type HostDiagnostic } from '@tartlet/samples';
 import { Scheduler } from '@tartlet/schedule';
 import { AudioEngine } from '@tartlet/webaudio';
 import { InlineEvaluator, WorkerEvaluator, type CheckRequest, type Checked, type Evaluator } from '@tartlet/worker';
@@ -96,6 +97,15 @@ export class TartletPlayerElement extends HTMLElement {
   #engine: AudioEngine | undefined;
   #scheduler: Scheduler<ControlMap> | undefined;
   #raf = 0;
+  /**
+   * Host hook for samples (docs/samples.md §1.3): bytes for a path relative to the host's root,
+   * or null. Set it before `source`. Without it, `sample-base` is used.
+   */
+  resolveSample: ((path: string) => Promise<ArrayBuffer | null>) | undefined = undefined;
+  #library = new SampleLibrary();
+  #samplesKey = '';
+  #hostDiagnostics: readonly Diagnostic[] = [];
+  #loading = 0;
   readonly #status = document.createElement('span');
   readonly #list = document.createElement('ul');
   readonly #play = document.createElement('button');
@@ -162,7 +172,7 @@ export class TartletPlayerElement extends HTMLElement {
   }
 
   get diagnostics(): readonly Diagnostic[] {
-    return this.#result?.diagnostics ?? [];
+    return [...(this.#result?.diagnostics ?? []), ...this.#hostDiagnostics];
   }
 
   /** True while the transport is running. */
@@ -197,6 +207,7 @@ export class TartletPlayerElement extends HTMLElement {
     if (!this.#scheduler?.running) this.#render();
     else this.#renderList();
     this.dispatchEvent(new CustomEvent('diagnostics', { detail: this.diagnostics }));
+    void this.#loadSamples(r.program.resources);
   }
 
   /** Must be called from a user gesture. */
@@ -208,6 +219,7 @@ export class TartletPlayerElement extends HTMLElement {
     if (!this.dispatchEvent(new CustomEvent('beforeplay', { cancelable: true, detail }))) return;
     try {
       this.#engine ??= await AudioEngine.create();
+      this.#engine.setLibrary(this.#library);
     } catch (e) {
       this.#status.textContent = 'Audio is unavailable here, so playback is refused without the safety chain.';
       console.error(e);
@@ -263,7 +275,7 @@ export class TartletPlayerElement extends HTMLElement {
     const r = this.#result;
     if (!r) return;
     const ok = r.program.outputs.filter((o) => o.status === 'ok').length;
-    this.#status.textContent = `Ready: ${String(ok)} of ${String(r.program.outputs.length)} tracks playable${this.#hint()}`;
+    this.#status.textContent = `Ready: ${String(ok)} of ${String(r.program.outputs.length)} tracks playable${this.#hint()}${this.#loadingNote()}`;
     this.#play.disabled = ok === 0;
     this.#renderList();
   }
@@ -271,12 +283,84 @@ export class TartletPlayerElement extends HTMLElement {
   #hint(): string {
     return this.#result?.program.advisories?.some((a) => a.headphones) === true ? ' · Best on headphones' : '';
   }
+  #loadingNote(): string {
+    return this.#loading > 0 ? ` · Loading ${String(this.#loading)} sample${this.#loading === 1 ? '' : 's'}…` : '';
+  }
+  /** A fetcher confined to `sample-base` on this origin, or the host hook (TS-91). */
+  #fetcher(base: string | null): FetchBytes | undefined {
+    const hook = this.resolveSample;
+    if (hook) return hook;
+    if (base === null) return undefined;
+    let root: URL;
+    try {
+      root = new URL(base, document.baseURI);
+    } catch {
+      return undefined;
+    }
+    return async (path) => {
+      const url = new URL(path, root);
+      if (url.origin !== location.origin || !url.href.startsWith(root.href)) return null;
+      try {
+        const res = await fetch(url);
+        return res.ok ? await res.arrayBuffer() : null;
+      } catch {
+        return null;
+      }
+    };
+  }
+  async #loadSamples(resources: readonly ResourceDecl[]): Promise<void> {
+    const list = sampleResources(resources);
+    const base = this.getAttribute('sample-base');
+    const key = JSON.stringify([base, list.map((r) => [r.kind, r.name ?? '', r.spec, r.range.start.line])]);
+    if (key === this.#samplesKey) return;
+    this.#samplesKey = key;
+    const library = new SampleLibrary();
+    this.#library = library;
+    this.#engine?.setLibrary(library);
+    const toDiag = (h: HostDiagnostic): Diagnostic => ({
+      id: h.id,
+      severity: h.severity,
+      message: h.message,
+      range: h.resource.range,
+      effect: 'none',
+    });
+    const fetchBytes = this.#fetcher(base);
+    if (list.length === 0 || !fetchBytes) {
+      this.#setHostDiagnostics(
+        list.map((r) =>
+          toDiag({
+            id: 'W-RES-MISSING',
+            severity: 'warning',
+            message: 'This page does not load samples, so this sample is silent.',
+            resource: r,
+          }),
+        ),
+      );
+      return;
+    }
+    this.#loading = list.length;
+    if (!this.playing) this.#render();
+    const { diagnostics } = await loadSamples(list, fetchBytes, { library });
+    if (this.#library !== library) return;
+    this.#loading = 0;
+    this.#setHostDiagnostics(diagnostics.map(toDiag));
+  }
+  #setHostDiagnostics(ds: readonly Diagnostic[]): void {
+    if (ds.length === 0 && this.#hostDiagnostics.length === 0) {
+      if (!this.playing) this.#render();
+      return;
+    }
+    this.#hostDiagnostics = ds;
+    if (this.playing) this.#renderList();
+    else this.#render();
+    this.dispatchEvent(new CustomEvent('diagnostics', { detail: this.diagnostics }));
+  }
 
   #renderList(): void {
     const r = this.#result;
     if (!r) return;
     this.#list.replaceChildren(
-      ...r.diagnostics.map((d) => {
+      ...this.diagnostics.map((d) => {
         const li = document.createElement('li');
         li.className = d.severity;
         const code = document.createElement('code');

@@ -34,3 +34,4 @@ Requirement ID → test. CI will fail when a MUST has no test (from T1).
 | R-ext-dsp (TS-77–TS-80)             | packages/conformance/test/spectral.test.ts, packages/webaudio/test/dsp.test.ts, packages/conformance/test/presets.test.ts    |
 | R-ext-ir (TS-81–TS-85)              | packages/conformance/test/impulse.test.ts, packages/webaudio/test/dsp.test.ts, packages/conformance/test/presets.test.ts     |
 | R-ext-cv (TS-86–TS-89)              | packages/conformance/test/shapers.test.ts, packages/webaudio/test/dsp.test.ts, packages/conformance/test/presets.test.ts     |
+| R-ext-samples (TS-90–TS-94)         | packages/check/test/samples.test.ts, packages/samples/test/*.test.ts, packages/conformance/test/samples.test.ts              |

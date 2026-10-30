@@ -34,7 +34,7 @@ import type {
   SourceRange,
   PatternType,
 } from '@tartlet/ir';
-import { DEFAULT_LIMITS } from '@tartlet/ir';
+import { DEFAULT_LIMITS, isBankPath, isSoundName, isWavPath } from '@tartlet/ir';
 import {
   BODY_NAMES,
   CAB_NAMES,
@@ -47,6 +47,8 @@ import {
   OSCILLATOR_SOUNDS,
   SPACE_NAMES,
   SPECTRAL_MODES,
+  TEXTURE_SOUNDS,
+  VOCAL_SOUNDS,
   VOICE_TYPES,
   defaultRegistry,
   editDistance,
@@ -216,6 +218,14 @@ type SoundKind = 'osc' | 'noise' | 'drum' | 'other';
 const OSC_SET: ReadonlySet<string> = new Set(OSCILLATOR_SOUNDS);
 const NOISE_SET: ReadonlySet<string> = new Set(NOISE_SOUNDS);
 const DRUM_SET: ReadonlySet<string> = new Set(DRUM_SOUNDS);
+/** Every built-in kit sound; a sample bound to one of these names replaces it (TS-90). */
+const KIT_SOUNDS: ReadonlySet<string> = new Set([
+  ...OSCILLATOR_SOUNDS,
+  ...NOISE_SOUNDS,
+  ...DRUM_SOUNDS,
+  ...VOCAL_SOUNDS,
+  ...TEXTURE_SOUNDS,
+]);
 function soundKind(name: string): SoundKind {
   if (OSC_SET.has(name)) return 'osc';
   if (NOISE_SET.has(name)) return 'noise';
@@ -491,6 +501,7 @@ class Lowerer {
         this.binding(st);
         continue;
       }
+      this.outputLabel = undefined;
       if (st.k === 'expr' && this.directive(st.expr)) continue;
       const named = st.k === 'output' && st.label !== '$';
       const label = named ? st.label : chainLabel(st.expr);
@@ -927,6 +938,9 @@ class Lowerer {
   /** Resource diagnostics for every sample name used by an `s` control (idea.md §11.2). */
   checkResources(cat: SoundCatalog): void {
     const seen = new Set<number>();
+    // Declared samples are known; names a bank may provide are only known after loading (TS-91).
+    const declared = new Set(this.resources.flatMap((r) => (r.kind === 'wav' && r.name ? [r.name] : [])));
+    const banks = this.resources.some((r) => r.kind === 'bank');
     const walk = (n: PatternNode, inS: boolean): void => {
       switch (n.kind) {
         case 'mini': {
@@ -938,7 +952,9 @@ class Lowerer {
             if (seen.has(start)) continue;
             seen.add(start);
             const range = { start, end: n.textOffset + a.range[1] };
+            if (declared.has(a.text)) continue;
             const r = cat.resolve(a.text);
+            if (banks && r.status !== 'ok') continue;
             if (r.status === 'fallback')
               this.diag(
                 'I-RES-FALLBACK',
@@ -1383,18 +1399,8 @@ class Lowerer {
     const hit = this.reg.lookup(e.callee.name);
     if (hit?.entry.category !== 'directive') return false;
     const id = hit.entry.id;
-    if (id === 'samples') {
-      const a = e.args[0];
-      if (a?.k === 'str') {
-        this.resources.push({ kind: 'samples', spec: a.value, range: this.sr(a.range) });
-        this.diag(
-          'I-RES-DECLARED',
-          'info',
-          'Sample bank declared. It is fetched only if the host allows it.',
-          e.range,
-          'none',
-        );
-      }
+    if (id === 'samples' || id === 'sample') {
+      this.sampleDirective(id, e);
       return true;
     }
     const a = e.args[0];
@@ -1415,6 +1421,94 @@ class Lowerer {
     cps = clamped;
     this.cps = cps;
     return true;
+  }
+  /** `sample(name, path)` and `samples(path)` (docs/samples.md §1, TS-90). Nothing is fetched here. */
+  private sampleDirective(id: 'sample' | 'samples', e: Extract<Expr, { k: 'call' }>): void {
+    const strArg = (i: number): Extract<Expr, { k: 'str' }> | undefined => {
+      const a = e.args[i];
+      return a?.k === 'str' ? a : undefined;
+    };
+    const badPath = (a: Extract<Expr, { k: 'str' }>, what: string): void => {
+      this.diag(
+        'E-RES-PATH',
+        'error',
+        `\`${a.value}\` is not a ${what}. Use a relative path inside the sample collection, such as "./drums/kick.wav"; absolute paths, URLs and ".." are not allowed.`,
+        a.range,
+        'none',
+      );
+    };
+    if (id === 'samples') {
+      const a = strArg(0);
+      if (!a) {
+        this.diag('E-ARG-TYPE', 'error', '`samples` needs a constant string.', e.range, 'none');
+        return;
+      }
+      if (a.value.includes(':')) {
+        // A remote bank, declared but never fetched (X-31, TS-90).
+        this.resources.push({ kind: 'samples', spec: a.value, range: this.sr(a.range) });
+        this.diag(
+          'I-RES-DECLARED',
+          'info',
+          'Sample bank declared. It is fetched only if the host allows it.',
+          e.range,
+          'none',
+        );
+        return;
+      }
+      if (!isBankPath(a.value)) {
+        badPath(a, 'bank path (a directory ending in "/" or a ".json" manifest)');
+        return;
+      }
+      this.resources.push({ kind: 'bank', spec: a.value, range: this.sr(a.range) });
+      this.diag(
+        'I-RES-DECLARED',
+        'info',
+        'Sample bank declared. The host loads it from its sample collection.',
+        e.range,
+        'none',
+      );
+      return;
+    }
+    const n = strArg(0);
+    const p = strArg(1);
+    if (!n || !p) {
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        '`sample` needs a constant name and a constant path, as in sample("kick", "./drums/kick.wav").',
+        e.range,
+        'none',
+      );
+      return;
+    }
+    if (!isSoundName(n.value)) {
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        `\`${n.value}\` is not a sound name: start with a letter, then use letters, digits, "_" or "-".`,
+        n.range,
+        'none',
+      );
+      return;
+    }
+    if (!isWavPath(p.value)) {
+      badPath(p, 'path to a .wav file');
+      return;
+    }
+    if (this.resources.some((r) => r.kind === 'wav' && r.name === n.value)) {
+      this.diag('E-NAME-DUP', 'error', `The sample \`${n.value}\` is already declared.`, n.range, 'none');
+      return;
+    }
+    if (KIT_SOUNDS.has(n.value)) {
+      this.diag(
+        'I-RES-OVERRIDE',
+        'info',
+        `The sample \`${n.value}\` replaces the built-in kit sound of the same name in this document.`,
+        n.range,
+        'none',
+      );
+    }
+    this.resources.push({ kind: 'wav', name: n.value, spec: p.value, range: this.sr(p.range) });
   }
 
   // ---- constants

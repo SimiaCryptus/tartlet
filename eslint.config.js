@@ -121,7 +121,8 @@ export default tseslint.config(
   deps('check', ['syntax', 'mini', 'ir', 'registry', 'random', 'time']),
   deps('core', ['time', 'mini', 'ir', 'registry', 'random']),
   deps('resources', ['ir']),
+  deps('samples', ['ir']),
   deps('schedule', ['core', 'time']),
-  deps('webaudio', ['schedule', 'time', 'ir', 'resources', 'registry']),
+  deps('webaudio', ['schedule', 'time', 'ir', 'resources', 'registry', 'samples']),
   deps('worker', ['check', 'core', 'ir', 'time']),
 );

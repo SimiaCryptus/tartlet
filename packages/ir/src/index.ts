@@ -120,8 +120,14 @@ export interface Output {
   readonly expr: PatternNode;
   readonly status: 'ok' | 'muted-error' | 'muted-user';
 }
+/**
+ * A declared resource. `samples` is a remote bank that is never fetched; `wav` binds one sample
+ * file to `name`; `bank` names a manifest in the host's sample collection (TS-90). For `wav`
+ * and `bank`, `spec` is a relative path that follows `isSamplePath`.
+ */
 export interface ResourceDecl {
-  readonly kind: 'samples';
+  readonly kind: 'samples' | 'wav' | 'bank';
+  readonly name?: string;
   readonly spec: string;
   readonly range: SourceRange;
 }
@@ -193,3 +199,4 @@ export type Pitch =
   | { readonly kind: 'midi'; readonly value: number }
   | { readonly kind: 'name'; readonly letter: string; readonly accidental: number; readonly octave: number };
 export * from './codec';
+export * from './paths';

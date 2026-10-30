@@ -16,6 +16,7 @@
     "@tartlet/registry": "workspace:*",
     "@tartlet/check": "workspace:*",
     "@tartlet/core": "workspace:*",
-    "@tartlet/resources": "workspace:*"
+    "@tartlet/resources": "workspace:*",
+    "@tartlet/samples": "workspace:*"
   }
 }

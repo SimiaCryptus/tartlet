@@ -51,4 +51,13 @@ describe('IR ingestion (Z-10)', () => {
       deep = { kind: 'combine', id: `c${String(i)}`, range: R, type: T, op: 'stack', children: [deep] };
     expect(() => decodeProgram(base({ outputs: [{ id: 'o', expr: deep, status: 'ok' }] }))).toThrow(/too deep/);
   });
+  it('rejects hostile sample paths (TS-90)', () => {
+    const res = (spec: string, kind = 'wav') => base({ resources: [{ kind, name: 'kick', spec, range: R }] });
+    expect(decodeProgram(res('./drums/kick.wav')).resources[0]?.spec).toBe('./drums/kick.wav');
+    for (const bad of ['../x.wav', '/abs/x.wav', 'https://e.com/x.wav', 'a//b.wav', 'kick.mp3']) {
+      expect(() => decodeProgram(res(bad))).toThrow();
+    }
+    expect(() => decodeProgram(res('keys.wav', 'bank'))).toThrow();
+    expect(decodeProgram(res('keys/', 'bank')).resources[0]?.kind).toBe('bank');
+  });
 });

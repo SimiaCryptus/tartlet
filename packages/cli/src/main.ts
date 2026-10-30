@@ -8,6 +8,7 @@ import { encodeProgram } from '@tartlet/ir';
 import { systemPrompt } from '@tartlet/registry';
 import { parseDecimal, rat, toJson } from '@tartlet/time';
 import { classify, extractCode, summarise, type Classification } from './corpus';
+import { importSamples, listCollection, verifyCollection } from './samples';
 
 const [cmd, file, ...rest] = process.argv.slice(2);
 const opts = { documentId: 'cli', blobIndex: '0' };
@@ -83,7 +84,50 @@ switch (cmd) {
   case 'prompt':
     console.log(systemPrompt());
     break;
+  case 'samples': {
+    const target = rest[0];
+    const flag = (n: string): string | undefined => {
+      const i = rest.indexOf(`--${n}`);
+      return i >= 0 ? rest[i + 1] : undefined;
+    };
+    if (file === 'import') {
+      const into = flag('into');
+      if (!target || !into) {
+        console.error(
+          'usage: tartlet samples import <dir> --into <collection> [--bank b] [--license spdx] [--root note]',
+        );
+        process.exit(2);
+      }
+      const bank = flag('bank');
+      const license = flag('license');
+      const root = flag('root');
+      const lines = importSamples(target, {
+        into,
+        ...(bank !== undefined ? { bank } : {}),
+        ...(license !== undefined ? { license } : {}),
+        ...(root !== undefined ? { root } : {}),
+      });
+      for (const line of lines) console.log(line);
+    } else if (file === 'verify' && target) {
+      const problems = verifyCollection(target);
+      for (const p of problems) console.log(p);
+      console.log(problems.length === 0 ? 'collection ok' : `${String(problems.length)} problem(s)`);
+      process.exitCode = problems.length === 0 ? 0 : 1;
+    } else if (file === 'list' && target) {
+      const rows = listCollection(target);
+      if (rest.includes('--json')) console.log(JSON.stringify(rows, null, 2));
+      else
+        for (const r of rows) {
+          const roots = r.roots.length > 0 ? ` roots ${r.roots.join(',')}` : '';
+          console.log(`${r.bank}/${r.name}  ${r.kind}  ${String(r.takes)} take(s)${roots}  ${r.license}`);
+        }
+    } else {
+      console.error('usage: tartlet samples <import|verify|list> <dir> [...]');
+      process.exitCode = 2;
+    }
+    break;
+  }
   default:
-    console.error('usage: tartlet <check|ir|events|sanity|corpus|prompt> [file] [...]');
+    console.error('usage: tartlet <check|ir|events|sanity|corpus|prompt|samples> [file] [...]');
     process.exitCode = 2;
 }

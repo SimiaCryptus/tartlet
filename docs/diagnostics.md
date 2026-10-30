@@ -156,3 +156,8 @@ Mini-notation errors mute the whole output.
 - `W-ARG-UNSUPPORTED` also covers `drive`, `bias` and `curvemix` without a curve (TS-89).
 - `I-DSP-ORBIT`: tracks on one orbit set different constant compressor settings; the latest
   onset wins. Benign and hidden from the repair payload (TS-87).
+- `E-RES-PATH`: a `sample` or `samples` path breaks the path grammar (absolute path, scheme, `..`,
+  wrong extension, non-ASCII). The declaration is ignored (TS-90).
+- `I-RES-OVERRIDE`: a declared sample replaces a built-in kit sound in this document.
+- `W-RES-FORMAT`, `W-RES-HASH`, `W-RES-MISSING` and `I-RES-LICENSE` are also reported by hosts
+  while loading samples. They depend on files, so they never change `check` results (TS-91).
