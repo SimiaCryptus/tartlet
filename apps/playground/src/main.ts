@@ -600,6 +600,10 @@ function loadAssistant(): void {
         references,
         keepAlbum,
         exportAlbum: exportAiAlbum,
+        onSketchChange(cb) {
+          player.addEventListener('diagnostics', cb);
+          editor.addEventListener('input', cb);
+        },
       });
     },
     () => {

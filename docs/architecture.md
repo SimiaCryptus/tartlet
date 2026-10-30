@@ -181,16 +181,18 @@ points:
   `hash(root, "seed", x)` below `.seed(x)` (TS-18, TS-28).
 - `?` and `|` in mini-notation also salt their draws with their string offset, so two of them
   in one string draw independently (TS-17, TS-30).
+
 ## Per-event seeds
+
 The audio adapter never rolls its own dice. When a voice needs variation, core adds a seed in
 [0, 1) to the event's controls, drawn from (scope, output id, `whole.begin`, sound name, …) at
 the output level, so fragments of one note agree and appending a method never changes it:
+
 - `vseed` on vocal sounds and events with `syl` (TS-44);
 - `iseed` on events with `icorr` (TS-64);
 - `tseed` on texture sounds and events with `grain` (TS-73, TS-75);
 - `dseed` on events with a `spectral` mode other than `none` (TS-80);
 - `rseed` on events of programs that declare samples, for round-robin take choice (TS-93).
-
 
 ## Checking and recovery
 
@@ -237,11 +239,14 @@ it. Muted outputs are not compiled. See [diagnostics.md](diagnostics.md).
   The general kit is synthesized: `bd sd hh oh cp rim lt mt ht cr rd`, plus `sine`,
   `square`, `triangle`, `sawtooth` and the noises `white`, `pink` and `brown`. Pure DSP
   helpers (envelopes, waves, curves, noise) live in `dsp.ts` and are unit-tested in Node.
+
 - The per-voice chain has grown with the extensions: equalisers, FIR, curves, body responses,
   formants, a spectral stage and a gate, in a fixed order documented in
   [dsp.md](dsp.md#where-new-stages-sit). Shared stages (reverb, delay, spectral, cabinet and
   compressor) are buses per `orbit`. Voices, textures and creatures are further kit sounds.
+
 ## Samples
+
 Samples are a host concern. The checker validates `sample` and `samples` paths and records them
 in `program.resources`; it never reads files. A host (the element, or a headless tool) loads
 them with `loadSamples` from `@tartlet/samples`, through a byte fetcher confined to its own

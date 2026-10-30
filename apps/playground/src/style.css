@@ -1546,6 +1546,58 @@ tartlet-player {
 .assistant-intro .brand-tag {
   margin-right: 4px;
 }
+/* `.assistant button` sets display, which would otherwise override the hidden attribute */
+.assistant [hidden] {
+  display: none !important;
+}
+.assistant-connection {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass);
+}
+.assistant-connection summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.assistant-connection[open] summary {
+  margin-bottom: 10px;
+}
+.assistant-connection .assistant-settings {
+  margin-bottom: 0;
+}
+.assistant-group {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.assistant-group-title {
+  margin: 0 0 8px;
+  font: 700 11px/1.2 var(--font-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.assistant-hint {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.assistant-group .assistant-settings {
+  margin-bottom: 8px;
+}
+.assistant-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.assistant-footer:not(:has(button:not([hidden]))) {
+  display: none;
+}
 .assistant-settings {
   display: flex;
   flex-wrap: wrap;

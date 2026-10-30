@@ -337,88 +337,109 @@
           data-hidden
         >
           <div class="panel-body">
-            <p class="assistant-intro">
-              <span class="brand-tag">optional</span>
-              Generate or edit sketches with a language model through a
-              <a href="https://hosted.cognotik.com" target="_blank" rel="noopener noreferrer">Cognotik</a> server. Sign
-              in there in this browser, or paste an API key. Nothing is sent until you press a button.
-              <em>Vary</em> breeds mutated versions of the current sketch; <em>Recombine</em> crosses it with another
-              sketch. Each candidate is tested in the player and the fittest is loaded. <em>Build album</em> plans a
-              whole album from your prompt, guided by the sketches you rated and commented on.
-            </p>
-            <div class="assistant-settings">
-              <label class="field">
-                <span>Server</span>
-                <input id="ai-url" type="url" autocomplete="off" spellcheck="false" />
-              </label>
-              <label class="field">
-                <span>API key</span>
-                <input id="ai-key" type="password" placeholder="optional" autocomplete="off" spellcheck="false" />
-              </label>
-              <button id="ai-connect" type="button">Connect</button>
+            <details id="ai-connection" class="assistant-connection" open>
+              <summary id="ai-connection-summary">Connect to a Cognotik server</summary>
+              <p class="assistant-intro">
+                <span class="brand-tag">optional</span>
+                Write and edit sketches with a language model through a
+                <a href="https://hosted.cognotik.com" target="_blank" rel="noopener noreferrer">Cognotik</a> server.
+                Sign in there in this browser, or paste an API key. Nothing is sent until you press a button.
+              </p>
+              <div class="assistant-settings">
+                <label class="field">
+                  <span>Server</span>
+                  <input id="ai-url" type="url" autocomplete="off" spellcheck="false" />
+                </label>
+                <label class="field">
+                  <span>API key</span>
+                  <input id="ai-key" type="password" placeholder="optional" autocomplete="off" spellcheck="false" />
+                </label>
+                <button id="ai-connect" type="button" class="primary">Connect</button>
+              </div>
+            </details>
+            <div id="ai-work" hidden>
               <label class="field field-wide">
                 <span>Model</span>
                 <select id="ai-model" disabled>
                   <option value="">Connect to load models</option>
                 </select>
               </label>
-            </div>
-            <textarea
-              id="ai-prompt"
-              rows="3"
-              aria-label="Describe the music"
-              placeholder="e.g. a slow lo-fi beat in F minor with a wobbly bass, or: make the hats busier"
-            ></textarea>
-            <div class="assistant-settings assistant-evolve">
-              <label class="field">
-                <span>Candidates</span>
-                <select id="ai-count">
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3" selected>3</option>
-                  <option value="4">4</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Recombine with</span>
-                <select id="ai-partner">
-                  <option value="">Random album sketch</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Album tracks</span>
-                <select id="ai-album-size">
-                  <option value="3">3</option>
-                  <option value="4" selected>4</option>
-                  <option value="6">6</option>
-                  <option value="8">8</option>
-                </select>
-              </label>
-            </div>
-            <div class="assistant-actions">
-              <button id="ai-generate" type="button" class="primary">Generate new</button>
-              <button id="ai-edit" type="button" title="Ctrl+Enter in the prompt">Edit current</button>
-              <button id="ai-fix" type="button">Fix issues</button>
-              <button id="ai-vary" type="button" title="Breed mutated versions of the current sketch">Vary</button>
-              <button id="ai-recombine" type="button" title="Cross the current sketch with another sketch">
-                Recombine
-              </button>
-              <button id="ai-album" type="button" title="Plan and write a whole album, guided by your ratings">
-                Build album
-              </button>
-              <button id="ai-undo" type="button">Undo AI change</button>
-              <button id="ai-cancel" type="button" hidden>Cancel</button>
-            </div>
-            <div id="ai-album-wrap" class="assistant-album" hidden>
-              <p id="ai-album-title" class="assistant-candidates-head"></p>
-              <div class="assistant-actions">
-                <button id="ai-album-save" type="button" class="primary">Save album to library</button>
-                <button id="ai-album-download" type="button">Download album</button>
+
+              <section class="assistant-group">
+                <h3 class="assistant-group-title">Write</h3>
+                <textarea id="ai-prompt" rows="3" aria-label="Describe the music"></textarea>
+                <div class="assistant-actions">
+                  <button id="ai-generate" type="button" class="primary">Generate new</button>
+                  <button id="ai-edit" type="button" title="Ctrl+Enter in the prompt">Edit current</button>
+                  <button id="ai-fix" type="button" title="Ask the model to fix the problems the player reports">
+                    Fix issues
+                  </button>
+                </div>
+              </section>
+
+              <section id="ai-evolve-group" class="assistant-group">
+                <h3 class="assistant-group-title">Evolve the current sketch</h3>
+                <p class="assistant-hint">
+                  Breeds several candidates, tests each in the player and loads the fittest. The prompt, if any, steers
+                  them.
+                </p>
+                <div class="assistant-settings">
+                  <label class="field">
+                    <span>Candidates</span>
+                    <select id="ai-count">
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3" selected>3</option>
+                      <option value="4">4</option>
+                    </select>
+                  </label>
+                  <button id="ai-vary" type="button" title="Breed mutated versions of the current sketch">Vary</button>
+                </div>
+                <div id="ai-recombine-row" class="assistant-settings">
+                  <label class="field">
+                    <span>Cross with</span>
+                    <select id="ai-partner">
+                      <option value="">Random album sketch</option>
+                    </select>
+                  </label>
+                  <button id="ai-recombine" type="button" title="Cross the current sketch with another sketch">
+                    Recombine
+                  </button>
+                </div>
+              </section>
+
+              <section class="assistant-group">
+                <h3 class="assistant-group-title">Album</h3>
+                <p class="assistant-hint">Plans and writes a whole album from the prompt, guided by your ratings.</p>
+                <div class="assistant-settings">
+                  <label class="field">
+                    <span>Tracks</span>
+                    <select id="ai-album-size">
+                      <option value="3">3</option>
+                      <option value="4" selected>4</option>
+                      <option value="6">6</option>
+                      <option value="8">8</option>
+                    </select>
+                  </label>
+                  <button id="ai-album" type="button">Build album</button>
+                </div>
+              </section>
+
+              <div id="ai-album-wrap" class="assistant-album" hidden>
+                <p id="ai-album-title" class="assistant-candidates-head"></p>
+                <div class="assistant-actions">
+                  <button id="ai-album-save" type="button" class="primary">Save album to library</button>
+                  <button id="ai-album-download" type="button">Download album</button>
+                </div>
+              </div>
+              <div id="ai-candidates-wrap" class="assistant-candidates" hidden>
+                <p class="assistant-candidates-head">Candidates · click one to audition it</p>
+                <ul id="ai-candidates" class="library-list" aria-label="AI candidates"></ul>
               </div>
             </div>
-            <div id="ai-candidates-wrap" class="assistant-candidates" hidden>
-              <p class="assistant-candidates-head">Candidates · click one to audition it</p>
-              <ul id="ai-candidates" class="library-list" aria-label="AI candidates"></ul>
+            <div class="assistant-footer">
+              <button id="ai-cancel" type="button" hidden>Cancel</button>
+              <button id="ai-undo" type="button" hidden>Undo AI change</button>
             </div>
             <div class="assistant-status">
               <span id="ai-status" role="status" aria-live="polite"></span>

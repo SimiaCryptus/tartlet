@@ -154,7 +154,7 @@ Everything here is pure or takes a host-supplied byte fetcher; the core path nev
 - Manifests: `parseManifest`, `parseManifestText`, `toManifestJson`, `ManifestError` and
   `MANIFEST_VERSION`.
 - Interpreters: `planImpulse(count, { n, speed })`, `planNote(zones, { note, velocity, speed,
-  rseed })`, `speedRate`, `MAX_TRANSPOSE` and the General MIDI map `GM_DRUMS`.
+rseed })`, `speedRate`, `MAX_TRANSPOSE` and the General MIDI map `GM_DRUMS`.
 - Host loading: `loadSamples(resources, fetchBytes, opts?)` returns
   `{ library, diagnostics }` and never throws for bad files. `SampleLibrary` holds decoded
   entries and the names still loading. `sampleResources` filters `wav` and `bank`

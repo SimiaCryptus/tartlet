@@ -5,7 +5,6 @@ depends on a strict clean-room process.
 AI coding agents should also read [`AGENTS.md`](AGENTS.md), which condenses these rules and the
 project conventions into one checklist.
 
-
 ## Clean-room rules (mandatory)
 
 The full policy is in `idea.md` §4 and [`CLEAN_ROOM.md`](CLEAN_ROOM.md). In short:

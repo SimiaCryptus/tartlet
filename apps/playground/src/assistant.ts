@@ -74,6 +74,8 @@ export interface AssistantHost {
   keepAlbum(name: string, description: string, tracks: readonly AlbumTrack[]): number;
   /** Downloads an album as a JSON file. */
   exportAlbum(name: string, description: string, tracks: readonly AlbumTrack[]): void;
+  /** Calls `cb` whenever the sketch or its problems change, so the panel can show only applicable actions. */
+  onSketchChange?(cb: () => void): void;
 }
 
 type Kind = 'generate' | 'edit' | 'fix';
@@ -567,6 +569,11 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
   const candidatesEl = q('#ai-candidates', HTMLUListElement);
   const statusEl = q('#ai-status', HTMLElement);
   const usageEl = q('#ai-usage', HTMLElement);
+  const connectionEl = q('#ai-connection', HTMLDetailsElement);
+  const connectionSummary = q('#ai-connection-summary', HTMLElement);
+  const workEl = q('#ai-work', HTMLElement);
+  const evolveGroup = q('#ai-evolve-group', HTMLElement);
+  const recombineRow = q('#ai-recombine-row', HTMLElement);
 
   const settings = loadSettings();
   urlInput.value = settings.baseUrl;
@@ -585,9 +592,26 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
     statusEl.textContent = msg;
     statusEl.classList.toggle('error', isError);
   }
+  /** Shows only the actions that make sense for the sketch in the editor. */
+  function refreshContext(): void {
+    const source = host.getSource();
+    const hasSource = source.trim() !== '';
+    const issues = host.problems().length;
+    editBtn.hidden = !hasSource;
+    fixBtn.hidden = issues === 0;
+    fixBtn.textContent = `Fix ${plural(issues, 'issue')}`;
+    evolveGroup.hidden = !hasSource;
+    recombineRow.hidden = !host.pool().some((s) => s.source.trim() && s.source !== source);
+    generateBtn.classList.toggle('primary', !hasSource);
+    editBtn.classList.toggle('primary', hasSource);
+    promptInput.placeholder = hasSource
+      ? 'Describe a change to the current sketch (Ctrl+Enter), or a new sketch to generate'
+      : 'Describe the music, e.g. a slow lo-fi beat in F minor with a wobbly bass';
+  }
 
   function updateButtons(): void {
     const ready = client !== null && modelSelect.value !== '' && busy === null;
+    workEl.hidden = client === null || models.length === 0;
     generateBtn.disabled = !ready;
     editBtn.disabled = !ready;
     fixBtn.disabled = !ready;
@@ -597,10 +621,12 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
     countSelect.disabled = busy !== null;
     partnerSelect.disabled = busy !== null;
     albumSizeSelect.disabled = busy !== null;
-    undoBtn.disabled = busy !== null || history.length === 0;
+    undoBtn.hidden = history.length === 0;
+    undoBtn.disabled = busy !== null;
     connectBtn.disabled = busy !== null;
     cancelBtn.hidden = busy === null;
     modelSelect.disabled = busy !== null || models.length === 0;
+    refreshContext();
     renderCandidates();
     renderDraft();
   }
@@ -650,6 +676,13 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
     const chosen = saved ?? chooseDefaultModel(models);
     if (chosen?.modelId) modelSelect.value = chosen.modelId;
   }
+  function serverLabel(): string {
+    try {
+      return new URL(settings.baseUrl).host;
+    } catch {
+      return settings.baseUrl || 'this site';
+    }
+  }
 
   async function connect(): Promise<void> {
     persist();
@@ -661,6 +694,7 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
     });
     models = [];
     setStatus('Loading models…');
+    connectionSummary.textContent = 'Connecting…';
     updateButtons();
     try {
       const all = await client.listModels();
@@ -669,10 +703,14 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
       if (models.length === 0) throw new CognotikError('The server returned no usable models.');
       populateModels();
       persist();
-      setStatus(`Connected · ${String(models.length)} models available`);
+      connectionSummary.textContent = `Connected to ${serverLabel()} · ${plural(models.length, 'model')}`;
+      connectionEl.open = false;
+      setStatus('Connected. Describe what you want, then pick an action.');
     } catch (e) {
       client = null;
       modelSelect.replaceChildren(new Option('Connect to load models', ''));
+      connectionSummary.textContent = 'Connect to a Cognotik server';
+      connectionEl.open = true;
       setStatus(describeError(e), true);
     }
     updateButtons();
@@ -1159,6 +1197,8 @@ export function initAssistant(root: HTMLElement, host: AssistantHost): void {
   albumDownloadBtn.addEventListener('click', downloadDraft);
   partnerSelect.addEventListener('focus', fillPartners);
   root.addEventListener('panelshow', fillPartners);
+  root.addEventListener('panelshow', refreshContext);
+  host.onSketchChange?.(refreshContext);
   cancelBtn.addEventListener('click', () => {
     busy?.abort();
   });
