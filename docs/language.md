@@ -2,7 +2,10 @@
 
 This page describes what Tartlet accepts **today**. The registry
 (`packages/registry/src/registry.ts`) is authoritative. `npx tsx packages/cli/src/main.ts prompt`
-prints a summary generated from it. All prose here is original.
+prints a short summary generated from it. All prose here is original.
+
+Names marked "Tartlet extension" are not part of the Strudel language family. Most extension
+names are registry level L3, so they are left out of the generated system prompt.
 
 ## Program structure
 
@@ -18,15 +21,22 @@ hats: s('hh*8').gain(0.5); // named output; a duplicate name is E-NAME-DUP
 s('cp').label('claps'); // a bare expression is also an output (TS-16)
 ```
 
-Directives:
+### Directives
 
-- `setcps(n)` sets the tempo in cycles per second.
-- `setcpm(n)` sets the tempo in cycles per minute, so the cps is `n / 60`.
-- `samples("…")` declares a sample bank. It is recorded in `program.resources`, but nothing
-  fetches it yet.
+- `setcps(n)` sets the tempo in cycles per second. `setcpm(n)` sets it in cycles per minute,
+  so the cps is `n / 60`. The argument must be a constant. It is clamped to [0.001, 100] cps.
+  When several tempo directives appear, the last one wins (TS-7). The default is 0.5 cps.
+- `samples("keys/")` or `samples("strings.json")` declares a sample bank from the host's sample
+  collection: a directory ending in `/` (which holds a `manifest.json`) or a `.json` manifest
+  (TS-90). A spec containing `:`, such as `samples("github:user/repo")`, is recorded as a
+  remote bank and never fetched (X-31).
+- `sample("kick", "./drums/kick.wav")` binds one WAV file to a sound name (Tartlet extension).
+  Sound names start with a letter, then letters, digits, `_` or `-`. A name that matches a kit
+  sound replaces it in this document (`I-RES-OVERRIDE`).
 
-The tempo argument must be a constant. It is clamped to [0.001, 100] cps. When several tempo
-directives appear, the last one wins (TS-7). The default is 0.5 cps.
+Sample paths are relative to the host's root, ASCII only and at most 256 bytes. Absolute paths,
+URL schemes, backslashes, empty segments and `..` are rejected with `E-RES-PATH`. The checker
+never reads files: hosts load samples (see [embedding.md](embedding.md#samples)).
 
 ## Values and expressions
 
@@ -54,12 +64,13 @@ Rejected constructs, with their diagnostics:
 - `__proto__`, `constructor` and `prototype`: `E-LX-PROTO`.
 - Assignment: `E-LX-ASSIGN`.
 - Spreading anything other than an array literal: `E-LX-SPREAD`.
+- Calling a parameter or a pattern binding: `E-LX-CALL`.
 - Object literals: `E-NOT-YET` (TS-23).
 
 ## Functions
 
-A `const` binding whose value is a lambda names a function (TS-48). Its parameters may have
-constant defaults.
+A `const` binding whose value is a lambda names a function (TS-48, Tartlet extension). Its
+parameters may have constant defaults.
 
 ```js
 const chop = (x, n = 2) => x.ply(n).gain(0.8);
@@ -74,9 +85,13 @@ $: beat(5); // as a pattern builder
 - Functions are expanded inline when the document is checked. Nothing runs as JavaScript.
 - A function can only use names declared before it, so recursion is impossible.
 - A parameter can be a function. Call it with `x.apply(f)`, not `f(x)` (`E-LX-CALL`).
-- Names may not shadow built-in names (`E-NAME-SHADOW`).
+- Names may not shadow built-in names (`E-NAME-SHADOW`). This includes every registry name,
+  extension controls such as `peak`, `gate`, `body` and `space`, and library names such as
+  `swing` or `run`.
+- An unused parameter gives `W-FN-UNUSED`.
 - Errors inside a body are reported once at the definition, and every track that calls it is
-  muted. Problems caused by one call are reported at that call.
+  muted with `E-NAME-ERRORED`. Problems caused by one call are reported at that call.
+- Expansion is capped by `maxExpandedNodes` (10 000 by default, `E-LIMIT-EXPAND`).
 
 ## Mini-notation
 
@@ -109,68 +124,152 @@ Euclidean step counts are capped at 1024. Nesting is capped at 32 levels.
 
 ## Constructors
 
-- `s(pat)` (alias `sound`) chooses the sound. Atoms are sample names, and `name:i` sets `n`.
+- `s(pat)` (alias `sound`) chooses the sound. Atoms are sound names, and `name:i` sets `n`.
 - `note(pat)` takes note names or MIDI numbers and produces `note: { kind: 'midi', value }`.
 - `n(pat)` and every other control can also start a pattern.
 - `stack(...)` layers its arguments. `cat(...)` / `slowcat(...)` play one argument per cycle.
   `seq(...)` / `fastcat(...)` squeeze all arguments into each cycle.
+- `run(n)` counts 0 … n−1 across each cycle (L3).
 - `silence` is a pattern with no events.
 - Signals produce values in [0, 1]:
   - `sine` and `cosine`;
   - `saw` and `isaw`;
   - `tri` and `square`;
-  - `rand`, which is seeded.
+  - `rand`, which is seeded;
+  - `perlin`, smooth seeded noise (L3);
+  - `irand(n)`, seeded whole numbers below n (L3).
 
-  A receiver samples a signal at its own onsets (TS-33).
+  A receiver samples a signal at its own onsets (TS-33). Use `.segment(n)` to turn a signal
+  into n steps per cycle.
 
 ## Controls
 
-Every control accepts a constant or a pattern. The first name listed is canonical.
+Every control accepts a constant or a pattern. The first name listed is canonical. A constant
+outside a control's range gives `W-RANGE`: the IR keeps the authored value, and the audio
+adapter clamps it.
 
 - Sound and pitch: `s` / `sound`, `note`, `n`, `freq`.
 - Level and position: `gain` (0–1.5), `velocity` (0–1), `pan` (0 left, 1 right).
-- Samples: `speed`.
-- Filters:
-  - `cutoff` / `lpf` (20–20000 Hz);
-  - `resonance` / `lpq`;
-  - `hcutoff` / `hpf`.
-- Envelope: `attack`, `decay`, `sustain`, `release`.
+- Samples: `speed` (its magnitude, 1/8 to 8; negative values are not reversed yet).
+- Filters: `cutoff` / `lpf` (20–20000 Hz), `resonance` / `lpq`, `hcutoff` / `hpf`.
+- Envelope: `attack`, `decay`, `sustain` (defaults to 1, so `decay` alone changes nothing),
+  `release`.
 - Effects:
-  - `room` (compatibility alias `reverb`) and `size`;
-  - `delay`, `delaytime`, and `delayfeedback` (compatibility alias `feedback`);
-  - `shape`, `crush`, `vowel`;
-  - `orbit`.
-- Headphones (Tartlet extension, TS-40):
-  - `binaural` (0–40 Hz): an oscillator voice plays one tone per ear, detuned by ±half the
-    value, so headphones hear a beat at that rate. Binaural voices ignore panning.
-  - `azimuth` (−180–180°, 0 ahead, 90 right), `elevation` (−90–90°) and `distance`
-    (0.5–50, 1 is the reference): any of them places the sound with HRTF instead of `pan`.
-- Synthesis (Tartlet extensions, TS-42):
-  - filter envelope: `lpenv` (octaves, −8–8), `lpattack`, `lpdecay`, `lpsustain`,
-    `lprelease`;
-  - pitch envelope: `penv` (semitones) and `pdecay` (seconds);
-  - `vib` (alias `vibrato`) and `vibdepth`; `trem` (alias `tremolo`) and `tremdepth`;
-  - `fm` / `fmi` (index) and `fmh` (modulator ratio);
-  - `pw`: pulse width of square voices;
-  - `unison` (1–8 copies) and `detune` (total spread in cents);
-  - `timbre`: `organ`, `hollow`, `bright`, `soft`, `reed` or `glass`;
-  - `mono` (line number) and `glide` (alias `portamento`, seconds): a new note on a mono line
-    ends the previous one, and `glide` slides into it.
-- Voices (Tartlet extensions, TS-43 to TS-47; see [vocals.md](vocals.md)):
-  - `syl`: a phonetic syllable such as `la`, `shee` or `mi_a_u`. A lone `_` holds the vowel.
-    The alphabet has the vowels `a e i o u ae ah aw eh er ih oh oo uh` (and `ee` for `i`) and
-    the consonants `p t k b d g f s sh h v z th m n ng l r w y`.
-  - `vowel`, `voicetype` (bass, tenor, alto, soprano, child), `formant` (semitones), `ring`
-    and `vglide` (seconds, on a mono line);
-  - `breath`, `effort` (defaults to `velocity`), `jitter`, `shimmer`, `scoop`, `vibdel` and
-    `fry` on voices; `unison`, `scatter` and `width` on `choir`;
-  - `talk`: how strongly a vowel or syllable shapes a non-voice sound. `overtone`: boosts one
-    harmonic (4–16).
+  - `room` (compatibility alias `reverb`) and `size`: a convolution reverb shared per `orbit`;
+  - `delay`, `delaytime` (seconds) and `delayfeedback` (compatibility alias `feedback`): a
+    feedback delay shared per `orbit`;
+  - `shape`, `crush` and `vowel`;
+  - `orbit` (0–15).
+- Note length and timing (L3, TS-59): `legato` (alias `clip`) scales how long a note sounds;
+  `nudge` moves it by a few seconds of real time.
 
-A constant outside a control's range gives `W-RANGE`. The IR keeps the authored value, and the
-audio adapter clamps it. Every control is audible (TS-41). `n` only selects a scale degree:
-the general kit has one take per sound, so sample variants do not change the sound yet.
-`room` and `delay` send to reverb and delay buses shared per `orbit`; `delaytime` is in seconds.
+### Synthesis (Tartlet extensions, TS-41, TS-42)
+
+- Noise sounds: `white`, `pink`, `brown`.
+- Filter envelope: `lpenv` (octaves, −8–8), `lpattack`, `lpdecay`, `lpsustain`, `lprelease`.
+- Pitch envelope: `penv` (semitones) and `pdecay` (seconds).
+- `vib` (alias `vibrato`) and `vibdepth`; `trem` (alias `tremolo`) and `tremdepth`.
+- `fm` / `fmi` (index) and `fmh` (modulator ratio).
+- `pw`: pulse width of square voices.
+- `unison` (1–8 copies on oscillators) and `detune` (total spread in cents).
+- `timbre`: `organ`, `hollow`, `bright`, `soft`, `reed` or `glass`.
+- `mono` (line number) and `glide` (alias `portamento`, seconds): a new note on a mono line
+  ends the previous one, and `glide` slides into it. On drums, `mono` acts as a choke group.
+
+### Voices (Tartlet extensions, TS-43 to TS-47; see [vocals.md](vocals.md))
+
+- Sounds: `voice`, `aah`, `ooh`, `hum`, `whisper`, `choir`.
+- `syl`: a phonetic syllable such as `la`, `shee` or `mi_a_u`. A lone `_` holds the vowel. The
+  alphabet has the vowels `a e i o u ae ah aw eh er ih oh oo uh` (and `ee` for `i`) and the
+  consonants `p t k b d g f s sh h v z th m n ng l r w y`. It is a singing alphabet, not
+  spelling.
+- `vowel`, `voicetype` (bass, tenor, alto, soprano, child), `formant` (semitones), `ring` and
+  `vglide` (seconds, on a mono line).
+- On voices: `breath`, `effort` (defaults to `velocity`), `jitter`, `shimmer`, `scoop`,
+  `vibdel` and `fry`. On `choir`: `unison` (up to 16), `scatter` and `width`.
+- `talk`: how strongly a vowel or syllable shapes a non-voice sound. `overtone`: boosts one
+  harmonic (4–16).
+
+### Headphones (Tartlet extensions, TS-40, TS-62, TS-64 to TS-67; see [binaural.md](binaural.md))
+
+- `binaural` (0–40 Hz): an oscillator voice plays one tone per ear, detuned by ±half the value,
+  so headphones hear a beat at that rate.
+- `azimuth` (−180–180°, 0 ahead, 90 right), `elevation` (−90–90°) and `distance` (0.5–50, 1 is
+  the reference): any of them places the sound with HRTF instead of `pan`.
+- Per-ear controls: `earsh` (−100–100 cents), `itd` (−40–40 ms), `ild` (−12–12 dB), `iphase`
+  (0–180°, oscillators only) and `earswap` (0 or 1).
+- `lcutoff`, `rcutoff`, `lhcutoff`, `rhcutoff`: filters on one ear only, in hertz.
+- `earsplit`: `harmonics` (oscillators), `bands` or `none`; `splitfreq` sets the crossover for
+  `bands`.
+- `icorr` (0–1, noise only): how alike the two ears are.
+- `dichotic` (100–2000 Hz, noise only) and `dichoticq` (1–50): a faint pitch heard only between
+  the ears.
+- `isochronic` (0–40 Hz) and `isodepth` (0–1): loudness pulses, also heard on speakers.
+- `irate` (0–10 Hz, oscillators only): rotates the phase between the ears.
+
+Two-ear voices (`binaural`, `earsh`, `iphase`, `earsplit("harmonics")`, `icorr` below 1,
+`dichotic`) ignore `pan` and HRTF placement. A constant pulse rate between 3 and 30 Hz
+(`binaural`, `isochronic` or `irate`) gives `I-EXT-PULSE`, and hosts may warn before playback.
+
+### Space and textures (Tartlet extensions, TS-69 to TS-76)
+
+- `space`: `room`, `hall`, `plate`, `church` or `outdoor`. It picks the reverb character for
+  the `orbit`; `room` and `size` still set the amount and length.
+- `occlude` (0–1): muffles and softens a sound behind a wall.
+- `distance` above 1 also darkens the sound and sends more of it to the reverb.
+- `posglide` (0–2 s): a placed sound glides from the previous note's position.
+- Ambiences: `rain wind fire stream surf crowd`, controlled by `intensity` (0–1) and `density`
+  (events per second). Use long notes for beds, for example `s("rain").slow(8)`.
+- Foley: `drip click tick creak step`. Creatures and machines: `bird insect engine`.
+- Granular playback on oscillators and noise: `grain` (length in ms), `gdensity` (grains per
+  second), `gjitter` (0–1) and `gpos` (0–1).
+
+### Spectral shaping (Tartlet extensions, TS-77 to TS-80)
+
+- Equalisers: `lowshelf` and `highshelf` (−18–12 dB, at 200 Hz and 4 kHz; `lsfreq` and
+  `hsfreq` move them), `peak` (−18–12 dB) with `peakfreq` and `peakq`, `bandf` with `bandq`
+  keeps a band, `notch` with `notchq` removes one, and `tilt` (−6–6 dB per octave around
+  1 kHz).
+- `fshift` (−2000–2000 Hz) moves every partial by the same number of hertz, so harmonic tones
+  turn bell-like.
+- `ringmod` (0–4000 Hz) and `ringmix` (0–1) multiply the sound by a sine.
+- `spectral` works on the spectrum of short slices: `freeze`, `blur`, `gate`, `robot`,
+  `whisper`, `comb`, `shift` or `none`. `samount` (0–1) sets the strength, `sgate` the gate
+  level in dB, `scomb` the comb spacing in hertz and `sshift` the shift in semitones. `ssend`
+  (0–1) sends to one spectral effect shared by the orbit instead of one per note.
+
+### Impulse responses (Tartlet extensions, TS-81 to TS-85)
+
+- `fir`: a linear-phase filter, `lowpass`, `highpass`, `bandpass`, `bandstop` or `none`, with
+  `firfreq` (hertz), `firwidth` (octaves, band designs only) and `firlen` (`short`, `medium` or
+  `long`). It delays the sound slightly; playback starts the voice early to compensate
+  (`I-DSP-LATENCY`).
+- `body`: a generated resonant body, `box`, `guitar`, `violin`, `tube`, `can`, `phone`,
+  `radio`, `megaphone` or `none`. `bodysize` (0.25–4) makes it larger or smaller; `bodymix`
+  (0–1) sets the wet share.
+- `cab`: a speaker cabinet shared by the orbit, `small`, `open`, `closed`, `combo`, `stack` or
+  `none`. It suits sounds driven by `shape` or `curve`.
+- `spacepre` (0–200 ms) and `spacedamp` (0–1) reshape the tail of a `space` preset.
+
+### Response curves and dynamics (Tartlet extensions, TS-86 to TS-89)
+
+- `curve`: a transfer curve, `soft`, `hard`, `tanh`, `tube`, `fold`, `rect`, `half`, `cheby2`
+  to `cheby7` or `none`. A loud sine through `chebyN` comes out as its Nth harmonic.
+- `drive` (0–24 dB) pushes the sound into the curve. Loudness is compensated, so more drive
+  changes the colour, not the volume. `bias` (−0.5–0.5) adds even harmonics; `curvemix` (0–1)
+  sets the wet share. `shape` keeps its own fixed curve.
+- `comp` (−60–0 dB, 0 is off): the threshold of a compressor shared by the orbit, with
+  `compratio` (1–20, default 4), `compknee` (0–40 dB, default 6), `compattack` (default 3 ms)
+  and `comprelease` (default 250 ms). The latest onset on the orbit sets the settings, and
+  `I-DSP-ORBIT` notes when tracks disagree.
+- `gate` (dB): silences a voice whenever it falls below the threshold; `gaterelease`
+  (0.005–1 s, default 0.1) sets how fast it closes.
+- `envcurve`: the amplitude envelope shape, `lin`, `exp` or `log`.
+- `velcurve` (0.25–4): bends how velocity maps to loudness; above 1 soft notes get softer.
+
+Unknown constant values of enum controls (`earsplit`, `space`, `spectral`, `fir`, `firlen`,
+`body`, `cab`, `curve`, `envcurve`) give `W-ARG-MODE`, and the default is used. Controls that
+the track's sounds or modes ignore give `W-ARG-UNSUPPORTED`.
 
 ## Transforms
 
@@ -179,6 +278,9 @@ the general kit has one take per sound, so sample variants do not change the sou
 - `.rev()`: mirrors each cycle.
 - `.every(n, f)` (alias `firstOf`): applies `f` on cycles 0, n, 2n and so on. `n` must be a
   constant (TS-20).
+- `.iter(n)`, `.iterBack(n)`: start each cycle one nth further along, or back (TS-39). `n` must
+  be a constant.
+- `.palindrome()`: forwards on even cycles, backwards on odd ones.
 - `.off(c, f)`: layers a copy shifted by `c`, with `f` applied to the copy.
 - `.jux(f)`: plays the original at `pan` 0 and the transformed copy at `pan` 1.
 - `.ply(n)`: repeats each event n times within its own whole.
@@ -192,19 +294,18 @@ the general kit has one take per sound, so sample variants do not change the sou
 - `.add(x)`: adds to notes, `n`, or plain numbers. `.transpose(x)` adds to notes only. Both
   accept a pattern.
 - `.range(lo, hi)`: maps values in [0, 1] onto [lo, hi]. Use it with signals.
-- `.scale("Root:name")`: turns `n` degrees into notes. Available scales:
-  - major / ionian and minor / aeolian;
-  - dorian, phrygian, lydian, mixolydian and locrian;
-  - harmonic minor and melodic minor;
-  - major pentatonic and minor pentatonic;
-  - blues and chromatic.
-
-  A bare root is in octave 3, so `C:minor` degree 0 is 48 (TS-11).
-
+- `.scale("Root:name")`: turns `n` degrees into notes. A bare root is in octave 3, so
+  `C:minor` degree 0 is 48 (TS-11). Scales: major / ionian, minor / aeolian, dorian, phrygian,
+  lydian, mixolydian, locrian, harmonic minor, melodic minor, major pentatonic, minor
+  pentatonic, blues, chromatic, whole tone, augmented, diminished, phrygian dominant, lydian
+  dominant, hungarian minor, hirajoshi, in sen and egyptian. Scale names ignore case, spaces,
+  hyphens and underscores (TS-60).
 - `.seed(x)`: pins every random choice below this point to a named variation (TS-28).
 - `.label("name")`: names the output, and gives the same id as the `name: …` form (TS-36).
+- `.apply(f, …args)`: hands the pattern to a function (TS-48).
 
-`.scale` and `.transpose` on a receiver that plays only samples give `E-CAP-PITCHED` (TS-35).
+`.scale`, `.transpose` and `.octave` on a receiver that plays only samples give
+`E-CAP-PITCHED` (TS-35).
 
 ## Library (Tartlet L3)
 
@@ -223,89 +324,47 @@ marked "const".
   - `.brak()`, `.press()` and `.pressBy(r)`.
   - `.superimpose(f)`: stacks a transformed copy. `.echo(times, time, feedback)`: fading
     delayed copies.
-  - `run(n)`: the numbers 0 … n−1 in each cycle, for example `n(run(8)).scale("C:major")`.
 - Randomness, all seeded:
   - `.often(f)`, `.rarely(f)`, `.almostNever(f)`, `.almostAlways(f)`, `.always(f)` and
     `.never(f)`;
   - `.someCyclesBy(p, f)` and `.someCycles(f)`: decide once per cycle;
   - `.shuffle(n)` (each slice once) and `.scramble(n)` (slices may repeat);
-  - `.undegradeBy(p)`: keeps a share `p` of events;
-  - signals: `irand(n)` (whole numbers below n) and `perlin` (smooth noise).
+  - `.undegradeBy(p)`: keeps a share `p` of events.
 - Arithmetic: `.sub`, `.mul`, `.div` and `.mod` (patternable), `.round()`, `.floor()` and
   `.ceil()`; `.toBipolar()` and `.fromBipolar()` for signals.
 - Tonal: `.octave(k)` moves notes by octaves.
-- Controls: `legato` (alias `clip`) scales note length; `nudge` moves notes in seconds;
-  `.accent(rhythm)` makes events louder on true steps.
-  More scales: whole tone, augmented, diminished, phrygian dominant, lydian dominant, hungarian
-  minor, hirajoshi, in sen and egyptian. Scale names ignore case, spaces, hyphens and
-  underscores. Library names are reserved: they cannot be used as binding names.
+- Controls: `.accent(rhythm)` makes events louder on true steps.
 
 ## Sounds
 
-The built-in general kit is synthesized:
+The built-in general kit is synthesized, so it sounds the same everywhere:
 
 - drums: `bd sd hh oh cp rim lt mt ht cr rd`;
 - oscillators: `sine square triangle sawtooth`;
-- noise: `white pink brown`.
+- noise: `white pink brown`;
+- voices: `voice aah ooh hum whisper choir`;
+- ambiences: `rain wind fire stream surf crowd`;
+- foley: `drip click tick creak step`;
+- creatures and machines: `bird insect engine`.
 
 Common names from other ecosystems fall back to the nearest kit sound, with an `I-RES-FALLBACK`
-note. For example `808bd` plays `bd`, and `piano` and `rhodes` play `triangle`. A note event
-with no `s` plays on `triangle`.
+note. For example `808bd` plays `bd`, `piano` and `rhodes` play `triangle`, and `ocean` plays
+`surf`. A note event with no `s` plays on `triangle`. Drums, foley and ambiences are not
+pitched; `n` on a kit sound has no audible effect, because the kit has one take per sound.
 
-- voices: `voice aah ooh hum whisper choir`.
+## Samples (Tartlet extension, TS-90 to TS-94; see [samples.md](samples.md))
 
-  - per-ear controls (TS-62): `earsh` (−100–100 cents), `itd` (−40–40 ms), `ild` (−12–12 dB),
-    `iphase` (0–180°, oscillators only) and `earswap` (0 or 1).
-  - more headphone controls (TS-64 to TS-67, see [binaural.md](binaural.md)):
-    - `lcutoff`, `rcutoff`, `lhcutoff`, `rhcutoff`: filters on one ear only, in hertz;
-    - `earsplit`: `harmonics` (oscillators), `bands` or `none`; `splitfreq` sets the crossover
-      for `bands`;
-    - `icorr` (0–1, noise only): how alike the two ears are;
-    - `dichotic` (100–2000 Hz, noise only) and `dichoticq` (1–50): a faint pitch heard only
-      between the ears;
-    - `isochronic` (0–40 Hz) and `isodepth` (0–1): loudness pulses, also heard on speakers;
-    - `irate` (0–10 Hz, oscillators only): rotates the phase between the ears.
+Sounds declared with `sample(...)` or found in a bank declared with `samples(...)` play through
+one of two interpreters:
 
-## Space and textures (Tartlet extensions, TS-69 to TS-76)
+- **Impulse** samples (single files, drums, hits) play the whole file from the onset. `n`
+  picks a take, modulo the number of takes. `speed` sets the rate. `legato` cuts the sample
+  short with a `release` fade.
+- **Note** samples (bank entries of kind `note`) are pitched. The take whose zone holds the
+  note and velocity is chosen, or else the one with the nearest root, and it is transposed at
+  most ±24 semitones. Several takes in one zone are chosen by a seeded draw (round robin). They
+  follow the envelope, `legato`, loop points and `glide`.
 
-- `space`: `room`, `hall`, `plate`, `church` or `outdoor`. It picks the reverb character for
-  the `orbit`; `room` and `size` still set the amount and length.
-- `occlude` (0–1): muffles and softens a sound behind a wall.
-- `distance` above 1 also darkens the sound and sends more of it to the reverb.
-- `posglide` (0–2 s): a placed sound glides from the previous note's position.
-- Ambiences: `rain wind fire stream surf crowd`, controlled by `intensity` (0–1) and `density`
-  (events per second). Use long notes for beds, for example `s("rain").slow(8)`.
-- Foley: `drip click tick creak step`. Creatures and machines: `bird insect engine`.
-- Granular playback on oscillators and noise:
-  - `grain`: grain length in ms;
-  - `gdensity`: grains per second;
-  - `gjitter`: how far grains wander, 0–1;
-  - `gpos`: where grains are read from, 0–1.
-
-## Spectral shaping (Tartlet extensions, TS-77 to TS-80)
-
-- Equalisers, in decibels and hertz:
-  - `lowshelf` and `highshelf` (−18–12 dB, at 200 Hz and 4 kHz; `lsfreq` and `hsfreq` move
-    them);
-  - `peak` (−18–12 dB) with `peakfreq` and `peakq`;
-  - `bandf` with `bandq` keeps a band; `notch` with `notchq` removes one;
-  - `tilt` (−6–6 dB per octave around 1 kHz): negative is darker.
-- `fshift` (−2000–2000 Hz) moves every partial by the same number of hertz, so harmonic tones
-  turn bell-like.
-- `ringmod` (0–4000 Hz) and `ringmix` (0–1) multiply the sound by a sine.
-- `spectral` works on the spectrum of short slices: `freeze`, `blur`, `gate`, `robot`,
-  `whisper`, `comb`, `shift` or `none`. `samount` (0–1) sets the strength, `sgate` the gate
-  level in dB, `scomb` the comb spacing in hertz and `sshift` the shift in semitones. `ssend`
-  (0–1) sends to one spectral effect shared by the orbit instead of one per note.
-
-## Impulse responses (Tartlet extensions, TS-81 to TS-85)
-
-- `fir`: a linear-phase filter, `lowpass`, `highpass`, `bandpass`, `bandstop` or `none`, with
-  `firfreq` (hertz), `firwidth` (octaves, band designs only) and `firlen` (`short`, `medium` or
-  `long`). It delays the sound slightly; playback starts the voice early to compensate.
-- `body`: a generated resonant body, `box`, `guitar`, `violin`, `tube`, `can`, `phone`, `radio`,
-  `megaphone` or `none`. `bodysize` (0.25–4) makes it larger or smaller; `bodymix` (0–1) sets the
-  wet share.
-- `cab`: a speaker cabinet shared by the orbit, `small`, `open`, `closed`, `combo`, `stack` or
-  `none`. It suits sounds driven by `shape`.
-- `spacepre` (0–200 ms) and `spacedamp` (0–1) reshape the tail of a `space` preset.
+A bank may set `gm: true`, so events with a General MIDI percussion `note` and no `s` play the
+matching drum. Hosts load samples after checking. Events whose sample is still loading are
+skipped, and files that break the sample standard are normalised on load (`W-RES-FORMAT`).

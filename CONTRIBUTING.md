@@ -2,6 +2,9 @@
 
 Thank you for helping. Please read this whole page before your first change. Tartlet's license
 depends on a strict clean-room process.
+AI coding agents should also read [`AGENTS.md`](AGENTS.md), which condenses these rules and the
+project conventions into one checklist.
+
 
 ## Clean-room rules (mandatory)
 
@@ -90,8 +93,9 @@ It resolves with an `I-REG-ALIAS` note.
 
 ### Adding a kit sound
 
-1. Add the name to `DRUMS` in `packages/resources/src/index.ts`. The manifest entry follows
-   automatically, and every asset must have a license and provenance.
+1. Add the name to `DRUMS` in `packages/resources/src/index.ts` and to `DRUM_SOUNDS` in
+   `packages/registry/src/sounds.ts`; a conformance test keeps the two lists equal. The
+   manifest entry follows automatically, and every asset must have a license and provenance.
 2. Synthesize the sound in `AudioEngine.drum` in `packages/webaudio/src/engine.ts`. Return a
    `Spec` of unstarted sources and an end time, and scale pitch and decay by the `speed`
    ratio `sp`.

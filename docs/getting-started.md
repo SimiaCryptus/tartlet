@@ -130,3 +130,10 @@ function.
 - TypeScript settings include `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`.
   Expect `arr[i]` to be `T | undefined`. Build optional properties with conditional spreads,
   for example `...(x ? { x } : undefined)`.
+
+- `samples import <dir> --into <collection> [--bank b] [--license spdx] [--root note]`:
+  validates and normalises every WAV in a directory and writes it into a bank of the
+  collection, with a manifest. Every guess about roots and velocity layers is printed.
+- `samples verify <collection>`: re-hashes and re-validates every file. Exits with 1 on any
+  problem, including entries whose licence is `UNKNOWN`.
+- `samples list <collection> [--json]`: lists every bank entry.

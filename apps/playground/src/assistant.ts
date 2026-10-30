@@ -172,6 +172,7 @@ What the instruments can do:
 - Scales: ${[...SCALES.keys()].join(', ')}.
 
 Plan like a producer: give the album an arc, vary tempo, key and texture from track to track, and keep it coherent as a whole. When the listener's ratings and notes are given, lean towards what they rated highly and away from what their low ratings and notes criticise.
+Each brief names a tempo in bpm, a key or scale, two to six layers built from the sounds above, and the mood. Do not plan steady pulsing between 3 and 30 Hz unless the listener asks for it, and never promise effects on the listener's health, sleep or focus: describe the sound instead.
 Reply with only a JSON object in a ${FENCE}json block.`;
 
 function listProblems(problems: readonly Problem[]): string {
@@ -199,7 +200,8 @@ function userMessage(kind: Kind, prompt: string, source: string, problems: reado
 function repairMessage(problems: readonly Problem[]): string {
   return (
     `Tartlet rejected that sketch:\n${listProblems(problems)}\n\n` +
-    'Return the corrected complete sketch. Change only the lines the problems point at and keep every working track unchanged.'
+    'Return the corrected complete sketch. Change only the lines the problems point at and keep every working track unchanged.' +
+    ' If a name is unknown, remove it or replace it with the closest name from the vocabulary.'
   );
 }
 // ---- population agents (variation and recombination)

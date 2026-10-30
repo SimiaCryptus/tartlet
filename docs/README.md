@@ -9,8 +9,21 @@ Start with the [project README](../README.md). Then read these in roughly this o
 4. [Language reference](language.md): what Tartlet accepts today.
 5. [Diagnostics](diagnostics.md): the diagnostic catalogue and recovery policy.
 6. [Testing](testing.md): how to write and run each kind of test.
-7. [Embedding](embedding.md): hosting the player and the evaluators.
+7. [Embedding](embedding.md): hosting the player, loading samples and using the evaluators.
 8. [Contributing](../CONTRIBUTING.md): process, clean-room rules and recipes for common changes.
+9. [Instructions for AI agents](../AGENTS.md): the same rules condensed into one checklist.
+
+Extension design notes. Each says at the top which parts are implemented:
+
+- [Instruments and real-life sounds](instruments.md)
+- [Voices](vocals.md)
+- [Beyond binaural beats](binaural.md)
+- [DSP filters, impulse responses and response curves](dsp.md)
+- [Noise theory](noise.md)
+- [WAV samples and interpreters](samples.md)
+- [User functions and the standard library](language_extensions.md)
+- [Genetic algorithms](genetics.md)
+- [More ideas](claudes_ideas.md)
 
 Normative sources:
 

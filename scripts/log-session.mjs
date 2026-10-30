@@ -8,20 +8,22 @@ if (!model || !task) {
   process.exit(1);
 }
 const n = readdirSync('clean-room-log').filter((f) => /^\d{4}-/.test(f)).length + 1;
+const id = String(n).padStart(4, '0');
 const slug = task
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, '-')
   .slice(0, 40);
-const file = `clean-room-log/${String(n).padStart(4, '0')}-${slug}.md`;
+const file = `clean-room-log/${id}-${slug}.md`;
 const body = readFileSync('clean-room-log/TEMPLATE.md', 'utf8')
-  .replace('{{date}}', new Date().toISOString().slice(0, 10))
-  .replace('{{model}}', model)
-  .replace('{{task}}', task)
+  .replaceAll('{{n}}', id)
+  .replaceAll('{{date}}', new Date().toISOString().slice(0, 10))
+  .replaceAll('{{model}}', model)
+  .replaceAll('{{task}}', task)
   .replace(
     '{{inputs}}',
     inputs
       .split(',')
-      .map((s) => `- ${s.trim()}`)
+      .map((s) => `  - ${s.trim()}`)
       .join('\n'),
   );
 writeFileSync(file, body);

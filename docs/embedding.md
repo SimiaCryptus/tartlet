@@ -16,25 +16,41 @@ Attributes. They are read on every check:
 - `document-id` and `blob-index` are seed inputs. Keep them stable across edits. The defaults
   are `inline` and `0`.
 - `seed` is an optional user seed. When it is absent, the seed is `"default"`.
+- `sample-base` is the root, on the page's own origin, from which declared samples are loaded
+  (see [Samples](#samples)).
 
 Properties and methods:
 
 - `source` (get and set). Setting it starts a background check, which has no side effects and
   plays nothing. If `source` was not set before the element connects, the initial value is its
   text content.
-- `program` and `diagnostics` hold the latest check result.
+- `program` holds the latest checked IR, including `program.advisories`.
+- `diagnostics` holds the checker's diagnostics followed by host diagnostics from sample
+  loading.
 - `playing` is true while the transport runs.
+- `resolveSample`: an optional host hook, `(path) => Promise<ArrayBuffer | null>`. Set it
+  before `source`.
 - `play()` must be called from a user gesture. It creates the audio engine with its safety
   chain. If the engine cannot be created, playback is refused.
 - `stop()` stops the transport and silences every voice.
 
 Events:
 
-- `diagnostics` fires after every check. `detail` is the diagnostics array.
+- `diagnostics` fires after every check and after samples load. `detail` is the diagnostics
+  array.
 - `statechange` fires when playback starts or stops. `detail` is `{ playing }`.
+- `beforeplay` fires before playback starts and is cancelable. `detail` is
+  `{ advisories }`. Hosts can cancel it to show a warning first, for example when an output
+  pulses steadily between 3 and 30 Hz (TS-61), and call `play()` again after the listener
+  agrees. The playground shows its warning once per session.
 
 While a source is playing, re-checking it (for example after an edit) updates the tempo and the
 diagnostics list without stopping playback. The next query window uses the new program.
+
+### Status line
+
+The status region shows "Ready: N of M tracks playable", "Playing", "Best on headphones" when
+an output uses headphone-only controls, and "Loading N samples…" while samples load.
 
 ### Theming
 
@@ -46,7 +62,29 @@ The element's shadow DOM reads these custom properties, which can be set on the 
 ### Accessibility
 
 The play and stop buttons are native buttons with labels. A polite live region announces the
-status, for example "Ready: 3 of 3 tracks playable".
+status. Hosts that animate in time with the music should keep flashes below 3 per second when
+`I-EXT-PULSE` is present.
+
+## Samples
+
+Documents declare samples with `sample("name", "./path.wav")` and `samples("bank/")`. The
+checker only validates the paths. After each check the element loads the declared resources,
+in parallel with playback:
+
+1. If `resolveSample` is set, the element calls it with each path relative to the host's root.
+   The host returns the bytes, or `null`. The host decides where those bytes come from and must
+   never resolve outside its own root.
+2. Otherwise, if `sample-base` is set, the element fetches from that base, resolved against
+   `document.baseURI`. Requests that would leave the base or the page's origin return nothing.
+3. Otherwise nothing is loaded, and each declaration gets `W-RES-MISSING`.
+
+Loading problems are reported as host diagnostics (`W-RES-MISSING`, `W-RES-FORMAT`,
+`W-RES-HASH`, `I-RES-LICENSE`). Events whose sample is still loading are skipped. Manifests are
+validated as untrusted input, files are checked against their SHA-256 hash, and files that
+break the sample standard are normalised on load. See [samples.md](samples.md).
+
+For headless use, call `loadSamples(program.resources, fetchBytes)` from `@tartlet/samples` and
+pass the library to `AudioEngine.setLibrary`.
 
 ## Evaluation and workers
 
@@ -90,17 +128,22 @@ seed from them, so random draws depend on both.
 
 ## Content Security Policy
 
-The playground's production CSP shows the minimum a host needs:
+The element needs at least:
 
 ```
 default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self';
 connect-src 'self'; object-src 'none'; base-uri 'none'
 ```
 
-- `blob:` in `script-src` is needed because the safety worklet loads from a `blob:` URL built
-  from static source (ADR-003).
-- `unsafe-eval` and `unsafe-inline` are never needed. The element uses constructable
+- `blob:` in `script-src` is needed because the safety, spectral and gate worklets load from
+  `blob:` URLs built from static source (ADR-003).
+- `connect-src 'self'` covers samples loaded through `sample-base`.
+- `unsafe-eval` and `unsafe-inline` scripts are never needed. The element uses constructable
   stylesheets.
+
+The playground's production CSP (in `apps/playground/vite.config.ts`) adds more for its own
+features: `style-src 'unsafe-inline'` for the Monaco editor, `media-src blob:` for ringtone
+previews, and `connect-src` entries for the optional AI assistant and mounted albums.
 
 ## Sandboxed iframes (Markdown2)
 

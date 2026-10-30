@@ -20,8 +20,8 @@ example `it('M-19 euclid', …)`, so that rows can be found with `grep`.
   `packages/conformance/test/expr*.test.ts` (L2) and the JSON fixtures.
 - **L (laws):** `packages/core/test/laws.test.ts`. A fast-check property generates spans and
   checks span splitting and containment for each source in `SOURCES`. Add new mini-notation
-  constructs to that list.
 - **D (determinism):** the D rows in `expr-t1.test.ts` and `expr-t2.test.ts`. They check that
+  constructs to that list, and transforms built directly from the algebra to `BUILT`.
   results are stable for a fixed seed and differ across seeds. They also check that appending a
   method or editing another output leaves draws unchanged.
 - **X (diagnostics)** and **R (rejection):** `packages/check/test/reject.test.ts`.

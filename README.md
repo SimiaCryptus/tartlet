@@ -42,11 +42,23 @@ Pre-release. The phases are defined in [`plan.md`](plan.md).
 - **T0 (vertical spike):** complete. The playground plays the `idea.md` §13.1 example.
 - **T1 (real front end):** implemented. This includes the full expression parser, the checker,
   the IR codec and validation, seeds, limits, the worker host and the CLI with its corpus
-  harness.
-- **T2 (coverage drive):** partially implemented. This includes the T2 transforms, polymeter,
-  random choice, signals, the resource catalog and the synthesized general kit.
+  harness. The cross-model regeneration check for `mini` is pending.
+- **T2 (coverage drive):** mostly implemented. This includes the T2 transforms, polymeter,
+  random choice, signals, `.seed()`, `.label()`, the resource catalog and the synthesized
+  general kit. Still pending: oracle specifications, `@tartlet/embed`, the repair benchmark
+  and growing the kit.
+- **T3 (projections and sound):** in progress. Implemented: the audio quality pass (ADSR,
+  filters, per-orbit reverb and delay, sample playback) and these Tartlet extensions:
+  - user-defined functions and a standard library of transforms;
+  - synthesis controls, voices and choirs that sing syllables;
+  - headphone and binaural controls, space presets and procedural textures;
+  - frequency-domain, impulse-response and response-curve DSP;
+  - host-supplied WAV samples and banks, with a CLI importer.
 
-Open interpretation questions are tracked in [`spec-issues.md`](spec-issues.md).
+  Not yet: the piano roll, Web MIDI, offline-render tests and the mixer UI.
+
+Open interpretation questions are tracked in [`spec-issues.md`](spec-issues.md) (TS-1 to
+TS-94 so far).
 
 ## Quick start
 
@@ -88,11 +100,16 @@ To use it in a page:
 - [Architecture](docs/architecture.md): pipeline, layer contracts, time, seeds and the
   dependency graph
 - [Package reference](docs/packages.md): what each `@tartlet/*` package exports
-- [Language reference](docs/language.md): mini-notation and the supported functions
+- [Language reference](docs/language.md): mini-notation and every supported function and control
 - [Diagnostics](docs/diagnostics.md): every diagnostic id and the recovery policy
 - [Testing](docs/testing.md): test kinds, fixtures, property tests and the corpus harness
-- [Embedding](docs/embedding.md): `<tartlet-player>`, evaluators, theming and CSP
+- [Embedding](docs/embedding.md): `<tartlet-player>`, samples, evaluators, theming and CSP
 - [Contributing](CONTRIBUTING.md): the clean-room rules, adding functions and DCO sign-off
+- [Instructions for AI agents](AGENTS.md): the rules and conventions in one checklist
+- Extension design notes: [instruments](docs/instruments.md), [vocals](docs/vocals.md),
+  [binaural](docs/binaural.md), [DSP](docs/dsp.md), [noise](docs/noise.md),
+  [samples](docs/samples.md), [language extensions](docs/language_extensions.md),
+  [genetics](docs/genetics.md) and [more ideas](docs/claudes_ideas.md)
 - [Design document](idea.md) and [project plan](plan.md)
 - [ADRs](docs/adr/) and [traceability](docs/traceability.md)
 
@@ -100,13 +117,16 @@ To use it in a page:
 
 - `packages/`: the runtime libraries, shipped as TypeScript source (`exports` points at
   `src/index.ts`)
-- `apps/playground/`: the Vite demo app, deployed to S3 and CloudFront by `deploy.sh`
+- `apps/playground/`: the Vite demo app, deployed to S3 and CloudFront by `deploy.sh`.
+  `albums/` holds the bundled album catalog
+- `collection/`: the optional shared sample collection, served as `/samples/` next to the
+  playground (see [docs/samples.md](docs/samples.md))
 - `corpus/`: prompt generation and model-output collection for coverage measurement
 - `oracle/`: neutral behavioural specifications written by the oracle analyst (empty so far)
 - `clean-room-log/`: one provenance entry per implementation session
 - `e2e/`: Playwright tests for the playground
 - `terraform/`: hosting infrastructure for the playground
-- `docs/`: developer documentation and ADRs
+- `docs/`: developer documentation, design notes and ADRs
 
 ## License and disclaimer
 
