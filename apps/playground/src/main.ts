@@ -9,7 +9,8 @@ import { initShare } from './share';
 import { initRingtone } from './ringtone';
 import { initLibrary } from './library';
 import { initQueue, type QueueEntry } from './queue';
-import { slugify, toAlbum, type SketchData, type SketchMeta } from './album-schema';
+import { parseAlbum, slugify, toAlbum, type SketchData, type SketchMeta } from './album-schema';
+import { PRESETS } from './presets';
 import { createRatingStore, initRatingPanel, sourceKey } from './ratings';
 import {
   EMPTY_CATALOG,
@@ -57,6 +58,13 @@ const ratingPanel = initRatingPanel(el('rating'), ratings, {
 
 /** Albums are discovered through this manifest (albums/manifest.json next to index.html). */
 const MANIFEST_URL = new URL('albums/manifest.json', document.baseURI).href;
+/** Built-in sketches, used when no album manifest is available. */
+const BUILTIN_ALBUM = parseAlbum({
+  id: 'examples',
+  name: 'Examples',
+  description: 'Built-in example sketches.',
+  sketches: PRESETS,
+});
 
 let catalog: Catalog = EMPTY_CATALOG;
 /** Album sketch restored by Reset. */
@@ -643,7 +651,7 @@ function albumLink(album: CatalogAlbum): string {
   return link.href;
 }
 async function refreshCatalog(): Promise<string[]> {
-  const { catalog: loaded, errors } = await loadCatalog(MANIFEST_URL, mounted);
+  const { catalog: loaded, errors } = await loadCatalog(MANIFEST_URL, mounted, BUILTIN_ALBUM);
   catalog = loaded;
   // Albums may carry ratings; they fill in sketches the user has not rated yet.
   ratings.seed(

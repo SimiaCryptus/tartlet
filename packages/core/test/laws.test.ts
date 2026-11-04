@@ -4,15 +4,19 @@ import fc from 'fast-check';
 import { parseMini } from '@tartlet/mini';
 import { add, lte, rat, toJson, type Rational } from '@tartlet/time';
 import {
+  arrangeSections,
   brak,
   chunk,
   compileMini,
   every,
   fast,
+  grid,
   iter,
   lastOf,
   linger,
   palindrome,
+  perCycle,
+  phaseShift,
   ply,
   pressBy,
   pure,
@@ -74,6 +78,26 @@ const BUILT: readonly (readonly [string, Pattern<string>])[] = [
   ['scramble(3)', shuffle(3, mini('a [b c]'), 's', true)],
   ['someCyclesBy', someCyclesBy(0.5, rev, mini('a b'), 's')],
   ['lastOf(3, rev)', lastOf(3, rev, mini('a b c'))],
+  [
+    'form',
+    arrangeSections([
+      { pat: mini('a b/2'), start: rat(0), len: rat(3, 2) },
+      { pat: mini('<c d>'), start: rat(3, 2), len: rat(1) },
+    ]),
+  ],
+  [
+    'form once',
+    arrangeSections(
+      [
+        { pat: mini('a b'), start: rat(0), len: rat(2) },
+        { pat: mini('c'), start: rat(2), len: rat(1, 2) },
+      ],
+      true,
+    ),
+  ],
+  ['phase(1/3)', phaseShift(rat(1, 3), mini('a b/2'))],
+  ['grid(2/5)', grid(rat(2, 5), (j) => String(j))],
+  ['additive(3)', perCycle((c) => zoom(rat(0), rat((((c % 3) + 3) % 3) + 1, 3), mini('a b c')))],
 ];
 
 const key = (e: Event<string>): string =>

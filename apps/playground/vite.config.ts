@@ -241,6 +241,8 @@ export default defineConfig({
   resolve: { alias },
   plugins: [albums(), collection(), pwa()],
   preview: { headers: { 'Content-Security-Policy': CSP, 'Cross-Origin-Opener-Policy': 'same-origin' } },
+  // Workers are created with { type: 'module' }, so build them as ES modules (IIFE cannot code-split).
+  worker: { format: 'es' },
   // Monaco is loaded lazily as its own large chunk.
   build: { target: 'es2022', chunkSizeWarningLimit: 4000 },
 });

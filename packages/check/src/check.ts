@@ -43,8 +43,12 @@ import {
   ENVCURVE_NAMES,
   FIR_DESIGNS,
   FIR_LENGTHS,
+  INT_SEQUENCES,
+  MAX_LSYS_GENERATIONS,
+  MAX_LSYS_LENGTH,
   NOISE_SOUNDS,
   OSCILLATOR_SOUNDS,
+  RING_METHODS,
   SPACE_NAMES,
   SPECTRAL_MODES,
   TEXTURE_SOUNDS,
@@ -52,10 +56,19 @@ import {
   VOICE_TYPES,
   defaultRegistry,
   editDistance,
+  isTwelveToneRow,
+  lsysPlan,
   normalizeVowel,
+  parseEnvPoints,
+  parseFormLayout,
+  parseLsysAxiom,
+  parseLsysRules,
+  parseRowForm,
   parseScale,
+  parseSieve,
   parseSyllable,
   suggestSyllable,
+  type GrammarError,
   type ParamSpec,
   type Registry,
   type RegistryEntry,
@@ -89,6 +102,15 @@ const ERR: PatternType = { kind: 'error' };
 const SAMPLE_IDS: ReadonlySet<string> = new Set(['s']);
 const SCALE_OK: ReadonlySet<string> = new Set(['n', 'note', 'freq']);
 const PITCH_OK: ReadonlySet<string> = new Set(['note', 'freq']);
+/** Pitch operations and what a receiver needs for them (Q-03, TS-35, docs/symphonic.md). */
+const PITCH_CHECKS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ['scale', SCALE_OK],
+  ['transpose', PITCH_OK],
+  ['octave', PITCH_OK],
+  ['invert', SCALE_OK],
+  ['sequence', SCALE_OK],
+  ['rowform', SCALE_OK],
+]);
 /** String controls whose atoms are checked against closed sets (TS-45, TS-68). */
 const VOCAL_STRINGS: ReadonlySet<string> = new Set([
   'syl',
@@ -237,6 +259,8 @@ type Ident = Extract<Expr, { k: 'ident' }>;
 type Lambda = Extract<Expr, { k: 'lambda' }>;
 type Member = Extract<Expr, { k: 'member' }>;
 type BindingStmt = Extract<Stmt, { k: 'binding' }>;
+type StrExpr = Extract<Expr, { k: 'str' }>;
+type MiniFound = { text: string; range: readonly [number, number] }[];
 
 /**
  * What a name stands for inside a function body or lambda (TS-48):
@@ -1776,7 +1800,7 @@ class Lowerer {
     range: Range,
     anchor: NodeId,
   ): PatternNode {
-    const hit = this.reg.lookup(name);
+    const hit = this.lookupFor(name, rawArgs);
     if (!hit || hit.entry.form === 'method' || hit.entry.form === 'directive') {
       const u = this.unknown(name, nameRange, range);
       this.diag('E-REG-UNKNOWN', 'error', u.message, nameRange, 'subtree-muted', u.fixes);
@@ -1826,6 +1850,7 @@ class Lowerer {
       const children = args.map((a, i) => this.pattern(a, hash64(anchor, entry.id, String(i))));
       return { kind: 'combine', id, range: this.sr(range), type: CONTROLS, op, children };
     }
+    if (entry.category === 'generator') return this.generatorCall(entry, name, args, range, anchor, id);
     if (entry.id === 'silence') return { kind: 'silence', id, range: this.sr(range), type: CONTROLS };
     this.diag('E-NOT-YET', 'error', `\`${name}\` cannot start a pattern.`, range, 'subtree-muted');
     return this.errorNode('E-NOT-YET', range);
@@ -1862,6 +1887,246 @@ class Lowerer {
     }));
     return { kind: 'combine', id, range: this.sr(range), type, op: 'fastcat', children };
   }
+  // ---- long-form composition (docs/symphonic.md)
+  /** Constant-argument constructors, lowered as transforms on silence like `irand` (TS-58). */
+  private generatorCall(
+    entry: RegistryEntry,
+    name: string,
+    args: readonly Expr[],
+    range: Range,
+    anchor: NodeId,
+    id: NodeId,
+  ): PatternNode {
+    if (entry.id === 'form') return this.formCall(args, range, anchor, id);
+    if (entry.id === 'row') return this.rowCall(entry, args, range, anchor, id);
+    const lowered = this.lowerArgs(entry, args, range, anchor, name);
+    if (!lowered) return this.errorNode('E-ARG-TYPE', range);
+    const str = (i: number): StrExpr | undefined => {
+      const r = this.resolve(args[i]);
+      return r !== undefined && r !== 'abstract' && r.k === 'str' ? r : undefined;
+    };
+    if (entry.id === 'env') {
+      const s = str(0);
+      const r = s ? parseEnvPoints(s.value) : undefined;
+      if (s && r && 'error' in r) return this.grammarError(s, r.error, range);
+    }
+    if (entry.id === 'sieve') {
+      const s = str(0);
+      const r = s ? parseSieve(s.value) : undefined;
+      if (s && r && 'error' in r) return this.grammarError(s, r.error, range);
+    }
+    if (entry.id === 'ints') {
+      const s = str(0);
+      if (s && !INT_SEQUENCES.includes(s.value)) {
+        this.diag(
+          'W-ARG-MODE',
+          'warning',
+          `Unknown sequence \`${s.value}\`; use ${INT_SEQUENCES.join(', ')}. It is silent.`,
+          s.range,
+          'none',
+        );
+      }
+    }
+    if (entry.id === 'lsys') {
+      const ax = str(0);
+      const ru = str(1);
+      const pa = ax ? parseLsysAxiom(ax.value) : undefined;
+      if (ax && pa && 'error' in pa) return this.grammarError(ax, pa.error, range);
+      const pr = ru ? parseLsysRules(ru.value) : undefined;
+      if (ru && pr && 'error' in pr) return this.grammarError(ru, pr.error, range);
+      const g = lowered[2];
+      const gen = g?.kind === 'const' && g.value.t === 'num' ? Math.floor(toNumber(g.value.v)) : undefined;
+      if (
+        pa &&
+        !('error' in pa) &&
+        pr &&
+        !('error' in pr) &&
+        gen !== undefined &&
+        lsysPlan(pa.atoms, pr.rules, Math.max(0, Math.min(MAX_LSYS_GENERATIONS, gen))) === null
+      ) {
+        this.diag(
+          'E-LIMIT-GROWTH',
+          'error',
+          `This rewriting system grows past ${String(MAX_LSYS_LENGTH)} symbols. Use fewer generations. Track muted.`,
+          range,
+          'output-muted',
+        );
+        return this.errorNode('E-LIMIT-GROWTH', range);
+      }
+    }
+    const type: PatternType =
+      entry.id === 'env'
+        ? { kind: 'signal', of: 'number' }
+        : { kind: 'pattern', of: entry.id === 'sieve' ? 'bool' : entry.id === 'lsys' ? 'string' : 'number' };
+    const target: PatternNode = {
+      kind: 'silence',
+      id: hash64(anchor, 'silence'),
+      range: this.sr(range),
+      type: CONTROLS,
+    };
+    return { kind: 'transform', id, range: this.sr(range), type, fn: entry.id, target, args: lowered };
+  }
+  /** A malformed embedded grammar, reported inside its string like mini-notation errors. */
+  private grammarError(s: StrExpr, err: GrammarError, range: Range): PatternNode {
+    this.diag(
+      'E-ARG-GRAMMAR',
+      'error',
+      err.message,
+      { start: s.contentStart + err.range[0], end: s.contentStart + err.range[1] },
+      'output-muted',
+    );
+    return this.errorNode('E-ARG-GRAMMAR', range);
+  }
+  /** `form(layout, ...parts)`: the parts are kept as a stack so ids and walks stay ordinary. */
+  private formCall(args: readonly Expr[], range: Range, anchor: NodeId, id: NodeId): PatternNode {
+    const raw = this.resolve(args[0]);
+    if (raw === undefined || raw === 'abstract' || raw.k !== 'str') {
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        '`form` needs a constant layout string first, as in form("A@8 B@4", verse, chorus).',
+        args[0]?.range ?? range,
+        'subtree-muted',
+      );
+      return this.errorNode('E-ARG-TYPE', range);
+    }
+    const parsed = parseFormLayout(raw.value);
+    if ('error' in parsed) return this.grammarError(raw, parsed.error, range);
+    const partExprs = args.slice(1);
+    const children = partExprs.map((a, i) => this.pattern(a, hash64(anchor, 'form', String(i))));
+    const letter = (i: number): string => String.fromCharCode(65 + i);
+    const used = new Set<number>();
+    let missing = false;
+    for (const s of parsed.sections) {
+      used.add(s.part);
+      if (s.part < children.length) continue;
+      missing = true;
+      this.diag(
+        'E-ARG-MISSING',
+        'error',
+        `Section \`${letter(s.part)}\` names part ${String(s.part + 1)}, but \`form\` has ${String(children.length)} part${children.length === 1 ? '' : 's'} after the layout.`,
+        { start: raw.contentStart + s.range[0], end: raw.contentStart + s.range[0] + 1 },
+        'subtree-muted',
+      );
+    }
+    if (missing) return this.errorNode('E-ARG-MISSING', range);
+    partExprs.forEach((a, i) => {
+      if (!used.has(i))
+        this.diag(
+          'W-FORM-UNUSED',
+          'warning',
+          `Part \`${letter(i)}\` of \`form\` is never named in the layout, so it never plays.`,
+          a.range,
+          'none',
+        );
+    });
+    this.diag(
+      'I-FORM-LENGTH',
+      'info',
+      `This form lasts ${String(toNumber(parsed.total))} cycles and then repeats.`,
+      range,
+      'none',
+    );
+    return {
+      kind: 'transform',
+      id,
+      range: this.sr(range),
+      type: CONTROLS,
+      fn: 'form',
+      target: {
+        kind: 'combine',
+        id: hash64(anchor, 'form', 'parts'),
+        range: this.sr(range),
+        type: CONTROLS,
+        op: 'stack',
+        children,
+      },
+      args: [{ kind: 'const', value: { t: 'str', v: raw.value } }],
+    };
+  }
+  /** `row(p)` plays like `n(p)`; a constant row that is not a permutation of 0–11 warns. */
+  private rowCall(entry: RegistryEntry, args: readonly Expr[], range: Range, anchor: NodeId, id: NodeId): PatternNode {
+    const a = args[0];
+    const p = entry.params[0];
+    if (!a || !p) {
+      this.diag(
+        'E-ARG-MISSING',
+        'error',
+        '`row` needs pitch classes, as in row("0 11 3 4 …").',
+        range,
+        'subtree-muted',
+      );
+      return this.errorNode('E-ARG-MISSING', range);
+    }
+    const value = this.arg(a, p, hash64(anchor, entry.id, '0'), entry);
+    if (!value) return this.errorNode('E-ARG-TYPE', range);
+    const s = this.resolve(a);
+    if (s !== undefined && s !== 'abstract' && s.k === 'str') {
+      const res = parseMini(s.value);
+      if (res.diagnostics.length === 0) {
+        const found: MiniFound = [];
+        miniAtoms(res.ast, found);
+        const pcs = found.map((x) => {
+          const v = parseDecimal(x.text);
+          return v ? toNumber(v) : NaN;
+        });
+        if (!isTwelveToneRow(pcs))
+          this.diag(
+            'W-ARG-ROW',
+            'warning',
+            'This row is not a permutation of the twelve pitch classes 0 to 11. It plays as written.',
+            s.range,
+            'none',
+          );
+      }
+    }
+    return { kind: 'control', id, range: this.sr(range), type: CONTROLS, control: 'n', target: null, value };
+  }
+  private isForm(n: PatternNode, depth: number): boolean {
+    if (depth > 64) return false;
+    if (n.kind === 'transform') return n.fn === 'form';
+    if (n.kind === 'ref' && !n.binding.startsWith('param:')) {
+      const b = this.bindingExprs.get(n.binding);
+      return b ? this.isForm(b, depth + 1) : false;
+    }
+    return false;
+  }
+  /** Soft checks on the long-form transforms. */
+  private symphonicChecks(id: string, args: readonly Expr[], recv: PatternNode, nameRange: Range): void {
+    if (id === 'once' && !this.isForm(recv, 0))
+      this.diag(
+        'W-ARG-UNSUPPORTED',
+        'warning',
+        '`.once()` only affects a form, as in `form(…).once()`; it has no effect here.',
+        nameRange,
+        'none',
+      );
+    const s = this.resolve(args[0]);
+    if (s === undefined || s === 'abstract' || s.k !== 'str') return;
+    if (id === 'ringing' && !RING_METHODS.includes(s.value))
+      this.diag(
+        'W-ARG-MODE',
+        'warning',
+        `Unknown ringing method \`${s.value}\`; use ${RING_METHODS.join(', ')}. The pattern plays unchanged.`,
+        s.range,
+        'none',
+      );
+    if (id === 'rowform') {
+      const res = parseMini(s.value);
+      if (res.diagnostics.length > 0) return;
+      const found: MiniFound = [];
+      miniAtoms(res.ast, found);
+      const bad = found.find((x) => parseRowForm(x.text) === null);
+      if (bad)
+        this.diag(
+          'W-ARG-MODE',
+          'warning',
+          `Unknown row form \`${bad.text}\`; use P, I, R or RI and a transposition from 0 to 11, as in "I5". It plays unchanged.`,
+          { start: s.contentStart + bad.range[0], end: s.contentStart + bad.range[1] },
+          'none',
+        );
+    }
+  }
 
   private method(m: Member, rawArgs: readonly Expr[], range: Range, anchor: NodeId): PatternNode {
     const recv = this.pattern(m.object, anchor);
@@ -1869,7 +2134,7 @@ class Lowerer {
       return this.reject('E-LX-PROTO', `\`${m.name}\` cannot be used as a name.`, m.nameRange, range, recv);
     const def = this.functions.get(m.name);
     if (def) return this.callUser(def, { k: 'node', node: recv }, recv.id, this.thunks(rawArgs), range, m.nameRange);
-    const hit = this.reg.lookup(m.name);
+    const hit = this.lookupFor(m.name, rawArgs);
     if (!hit || hit.entry.form === 'constructor' || hit.entry.form === 'directive') {
       const u = this.unknown(m.name, m.nameRange, range);
       const suggested = this.reg.lookup(u.fixes?.[0]?.edits[0]?.text ?? '');
@@ -1922,9 +2187,9 @@ class Lowerer {
       };
     }
     if (entry.category === 'transform' || entry.category === 'tonal') {
-      if (entry.id === 'scale' || entry.id === 'transpose' || entry.id === 'octave') {
-        // Q-03 / TS-35: only a samples-only receiver is nonsense for pitch operations.
-        const ok = entry.id === 'scale' ? SCALE_OK : PITCH_OK;
+      // Q-03 / TS-35: only a samples-only receiver is nonsense for pitch operations.
+      const ok = PITCH_CHECKS.get(entry.id);
+      if (ok) {
         if (this.hasControl(recv, SAMPLE_IDS) && !this.hasControl(recv, ok)) {
           return this.reject(
             'E-CAP-PITCHED',
@@ -1950,6 +2215,7 @@ class Lowerer {
       }
       const lowered = this.lowerArgs(entry, args, range, base, `.${m.name}`);
       if (!lowered) return this.errorNode('E-ARG-TYPE', range, recv);
+      this.symphonicChecks(entry.id, args, recv, m.nameRange);
       // `.label()` only names the output (see chainLabel), so it adds no node and ids stay stable.
       if (entry.id === 'label') return recv;
       return {
@@ -1964,6 +2230,22 @@ class Lowerer {
     }
     this.diag('E-NOT-YET', 'error', `\`.${m.name}\` is not supported as a method yet.`, m.nameRange, 'subtree-muted');
     return this.errorNode('E-NOT-YET', range, recv);
+  }
+
+  /**
+   * Looks up a typed name. `ring` names both the vocal control and the change-ringing transform;
+   * the transform is chosen only when the first argument is a string, as in `.ring("plainhunt", 4)`.
+   */
+  private lookupFor(
+    name: string,
+    args: readonly Expr[],
+  ): { readonly entry: RegistryEntry; readonly via: string; readonly typed: string } | undefined {
+    const hit = this.reg.lookup(name);
+    if (hit?.entry.id !== 'ringing') return hit;
+    const a0 = this.resolve(args[0]);
+    if (a0 !== undefined && a0 !== 'abstract' && a0.k === 'str') return hit;
+    const control = this.reg.get('ring');
+    return control ? { entry: control, via: 'canonical', typed: name } : hit;
   }
 
   private lowerArgs(

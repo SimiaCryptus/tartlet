@@ -61,7 +61,10 @@ switch (cmd) {
   }
   case 'sanity': {
     const src = load(file);
-    const report = sanity(compile(check(src, opts).program, { locate: locator(src), ...opts }));
+    const ci = rest.indexOf('--cycles');
+    const asked = ci >= 0 ? Number(rest[ci + 1]) : 4;
+    const cycles = Number.isInteger(asked) && asked > 0 ? Math.min(asked, 4096) : 4;
+    const report = sanity(compile(check(src, opts).program, { locate: locator(src), ...opts }), cycles);
     console.log(JSON.stringify(report, null, 2));
     process.exitCode = report.ok ? 0 : 1;
     break;

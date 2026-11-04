@@ -29,15 +29,37 @@ import type {
   Provenance,
 } from '@tartlet/ir';
 import { DEFAULT_LIMITS } from '@tartlet/ir';
-import { TEXTURE_SOUNDS, VOCAL_SOUNDS, degreeToMidi, noteToMidi, parseScale } from '@tartlet/registry';
+import {
+  MAX_LSYS_GENERATIONS,
+  TEXTURE_SOUNDS,
+  VOCAL_SOUNDS,
+  degreeToMidi,
+  envAt,
+  intAt,
+  lsysAt,
+  lsysPlan,
+  noteToMidi,
+  parseEnvPoints,
+  parseFormLayout,
+  parseLsysAxiom,
+  parseLsysRules,
+  parseRowForm,
+  parseScale,
+  parseSieve,
+  permutation,
+  ringRow,
+  sieveHas,
+} from '@tartlet/registry';
 import { draw, hash64, rootSeed } from '@tartlet/random';
 import {
   appLeft,
   appRight,
+  arrangeSections,
   bindWindow,
   brak,
   BudgetExceeded,
   chunk,
+  clipTime,
   compress,
   degradeBy,
   early,
@@ -45,15 +67,20 @@ import {
   fast,
   fastcat,
   fmap,
+  grid,
   late,
   iter,
   lastOf,
   linger,
   palindrome,
   pattern,
+  perCycle,
+  phaseShift,
   ply,
   pressBy,
   pure,
+  reorder,
+  retrograde,
   rev,
   sampleOnset,
   segment,
@@ -66,12 +93,15 @@ import {
   stack,
   swingBy,
   truthy,
+  whenCycle,
+  withOnset,
   withSeed,
   within,
   zoom,
   type Event,
   type Pattern,
   type QueryState,
+  type Section,
 } from './pattern';
 import { compileMini, euclid } from './mini';
 
@@ -154,6 +184,12 @@ const ARITH = new Map<string, (a: number, b: number) => number>([
   ['mod', (a, b) => (b === 0 ? a : ((a % b) + b) % b)],
 ]);
 const MAX_ECHO = 64;
+/** Caps for the long-form transforms (docs/symphonic.md). */
+const MAX_STEPS = 1024;
+const MAX_VOICES = 16;
+const MIDDLE_C = 60;
+const INDEX_WRAP = 2 ** 31;
+const wrapIndex = (j: number): number => ((j % INDEX_WRAP) + INDEX_WRAP) % INDEX_WRAP;
 /** Gain multiplier on accented events (TS-59). */
 const ACCENT = 1.3;
 /**
@@ -271,12 +307,27 @@ function constNum(a: Arg | undefined): number | null {
 function constRat(a: Arg | undefined): Rational | null {
   return a?.kind === 'const' && a.value.t === 'num' ? a.value.v : null;
 }
+function constStr(a: Arg | undefined): string | null {
+  return a?.kind === 'const' && a.value.t === 'str' ? a.value.v : null;
+}
+/** Mirrors around `axis`: zero for degrees and numbers, middle C for notes by default (docs/symphonic.md). */
+function invertValue(v: unknown, axis: number | null): unknown {
+  const note = isObj(v) ? (v.note as { kind?: string } | undefined) : undefined;
+  const k = axis ?? (note?.kind === 'midi' ? MIDDLE_C : 0);
+  return mapNumeric(v, (x) => {
+    const y = 2 * k - x;
+    return y === 0 ? 0 : y;
+  });
+}
+const mod12 = (x: number): number => ((x % 12) + 12) % 12;
 
 export function compile(program: Program, opts?: CompileOptions): CompiledProgram {
   const locate = opts?.locate ?? ((i: number): Offset => ({ line: 0, col: i, byte: i }));
   const bindings = new Map(program.bindings.map((b) => [b.id, b] as const));
   const refCache = new Map<string, Pattern<unknown>>();
   const inProgress = new Set<string>();
+  /** Forms and the same forms played once, for `.once()`. */
+  const onceOf = new WeakMap<Pattern<unknown>, Pattern<unknown>>();
   const root = rootSeed(opts?.documentId ?? '', opts?.blobIndex ?? '', opts?.seed ?? program.settings.seed);
 
   const atomValue = (atom: MiniAtom, kind: string): unknown => {
@@ -344,6 +395,7 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
         return silence();
       }
       case 'transform':
+        if (n.fn === 'form') return formNode(n, env);
         return transform(n.fn, node(n.target, env), n.args, env, n.id);
       case 'control': {
         if (n.value.kind === 'const') {
@@ -359,6 +411,24 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
         return n.target === null ? ctl : appLeft(node(n.target, env), ctl, merge);
       }
     }
+  }
+  /** `form(layout, ...parts)`: sections with local time and seeded variants (docs/symphonic.md). */
+  function formNode(n: Extract<PatternNode, { kind: 'transform' }>, env: Env): Pattern<unknown> {
+    const layout = constStr(n.args[0]);
+    const parsed = layout === null ? null : parseFormLayout(layout);
+    if (!parsed || 'error' in parsed) return silence();
+    const parts = n.target.kind === 'combine' ? n.target.children.map((c) => node(c, env)) : [];
+    let start = ZERO;
+    const sections: Section<unknown>[] = parsed.sections.map((s) => {
+      const base = parts[s.part] ?? silence();
+      const pat = s.primes > 0 ? withSeed(hash64(root, 'seed', "'".repeat(s.primes)), base) : base;
+      const sec = { pat, start, len: s.len };
+      start = add(start, s.len);
+      return sec;
+    });
+    const loop = arrangeSections(sections);
+    onceOf.set(loop, arrangeSections(sections, true));
+    return loop;
   }
 
   function applyFn(fv: FunctionValue, target: Pattern<unknown>, env: Env, id: string): Pattern<unknown> {
@@ -634,6 +704,199 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
           delete out.n;
           out.note = { kind: 'midi', value: degreeToMidi(v.n, sc) };
           return out;
+        });
+      }
+      // ---- long-form transforms and generators (docs/symphonic.md)
+      case 'once':
+        return onceOf.get(target) ?? target;
+      case 'during': {
+        const b = constNum(a);
+        const e = constNum(args[1]);
+        const f = args[2];
+        const period = constNum(args[3]);
+        if (b === null || e === null || f?.kind !== 'function') return target;
+        const p = period !== null && period > 0 ? period : 0;
+        return whenCycle(
+          (c) => {
+            const k = toNumber(c);
+            const m = p > 0 ? ((k % p) + p) % p : k;
+            return m >= b && m < e;
+          },
+          (q) => applyFn(f.fn, q, env, fid),
+          target,
+        );
+      }
+      case 'enter': {
+        const c = constRat(a);
+        return c === null ? target : clipTime(target, c, null);
+      }
+      case 'exit': {
+        const c = constRat(a);
+        return c === null ? target : clipTime(target, null, c);
+      }
+      case 'fadein': {
+        const k = constNum(a);
+        if (k === null || k <= 0) return target;
+        return withOnset(target, (v, t) => scaleControl(v, 'gain', Math.min(1, Math.max(0, toNumber(t) / k))));
+      }
+      case 'fadeout': {
+        const k = constNum(a);
+        const start = constNum(args[1]);
+        if (k === null || start === null || k <= 0) return target;
+        return withOnset(target, (v, t) =>
+          scaleControl(v, 'gain', Math.min(1, Math.max(0, 1 - (toNumber(t) - start) / k))),
+        );
+      }
+      case 'invert': {
+        const axis = constNum(a);
+        return fmap(target, (v) => invertValue(v, axis));
+      }
+      case 'retro':
+        return retrograde(constRat(a) ?? ONE, target);
+      case 'sequence': {
+        const step = constNum(a);
+        const copies = constNum(args[1]);
+        if (step === null || copies === null) return target;
+        const m = Math.min(MAX_STEPS, Math.max(1, Math.floor(copies)));
+        return withOnset(target, (v, t) => {
+          const c = toNumber(floor(t));
+          const i = ((c % m) + m) % m;
+          return i === 0 ? v : mapNumeric(v, (x) => x + step * i);
+        });
+      }
+      case 'canon': {
+        const voices = constNum(a);
+        const delay = constRat(args[1]);
+        const interval = constNum(args[2]) ?? 0;
+        if (voices === null || delay === null) return target;
+        const k = Math.min(MAX_VOICES, Math.max(1, Math.floor(voices)));
+        const copies: Pattern<unknown>[] = [];
+        for (let i = 0; i < k; i++) {
+          const shifted = late(mul(delay, rat(i)), target);
+          copies.push(
+            interval === 0 || i === 0 ? shifted : fmap(shifted, (v) => mapNumeric(v, (x) => x + interval * i)),
+          );
+        }
+        return stack(copies);
+      }
+      case 'prolation': {
+        const copies = args
+          .slice(0, MAX_VOICES)
+          .map((x) => constRat(x))
+          .filter((r): r is Rational => r !== null && lt(ZERO, r))
+          .map((r) => fast(r, target));
+        return copies.length === 0 ? target : stack(copies);
+      }
+      case 'fragment': {
+        const r = constRat(a);
+        return r === null ? target : linger(r, target);
+      }
+      case 'augment':
+        return numArg(a, env, (r) => (isZero(r) ? silence() : slow(r, target))) ?? target;
+      case 'phase': {
+        const r = constRat(a);
+        return r === null ? target : phaseShift(r, target);
+      }
+      case 'additive':
+      case 'subtractive': {
+        const n0 = constNum(a);
+        if (n0 === null) return target;
+        const n = Math.floor(n0);
+        if (n < 1 || n > MAX_STEPS) return target;
+        const zooms = new Map<number, Pattern<unknown>>();
+        return perCycle((c) => {
+          const i = ((c % n) + n) % n;
+          const k = fn === 'additive' ? i + 1 : n - i;
+          let z = zooms.get(k);
+          if (!z) {
+            z = zoom(ZERO, rat(k, n), target);
+            zooms.set(k, z);
+          }
+          return z;
+        });
+      }
+      case 'converge': {
+        const point = constRat(a);
+        if (point === null) return target;
+        const copies = args
+          .slice(1, 1 + MAX_VOICES)
+          .map((x) => constRat(x))
+          .filter((r): r is Rational => r !== null && lt(ZERO, r))
+          .map((r) => early(div(mul(point, sub(ONE, r)), r), fast(r, target)));
+        return copies.length === 0 ? target : stack(copies);
+      }
+      case 'permute': {
+        const n0 = constNum(a);
+        if (n0 === null) return target;
+        const n = Math.floor(n0);
+        if (n < 2 || n > MAX_STEPS) return target;
+        return (
+          numArg(args[1], env, (k) => {
+            const order = permutation(n, toNumber(k));
+            return reorder(n, () => order, target);
+          }) ?? target
+        );
+      }
+      case 'ringing': {
+        const method = constStr(a);
+        const bells = constNum(args[1]);
+        if (method === null || bells === null) return target;
+        const b = Math.floor(bells);
+        if (ringRow(method, b, 0) === null) return target;
+        return reorder(b, (_st, c) => (ringRow(method, b, toNumber(c)) ?? []).map((x) => x - 1), target);
+      }
+      case 'rowform': {
+        if (!a) return target;
+        return bindWindow(argPattern(a, NONE, env), (v) => {
+          const form = typeof v === 'string' ? parseRowForm(v) : null;
+          if (!form) return target;
+          const base = form.retro ? rev(target) : target;
+          return fmap(base, (x) => mapNumeric(x, (p) => (form.invert ? mod12(form.t - p) : mod12(p + form.t))));
+        });
+      }
+      case 'env': {
+        const text = constStr(a);
+        const cycles = constRat(args[1]);
+        const parsed = text === null ? null : parseEnvPoints(text);
+        if (!parsed || 'error' in parsed || cycles === null || !lt(ZERO, cycles)) return silence();
+        const pts = parsed.points;
+        return signal((t) => envAt(pts, frac(div(t, cycles))));
+      }
+      case 'ints': {
+        const name = constStr(a);
+        if (name === null) return silence();
+        const steps = Math.floor(constNum(args[1]) ?? 1);
+        if (steps < 1 || steps > MAX_STEPS) return silence();
+        const pa = constNum(args[2]) ?? undefined;
+        const pb = constNum(args[3]) ?? undefined;
+        return grid(rat(1, steps), (j) => intAt(name, wrapIndex(j), pa, pb));
+      }
+      case 'sieve': {
+        const text = constStr(a);
+        const steps = constNum(args[1]);
+        const parsed = text === null ? null : parseSieve(text);
+        if (!parsed || 'error' in parsed || steps === null) return silence();
+        const k = Math.floor(steps);
+        if (k < 1 || k > MAX_STEPS) return silence();
+        const sv = parsed.sieve;
+        return grid(rat(1, k), (j) => (sieveHas(sv, j) ? true : undefined));
+      }
+      case 'lsys': {
+        const ax = constStr(a);
+        const rules = constStr(args[1]);
+        const gens = constNum(args[2]);
+        const cycles = constRat(args[3]) ?? ONE;
+        if (ax === null || rules === null || gens === null || !lt(ZERO, cycles)) return silence();
+        const pa = parseLsysAxiom(ax);
+        const pr = parseLsysRules(rules);
+        if ('error' in pa || 'error' in pr) return silence();
+        const plan = lsysPlan(pa.atoms, pr.rules, Math.max(0, Math.min(MAX_LSYS_GENERATIONS, Math.floor(gens))));
+        if (!plan || plan.total <= 0) return silence();
+        const total = plan.total;
+        return grid(div(cycles, rat(total)), (j) => {
+          const sym = lsysAt(plan, ((j % total) + total) % total);
+          const v = parseDecimal(sym);
+          return v ? toNumber(v) : sym;
         });
       }
       default:

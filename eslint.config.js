@@ -116,7 +116,7 @@ export default tseslint.config(
   deps('mini', ['time']),
   deps('syntax', ['mini']),
   deps('ir', ['time', 'mini']),
-  deps('registry', ['ir']),
+  deps('registry', ['ir', 'time']),
   deps('random', ['time']),
   deps('check', ['syntax', 'mini', 'ir', 'registry', 'random', 'time']),
   deps('core', ['time', 'mini', 'ir', 'registry', 'random']),

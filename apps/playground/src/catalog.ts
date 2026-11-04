@@ -173,11 +173,13 @@ function buildAlbum(
 
 /**
  * Loads every album listed in the manifest, then the extra album URLs (already absolute).
+ * When no album from the manifest loads, `fallback` (the built-in examples) is used instead.
  * Never throws; failures are reported in `errors`.
  */
 export async function loadCatalog(
   manifestUrl: string,
   mounted: readonly string[] = [],
+  fallback?: ParsedAlbum,
 ): Promise<{ catalog: Catalog; errors: string[] }> {
   const errors: string[] = [];
   const sources: AlbumSource[] = [];
@@ -186,7 +188,7 @@ export async function loadCatalog(
       sources.push({ ...entry, url: new URL(entry.file, manifestUrl).href, mounted: false });
     }
   } catch (e) {
-    errors.push(`Could not read the album manifest: ${message(e)}.`);
+    if (!fallback) errors.push(`Could not read the album manifest: ${message(e)}.`);
   }
   for (const url of mounted) {
     if (!sources.some((s) => s.url === url)) sources.push({ file: url, url, mounted: true });
@@ -204,6 +206,11 @@ export async function loadCatalog(
   const albumIds = new Set<string>();
   const sketchIds = new Set<string>();
   const albums: CatalogAlbum[] = [];
+  const listedLoaded = loaded.some((item) => item !== null && !item.src.mounted);
+  if (fallback && !listedLoaded) {
+    const src: AlbumSource = { id: 'examples', file: 'examples', url: `${manifestUrl}#builtin`, mounted: false };
+    albums.push(buildAlbum(src, fallback, albumIds, sketchIds));
+  }
   for (const item of loaded) {
     if (item) albums.push(buildAlbum(item.src, item.parsed, albumIds, sketchIds));
   }

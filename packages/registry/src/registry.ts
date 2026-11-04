@@ -2,7 +2,8 @@ import type { PatternType, ValueKind } from '@tartlet/ir';
 
 // Descriptions are original Tartlet prose (idea.md §4, rule 4).
 
-export type Category = 'control' | 'combinator' | 'transform' | 'tonal' | 'directive' | 'constant' | 'signal';
+export type Category =
+  'control' | 'combinator' | 'transform' | 'tonal' | 'directive' | 'constant' | 'signal' | 'generator';
 
 export interface ParamSpec {
   readonly name: string;
@@ -47,6 +48,7 @@ const SINCE_T10 = '0.10.0';
 const SINCE_T11 = '0.11.0';
 const SINCE_T12 = '0.12.0';
 const SINCE_T13 = '0.13.0';
+const SINCE_T14 = '0.14.0';
 
 function control(
   id: string,
@@ -192,6 +194,47 @@ function signalEntry(id: string, description: string): RegistryEntry {
     category: 'signal',
   };
 }
+/** Long-form transforms from docs/symphonic.md. L3, so they stay out of the prompt. */
+function sym(
+  id: string,
+  params: readonly ParamSpec[],
+  description: string,
+  deterministic: 'pure' | 'seeded' = 'pure',
+): RegistryEntry {
+  return { ...transform(id, [id], params, description, deterministic), level: 'L3', since: SINCE_T14 };
+}
+/** Long-form constructors from docs/symphonic.md, lowered by the checker. */
+function gen(id: string, params: readonly ParamSpec[], returns: PatternType, description: string): RegistryEntry {
+  return {
+    id,
+    names: [id],
+    form: 'constructor',
+    params,
+    returns,
+    level: 'L3',
+    deterministic: 'pure',
+    since: SINCE_T14,
+    description,
+    category: 'generator',
+  };
+}
+const CONST_IN = (name: string, lo: number, hi: number, optional = false): ParamSpec => ({
+  name,
+  type: 'number',
+  patternable: false,
+  range: [lo, hi],
+  ...(optional ? { optional } : undefined),
+});
+const CONST_STR = (name: string): ParamSpec => ({ name, type: 'string', patternable: false });
+const RATIOS: readonly ParamSpec[] = [
+  { name: 'r1', type: 'number', patternable: false },
+  ...['r2', 'r3', 'r4', 'r5', 'r6'].map((n): ParamSpec => ({
+    name: n,
+    type: 'number',
+    patternable: false,
+    optional: true,
+  })),
+];
 
 export const ENTRIES: readonly RegistryEntry[] = [
   control(
@@ -997,6 +1040,116 @@ export const ENTRIES: readonly RegistryEntry[] = [
     'Moves notes up or down by whole octaves.',
   ),
   lib('accent', ['accent'], [RHYTHM], 'Makes events louder wherever the rhythm is true at their start.'),
+  // ---- Long-form and generative composition (docs/symphonic.md)
+  gen(
+    'form',
+    [CONST_STR('layout'), { ...ANY, name: 'parts' }],
+    { kind: 'pattern', of: 'controls' },
+    'Plays sections in order, written as letters with lengths in cycles such as "A@16 B@8". Each section starts its part from the beginning, and a prime makes a seeded variant.',
+  ),
+  gen(
+    'env',
+    [CONST_STR('points'), { name: 'cycles', type: 'number', patternable: false }],
+    { kind: 'signal', of: 'number' },
+    'A breakpoint envelope over a number of cycles: values with @ weights for segment lengths, joined by straight lines, then repeated.',
+  ),
+  gen(
+    'ints',
+    [CONST_STR('name'), CONST_IN('steps', 1, 1024, true), CONST_NUM('a', true), CONST_NUM('b', true)],
+    { kind: 'pattern', of: 'number' },
+    'A named integer sequence counted from the start of the piece, a set number of steps per cycle: ruler, thuemorse, norgard, fib, sturm, vdc, prime, collatz or digits.',
+  ),
+  gen(
+    'sieve',
+    [CONST_STR('expr'), CONST_IN('steps', 1, 1024)],
+    { kind: 'pattern', of: 'bool' },
+    'A rhythm from residue classes: m@r keeps the steps that leave remainder r when divided by m; | joins, & intersects and - complements.',
+  ),
+  gen(
+    'lsys',
+    [CONST_STR('axiom'), CONST_STR('rules'), CONST_IN('generations', 0, 16), CONST_NUM('cycles', true)],
+    { kind: 'pattern', of: 'string' },
+    'Rewrites an axiom by rules such as "a=a b, b=a" for some generations, then spreads the symbols evenly over the given cycles.',
+  ),
+  gen(
+    'row',
+    [{ name: 'pitches', type: 'number', patternable: true }],
+    { kind: 'pattern', of: 'controls' },
+    'A twelve-tone row of pitch classes from 0 to 11, played like n.',
+  ),
+  sym('once', [], 'Plays a form once and then nothing.'),
+  sym(
+    'during',
+    [CONST_NUM('begin'), CONST_NUM('end'), FN, CONST_NUM('period', true)],
+    'Applies a function in the cycles from begin up to end, repeating every period cycles when one is given.',
+  ),
+  sym('enter', [CONST_NUM('cycle')], 'Stays silent before the given cycle.'),
+  sym('exit', [CONST_NUM('cycle')], 'Falls silent from the given cycle on.'),
+  sym('fadein', [CONST_NUM('cycles')], 'Raises the gain from zero to full over the first cycles of the piece.'),
+  sym(
+    'fadeout',
+    [CONST_NUM('cycles'), CONST_NUM('at')],
+    'Lowers the gain from full to zero over the given cycles, starting at cycle at.',
+  ),
+  sym(
+    'invert',
+    [CONST_NUM('axis', true)],
+    'Mirrors degrees, numbers or notes around an axis: zero for degrees and numbers, and middle C for notes unless an axis is given.',
+  ),
+  sym('retro', [CONST_NUM('cycles', true)], 'Plays each window of the given number of cycles backwards.'),
+  sym(
+    'sequence',
+    [CONST_NUM('step'), CONST_IN('copies', 1, 1024)],
+    'Repeats the pattern in groups of cycles, each cycle a step higher than the one before.',
+  ),
+  sym(
+    'canon',
+    [CONST_IN('voices', 1, 16), CONST_NUM('delay'), CONST_NUM('interval', true)],
+    'Stacks copies of the pattern, each one later by the delay and higher by the interval.',
+  ),
+  sym('prolation', RATIOS, 'Stacks copies played at the given speed ratios, as in a mensuration canon.'),
+  sym('fragment', [UNIT('fraction')], 'Repeats the opening fraction of each cycle, like linger.'),
+  sym('augment', [FACTOR], 'Plays the pattern a number of times slower, like slow.'),
+  sym(
+    'phase',
+    [CONST_NUM('step')],
+    'Delays each cycle by the cycle number times step, wrapped within a cycle, so a copy drifts away from the original and back.',
+  ),
+  sym(
+    'additive',
+    [CONST_IN('n', 1, 1024)],
+    'Cuts each cycle into n steps and plays one step more each cycle, stretched to fill it.',
+  ),
+  sym(
+    'subtractive',
+    [CONST_IN('n', 1, 1024)],
+    'Cuts each cycle into n steps and plays one step fewer each cycle, stretched to fill it.',
+  ),
+  sym(
+    'converge',
+    [CONST_NUM('at'), ...RATIOS],
+    'Stacks copies at the given speed ratios that all reach the same point of the pattern at cycle at, like a tempo canon.',
+  ),
+  sym(
+    'permute',
+    [CONST_IN('n', 2, 1024), { name: 'k', type: 'number', patternable: true }],
+    'Cuts each cycle into n slices and plays them in the order of the k-th permutation.',
+  ),
+  // Typed as `ring`, like the vocal control; the checker picks this one when the first argument
+  // is a string. Its own id keeps the control reachable through `get('ring')`.
+  {
+    ...sym(
+      'ringing',
+      [CONST_STR('method'), CONST_IN('bells', 3, 16)],
+      'Cuts each cycle into slices and plays them in successive rows of a change-ringing method: plainhunt.',
+    ),
+    names: ['ring'],
+  },
+  sym(
+    'rowform',
+    [{ name: 'form', type: 'string', patternable: true }],
+    'Turns pitch classes into a row form such as P0, I5, R3 or RI7.',
+  ),
   {
     id: 'run',
     names: ['run'],

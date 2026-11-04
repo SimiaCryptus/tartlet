@@ -384,6 +384,154 @@ export function degradeBy<T>(amount: number, pat: Pattern<T>, salt = '', invert 
 export function withSeed<T>(seed: string, pat: Pattern<T>): Pattern<T> {
   return pattern((st) => pat.query({ ...st, seed }));
 }
+// ---- Long-form helpers (docs/symphonic.md)
+/** One section of a form: a pattern played in its own local time from `start` for `len` cycles. */
+export interface Section<T> {
+  readonly pat: Pattern<T>;
+  readonly start: Rational;
+  readonly len: Rational;
+}
+/**
+ * Plays sections one after another. Each section starts its pattern from local time zero, and
+ * wholes are clipped to the section. The arrangement loops unless `once` is set.
+ */
+export function arrangeSections<T>(sections: readonly Section<T>[], once = false): Pattern<T> {
+  const total = sections.reduce((acc, s) => add(acc, s.len), ZERO);
+  if (sections.length === 0 || lte(total, ZERO)) return silence();
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    const { begin, end } = st.span;
+    if (!lt(begin, end)) return out;
+    let k = once ? ZERO : floor(div(begin, total));
+    for (;;) {
+      const offset = mul(k, total);
+      if (!lt(offset, end)) break;
+      tick(st);
+      for (const s of sections) {
+        const s0 = add(offset, s.start);
+        const window = { begin: s0, end: add(s0, s.len) };
+        const w = sect(st.span, window);
+        if (!w) continue;
+        for (const ev of s.pat.query(
+          at(
+            st,
+            mapSpan(w, (t) => sub(t, s0)),
+          ),
+        )) {
+          const moved = mapEventTime(ev, (t) => add(t, s0));
+          const whole = moved.whole ? sect(moved.whole, window) : null;
+          if (moved.whole && !whole) continue;
+          out.push({ ...moved, whole });
+        }
+      }
+      if (once) break;
+      k = add(k, ONE);
+    }
+    return out;
+  });
+}
+/** Keeps only what plays in [from, until); either bound may be absent. Wholes are clipped too. */
+export function clipTime<T>(pat: Pattern<T>, from: Rational | null, until: Rational | null): Pattern<T> {
+  return pattern((st) => {
+    const b = from !== null && lt(st.span.begin, from) ? from : st.span.begin;
+    const e = until !== null && lt(until, st.span.end) ? until : st.span.end;
+    if (!lt(b, e)) return [];
+    const out: Event<T>[] = [];
+    for (const ev of pat.query(at(st, { begin: b, end: e }))) {
+      if (!ev.whole) {
+        out.push(ev);
+        continue;
+      }
+      const whole = sect(ev.whole, { begin: from ?? ev.whole.begin, end: until ?? ev.whole.end });
+      if (whole) out.push({ ...ev, whole });
+    }
+    return out;
+  });
+}
+/** Events of length `step` at j·step for every integer j, valued f(j). Undefined values are skipped. */
+export function grid<T>(step: Rational, f: (j: number) => T | undefined): Pattern<T> {
+  if (lte(step, ZERO)) return silence();
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    for (let j = floor(div(st.span.begin, step)); ; j = add(j, ONE)) {
+      const b = mul(j, step);
+      if (!lt(b, st.span.end)) break;
+      tick(st);
+      const whole = { begin: b, end: add(b, step) };
+      const part = sect(whole, st.span);
+      if (!part) continue;
+      const value = f(toNumber(j));
+      if (value === undefined) continue;
+      out.push({ whole, part, value, provenance: NO_PROV });
+    }
+    return out;
+  });
+}
+/** Plays the pattern `f(c)` in cycle c. */
+export function perCycle<T>(f: (c: number) => Pattern<T>): Pattern<T> {
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    for (const piece of spanCycles(st.span)) {
+      const c = toNumber(floor(piece.begin));
+      for (const ev of f(c).query(at(st, piece))) out.push(ev);
+    }
+    return out;
+  });
+}
+/** Delays cycle c by c·step, wrapped within the cycle, so the pattern drifts and comes back. */
+export function phaseShift<T>(step: Rational, pat: Pattern<T>): Pattern<T> {
+  if (isZero(step)) return pat;
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    for (const piece of spanCycles(st.span)) {
+      const prod = mul(floor(piece.begin), step);
+      const shift = sub(prod, floor(prod));
+      if (isZero(shift)) {
+        for (const ev of pat.query(at(st, piece))) out.push(ev);
+        continue;
+      }
+      for (const ev of pat.query(
+        at(
+          st,
+          mapSpan(piece, (t) => sub(t, shift)),
+        ),
+      )) {
+        out.push(mapEventTime(ev, (t) => add(t, shift)));
+      }
+    }
+    return out;
+  });
+}
+/** Maps each value together with its event's onset (the whole's start, so fragments agree). */
+export function withOnset<A, B>(pat: Pattern<A>, f: (v: A, onset: Rational) => B): Pattern<B> {
+  return pattern((st) => pat.query(st).map((ev) => ({ ...ev, value: f(ev.value, (ev.whole ?? ev.part).begin) })));
+}
+/** Plays each window of `w` cycles backwards. */
+export function retrograde<T>(w: Rational, pat: Pattern<T>): Pattern<T> {
+  if (lte(w, ZERO)) return pat;
+  if (eq(w, ONE)) return rev(pat);
+  return pattern((st) => {
+    tick(st);
+    const out: Event<T>[] = [];
+    let b = st.span.begin;
+    while (lt(b, st.span.end)) {
+      tick(st);
+      const s0 = mul(floor(div(b, w)), w);
+      const e = min(add(s0, w), st.span.end);
+      const mirror = add(add(s0, s0), w);
+      const refl = (s: TimeSpan): TimeSpan => ({ begin: sub(mirror, s.end), end: sub(mirror, s.begin) });
+      for (const ev of pat.query(at(st, refl({ begin: b, end: e })))) {
+        out.push({ ...ev, whole: ev.whole ? refl(ev.whole) : null, part: refl(ev.part) });
+      }
+      b = e;
+    }
+    return out;
+  });
+}
 // ---- Library transforms (docs/language_extensions.md Part 2, TS-53 to TS-59)
 /** The position of `t` within its cycle, in [0, 1). */
 function cyclePos(t: Rational): Rational {
@@ -559,7 +707,6 @@ export function swingBy<T>(amount: Rational, n: number, pat: Pattern<T>): Patter
  */
 export function shuffle<T>(n: number, pat: Pattern<T>, salt: string, replace = false): Pattern<T> {
   if (!Number.isInteger(n) || n <= 1 || n > MAX_PLY) return pat;
-  const nR = rat(n);
   const order = (seed: string, cs: string): number[] => {
     if (replace) {
       return Array.from({ length: n }, (_, j) => Math.min(n - 1, Math.floor(draw(seed, salt, cs, String(j)) * n)));
@@ -573,12 +720,22 @@ export function shuffle<T>(n: number, pat: Pattern<T>, salt: string, replace = f
     }
     return out;
   };
+  return reorder(n, (st, c) => order(st.seed, toString(c)), pat);
+}
+/** Plays the n slices of each cycle in the order `order` gives for that cycle (slot j plays slice order[j]). */
+export function reorder<T>(
+  n: number,
+  order: (st: QueryState, c: Rational) => readonly number[],
+  pat: Pattern<T>,
+): Pattern<T> {
+  if (!Number.isInteger(n) || n < 1 || n > MAX_PLY) return pat;
+  const nR = rat(n);
   return pattern((st) => {
     tick(st);
     const res: Event<T>[] = [];
     for (const piece of spanCycles(st.span)) {
       const c = floor(piece.begin);
-      const ord = order(st.seed, toString(c));
+      const ord = order(st, c);
       for (let j = 0; j < n; j++) {
         const win = sect(piece, { begin: add(c, div(rat(j), nR)), end: add(c, div(rat(j + 1), nR)) });
         if (!win) continue;

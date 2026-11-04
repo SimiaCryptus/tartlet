@@ -87,8 +87,9 @@ function withMeta(m: SketchMeta, tags: readonly string[]): SketchMeta {
   };
 }
 /** Ratings live in the rating store, not in library entries. */
-function withoutRating({ ...rest }: SketchData): SketchData {
-  return rest;
+function withoutRating(s: SketchData): SketchData {
+  const { rating, comment, ...rest } = s;
+  return rating === undefined && comment === undefined ? s : rest;
 }
 
 // ---- storage
