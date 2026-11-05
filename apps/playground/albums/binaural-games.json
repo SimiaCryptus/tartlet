@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "binaural-games",
+  "name": "Binaural Quest",
+  "description": "Video game music for headphones: original pieces in classic game styles that use the space between your ears as part of the level. A title screen whose arpeggios hop from ear to ear, an overworld split by partials, a dungeon with drips and torches all around you and a beast circling in the dark, a stealth mission behind walls, a boss whose theme rolls inside your head, a secret room with a jingle hidden in noise, a racing circuit where rivals lap around you, a space shooter with lasers crossing your head, a puzzle room of clocks in every corner and a save point humming on a slow delta drone. The kick, bass and lead stay in the centre; each sketch explains its trick in the comments. Headphones on, volume low.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["video games", "chiptune", "binaural", "headphones", "spatial"],
+  "exportedAt": "2026-11-10T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "title-screen",
+      "name": "Title Screen",
+      "description": "Press start: a chiptune hero theme in the centre while the arpeggio leans right with a level difference and a patterned ear swap flips some notes to the left. The noise-channel hats circle your head every two bars.",
+      "category": "Level",
+      "tags": ["150 bpm", "C major", "ild", "earswap", "chiptune"],
+      "source": "setcpm(150/4)\n\n// The hero theme on a pulse wave, dead centre\nlead: note(\"<[c5 ~ g4 c5 e5 ~ g5 e5] [f5 ~ e5 d5 c5 ~ d5 e5] [a5 g5 e5 c5 d5 ~ g4 ~] [c5@6 ~@2]>\")\n  .s(\"square\").pw(.25).vib(6).vibdepth(.05)\n  .attack(.001).decay(.1).sustain(.6).release(.05).gain(.18)\n\n// ild makes the right ear louder; earswap flips the steps marked 1 to the left: C, F, Am, G\narp: note(\"<[c4 e4 g4 c5]*2 [f4 a4 c5 f5]*2 [a3 c4 e4 a4]*2 [g3 b3 d4 g4]*2>\")\n  .s(\"square\").pw(.5).ild(8).earswap(\"0 1 0 1 1 0 1 0\")\n  .decay(.05).sustain(0).gain(.1)\n\n// A triangle bass jumping octaves, centred\nbass: note(\"<[c2 c3]*4 [f1 f2]*4 [a1 a2]*4 [g1 g2]*4>\")\n  .s(\"triangle\").decay(.1).sustain(.5).release(.05).gain(.45)\n\n// Noise-channel drums: kick and snare centred, hats circling your head every two bars\nkick: note(\"c2 ~ [~ c2] ~\").s(\"sine\").penv(30).pdecay(.04).decay(.15).sustain(0).gain(.55)\nsnare: s(\"~ white ~ white\").hpf(2000).decay(.1).sustain(0).gain(.22)\nhats: s(\"white*8\").hpf(9000).decay(.02).sustain(0)\n  .azimuth(saw.range(-180, 180).slow(2)).distance(1.5).posglide(.2).gain(.08)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "overworld",
+      "name": "Overworld",
+      "description": "Setting out across the map: a flute plays the adventure theme in the centre, the march chords send alternate partials to each ear and the drums split their lows from their highs. A stream runs on your left and birds sing ahead.",
+      "category": "Spectrum",
+      "tags": ["112 bpm", "G major", "earsplit", "adventure"],
+      "source": "setcpm(112/4)\n\n// The world map: wind in the grass, a stream on your left, birds ahead and to the right\nwind: s(\"wind\").slow(8).intensity(.2).gain(.08)\nstream: s(\"stream\").slow(4).azimuth(-70).distance(4).gain(.14)\nbirds: s(\"bird\").slow(3).azimuth(40).elevation(20).distance(5).gain(.18)\n\n// earsplit(\"harmonics\") alternates the partials between the ears: G, C, Em, D\nchords: note(\"<[g3,b3,d4] [c4,e4,g4] [e3,g3,b3] [d3,f#3,a3]>\").struct(\"x ~ x x ~ x x ~\")\n  .s(\"square\").pw(.3).earsplit(\"harmonics\").lpf(2400).decay(.15).sustain(.2).gain(.12)\n\n// The adventure theme on a flute, straight ahead\nflute: note(\"<[g4@2 a4 b4 d5@3 b4] [c5@2 b4 a4 g4@4] [e4 g4 a4 b4 a4@2 g4 e4] [d4@6 ~@2]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.1)\n  .attack(.04).sustain(.6).release(.3).room(.4).gain(.24)\n\n// A bouncing, centred bass\nbass: note(\"<[g2 d2]*2 [c2 g2]*2 [e2 b1]*2 [d2 a1]*2>\")\n  .s(\"triangle\").decay(.2).sustain(.3).release(.1).gain(.4)\n\n// earsplit(\"bands\") puts the drums' lows in one ear and their highs in the other\ndrums: s(\"bd ~ bd ~, ~ sd ~ sd, hh*8\").earsplit(\"bands\").splitfreq(900).gain(.4)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "dungeon-crawl",
+      "name": "Dungeon Crawl",
+      "description": "Headphones on: water drips all around you in a stone hall, a torch burns on each wall, your footsteps follow close behind and something large breathes as it circles you in the dark. A drone's phase turns slowly between the ears, below the rates that trigger a pulse warning.",
+      "category": "Space",
+      "tags": ["70 bpm", "D harmonic minor", "azimuth", "irate", "dungeon"],
+      "source": "setcpm(70/4)\n\n// Water dripping from every direction in a stone hall\ndrips: s(\"drip*8?0.6\").azimuth(rand.range(-180, 180)).distance(3).seed(\"dungeon\")\n  .space(\"church\").gain(rand.range(.06, .16))\n\n// A torch on each wall\ntorchL: s(\"fire\").slow(4).intensity(.3).density(8).azimuth(-80).distance(2).gain(.14)\ntorchR: s(\"fire\").slow(4).intensity(.3).density(8).azimuth(80).distance(2).gain(.14)\n\n// Something large breathes as it circles you in the dark, once every sixteen bars\nbeast: s(\"engine\").slow(8).lpf(250).azimuth(saw.range(-180, 180).slow(16))\n  .distance(5).posglide(.5).gain(.12)\n\n// Your own footsteps, just behind you\nsteps: s(\"step ~ step ~\").azimuth(180).distance(1).lpf(1500).gain(.12)\n\n// irate turns the drone's phase between the ears, a quarter or half a turn a second\ndrone: note(\"[d2,a2]\").slow(4).s(\"sawtooth\").irate(\"<.25 .5>\")\n  .lpf(500).attack(2).sustain(1).release(3).gain(.18)\n\n// A hesitant melody, deep in the stone and centred\nmelody: n(\"<[0 ~ 2 ~] [1 ~ ~ -1] [0 ~ 4 3] [2@4]>\").scale(\"D:harmonic minor\").transpose(12)\n  .s(\"triangle\").timbre(\"hollow\").attack(.05).decay(.8).sustain(.2).release(1)\n  .space(\"church\").room(.6).gain(.2)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "stealth-mission",
+      "name": "Stealth Mission",
+      "description": "Crouched in the vents: a wide hush of decorrelated noise, a sonar ping from a new direction each bar and guards pacing beyond the walls. Nothing is panned, yet the bass's brightness creeps from ear to ear, and the pad is thinner on the right.",
+      "category": "Filtering",
+      "tags": ["96 bpm", "E minor", "icorr", "lcutoff", "occlude"],
+      "source": "setcpm(96/4)\n\n// The vents: unrelated noise in each ear, a wide hush all around\nair: s(\"pink\").slow(8).icorr(.1).hpf(300).lpf(2500).gain(.04)\n\n// A sonar ping from a new direction each bar: ahead, right, behind, left\nsonar: note(\"e5 ~ ~ ~\").s(\"sine\").fm(1.5).fmh(2).decay(1.5).sustain(0).release(2)\n  .azimuth(\"<0 90 180 -90>\").distance(4).room(.5).gain(.1)\n\n// Guards pacing beyond the walls, left and right\nguard1: s(\"step ~ step ~\").azimuth(-100).distance(4).occlude(.6).gain(.14)\nguard2: s(\"~ step ~ step\").azimuth(110).distance(6).occlude(.6).gain(.1)\n\n// A low-pass on each ear alone, sweeping in opposite directions every four bars\nbass: note(\"e1 ~ e1 ~ g1 ~ e1 [~ f1]\").s(\"sawtooth\").lpq(5)\n  .lcutoff(saw.range(200, 1600).slow(4)).rcutoff(isaw.range(200, 1600).slow(4))\n  .decay(.2).sustain(.3).release(.1).gain(.38)\n\n// A muted, centred kit, and a tense pad with a high-pass on the right ear only\ndrums: s(\"bd ~ ~ bd ~ ~ ~ ~, ~ ~ rim ~ ~ ~ rim ~\").lpf(3000).gain(.32)\npad: note(\"<[e3,g3,b3] [c3,e3,a3]>\").slow(2).s(\"triangle\").rhcutoff(1200)\n  .attack(1).sustain(1).release(2).room(.5).gain(.14)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "boss-battle",
+      "name": "Boss Battle",
+      "description": "The final guardian: a centred kick and bass hold the arena while the boss theme's interaural phase turns once or twice a second, so it rolls inside your head. Orchestra stabs widen bar by bar on growing delays, and an alarm swings from ear to ear every fourth bar.",
+      "category": "Phase",
+      "tags": ["156 bpm", "E phrygian", "irate", "itd", "boss"],
+      "source": "setcpm(156/4)\n\n// The floor of the arena: centred drums and bass\ndrums: stack(\n  s(\"bd*4\").shape(.3).gain(.8),\n  s(\"~ sd ~ [sd sd]\").room(.3).gain(.55),\n  s(\"hh*16\").hpf(8000).gain(\"[.25 .1]*8\")\n)\nbass: note(\"e1 e1 f1 e1 g1 e1 f1 d1\").s(\"sawtooth\").lpf(900).lpq(4)\n  .decay(.12).sustain(.3).release(.05).gain(.45)\n\n// irate turns the lead's phase between the ears, one or two turns a second, below 3 Hz\nlead: n(\"<[0 1 4 3 4@2 7 6] [7 6 4 3 1@2 0 1] [4 5 7 8 7@2 5 4] [3 1 0 -1 0@4]>\").scale(\"E:phrygian\").transpose(12)\n  .s(\"sawtooth\").unison(2).detune(.15).irate(\"<1 2>\")\n  .lpf(3000).attack(.01).sustain(.6).release(.1).gain(.18)\n\n// From about 1 to 30 ms the stabs stay on the leading side but grow wider each bar\nstabs: note(\"[e3,g3,b3,e4]\").struct(\"x ~ ~ x ~ ~ x ~\").s(\"sawtooth\").unison(4).detune(.3)\n  .itd(\"<1 8 15 25>\").lpf(3500).decay(.25).sustain(0).room(.4).gain(.2)\n\n// Under about 0.7 ms the delay moves a sound sideways: the alarm swings every fourth bar\nalarm: note(\"<~ ~ ~ [b4 e5 b4 e5]>\").s(\"square\").pw(.3)\n  .itd(sine.range(-.6, .6).fast(2)).decay(.2).sustain(.4).gain(.1)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "secret-area",
+      "name": "Secret Area",
+      "description": "You found a hidden room. Each ear alone hears only a hiss of white noise; together they carry the discovery jingle (Huggins pitch). A quiet pulse plays it once every four bars so you know what to listen for, while treasure sparkles around you. The effect is faint and differs between listeners.",
+      "category": "Dichotic",
+      "tags": ["100 bpm", "C major", "dichotic", "Huggins pitch", "secret"],
+      "source": "setcpm(100/4)\n\n// The same noise feeds both ears, but one ear's noise is phase-shifted in a narrow band\n// Neither ear alone hears a tone; together they hear the jingle: C, Dm, Em, C\nsecret: s(\"white*4\").dichotic(\"<[523 659 784 1047] [587 698 880 1175] [659 784 988 1319] [1047@4]>\")\n  .dichoticq(30).attack(.01).sustain(1).release(.05).gain(.16)\n\n// A quiet hint: the first bar on a chip pulse, once every four bars\nhint: note(\"<[c5 e5 g5 c6] ~ ~ ~>\").s(\"square\").pw(.25)\n  .decay(.1).sustain(.3).release(.05).gain(.07)\n\n// Treasure sparkles placed around you, a little above\nsparkle: n(irand(8).segment(8)).scale(\"C:major pentatonic\").transpose(24)\n  .degradeBy(.6).seed(\"treasure\")\n  .s(\"triangle\").timbre(\"glass\").decay(.15).sustain(0)\n  .azimuth(rand.range(-150, 150)).elevation(30).distance(2).gain(.08)\n\n// A soft pad holding the chords\npad: note(\"<[c3,e3,g3] [d3,f3,a3] [e3,g3,b3] [c3,e3,g3]>\").s(\"sawtooth\").unison(3).detune(.2)\n  .attack(.5).sustain(.8).release(1).lpf(1200).room(.6).gain(.1)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "racing-circuit",
+      "name": "Racing Circuit",
+      "description": "Synthwave at full throttle: a rival car laps around your head every two bars while the kick, bass and race theme stay straight ahead. The pad's ears drift apart in cents, a bar at a time, from a slow beat to a wide chorus.",
+      "category": "Pitch",
+      "tags": ["140 bpm", "A minor", "azimuth", "earsh", "synthwave"],
+      "source": "setcpm(140/4)\n\n// A rival car laps around your head every two bars, gliding between positions\nrival: s(\"engine*4\").lpf(1200).azimuth(saw.range(-180, 180).slow(2))\n  .distance(3).posglide(.3).gain(.12)\n\n// Synthwave drums and a sixteenth-note bass, centred on the track\ndrums: stack(\n  s(\"bd*4\").shape(.25).gain(.8),\n  s(\"~ sd ~ sd\").room(.5).gain(.5),\n  s(\"hh*16\").hpf(7500).gain(\"[.25 .1]*8\")\n)\nbass: note(\"<a1 f1 c2 g1>\").ply(16).s(\"sawtooth\").lpf(1100).lpq(4)\n  .decay(.09).sustain(.15).release(.03).gain(.45)\n\n// earsh raises the right ear and lowers the left: 2 cents beats slowly, 30 blooms into a chorus\npad: note(\"<[a3,c4,e4] [f3,a3,c4] [c4,e4,g4] [g3,b3,d4]>\").s(\"sawtooth\").unison(3).detune(.25)\n  .earsh(\"<2 6 12 30>\").attack(.2).release(.8).lpf(1800).room(.5).gain(.14)\n\n// The race theme, straight ahead\nlead: note(\"<[e5@3 d5 c5@2 b4 a4] [c5@4 a4@4] [g5@3 f5 e5@2 d5 c5] [b4@4 d5@4]>\")\n  .s(\"sawtooth\").unison(2).detune(.15).mono(1).glide(.04).vib(5).vibdepth(.1).lpf(3000)\n  .attack(.01).sustain(.6).release(.15).delay(.3).delaytime(3/16).gain(.22)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "space-shooter",
+      "name": "Space Shooter",
+      "description": "An arcade shoot-'em-up: lasers fly across your head on delays under a millisecond, enemy formations swoop overhead from left to right and the starfield pad steps from the centre of your head to all around it. On speakers the 180-degree bars of the pad nearly vanish.",
+      "category": "Phase",
+      "tags": ["128 bpm", "C minor", "itd", "iphase", "shmup"],
+      "source": "setcpm(128/4)\n\n// Lasers: a falling pitch, and a delay under a millisecond that throws each shot to one side\nlasers: note(\"c6*8?0.5\").s(\"square\").pw(.2).penv(-24).pdecay(.08).decay(.1).sustain(0)\n  .itd(\"[-0.6 0.6]*4\").seed(\"lasers\").gain(.08)\n\n// The starfield: 0 degrees centred, 90 looser, 180 diffuse and nearly gone in mono\npad: note(\"<[c3,g3,d4] [ab2,eb3,c4] [bb2,f3,d4] [g2,d3,b3]>\").s(\"sawtooth\").unison(3).detune(.2)\n  .iphase(\"<0 90 180 90>\").lpf(1400).attack(.5).sustain(.8).release(1).gain(.12)\n\n// Enemy formations swoop overhead, crossing from left to right each bar\nenemies: note(\"[g4 f4 eb4 d4]*2\").s(\"triangle\").timbre(\"bright\").decay(.08).sustain(0)\n  .azimuth(saw.range(-90, 90)).elevation(40).distance(3).posglide(.1).gain(.1)\n\n// A centred kit and bass\ndrums: stack(\n  s(\"bd*4\").shape(.2).gain(.75),\n  s(\"~ cp ~ cp\").gain(.4),\n  s(\"[~ hh]*4\").hpf(7000).gain(.25)\n)\nbass: note(\"<c2 ab1 bb1 g1>\").struct(\"x ~ x x ~ x x ~\").s(\"square\").pw(.3).lpf(800)\n  .decay(.1).sustain(.3).release(.05).gain(.4)\n\n// The pilot's theme, straight ahead\nlead: n(\"<[0 2 4 7] [5 4 2 ~] [4 5 7 9] [7@4]>\").scale(\"C:minor\").transpose(12)\n  .s(\"square\").pw(.25).vib(6).vibdepth(.05).decay(.1).sustain(.6).release(.05)\n  .delay(.25).delaytime(3/16).gain(.16)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "puzzle-room",
+      "name": "Puzzle Room",
+      "description": "Thinking music: three clocks tick in five, six and seven from three corners of the room, a rotating marimba figure drifts apart in cents between the ears, and a chime rings when a piece clicks into place, swapping ears each bar.",
+      "category": "Space",
+      "tags": ["84 bpm", "F major", "azimuth", "earsh", "puzzle"],
+      "source": "setcpm(84/4)\n\n// Three clocks in three corners: five, six and seven ticks sharing one step size\nclock1: s(\"{tick tick tick tick tick}%8\").azimuth(-60).distance(2).gain(.12)\nclock2: s(\"{rim ~ rim ~ rim ~}%8\").azimuth(60).distance(2).gain(.1)\nclock3: s(\"{click ~ ~ click ~ click ~}%8\").hpf(2000).azimuth(180).distance(3).gain(.1)\n\n// The marimba figure rotates each bar, and its ears drift apart in cents\nmarimba: n(\"0 2 4 7 4 2 5 4\").scale(\"F:major\").iter(4)\n  .s(\"sine\").fm(.6).fmh(4).earsh(\"<2 6 12 6>\").decay(.35).sustain(0).room(.3).gain(.22)\n\n// A chime when a piece fits: the right ear louder, swapped every other bar\nchime: note(\"<[~ ~ ~ c6] [~ ~ ~ a5]>\").s(\"sine\").fm(2).fmh(2.76).ild(6).earswap(\"<0 1>\")\n  .decay(1.5).sustain(0).release(1.5).room(.5).gain(.12)\n\n// Soft chords and a centred bass: Fmaj7, Dm7, Bbmaj7, C7\npad: note(\"<[f3,a3,c4,e4] [d3,f3,a3,c4] [bb2,d3,f3,a3] [c3,e3,g3,bb3]>\").s(\"triangle\").timbre(\"soft\")\n  .attack(.5).sustain(.8).release(1).lpf(1500).room(.5).gain(.14)\nbass: note(\"<f2 d2 bb1 c2>\").s(\"sine\").attack(.05).decay(.5).sustain(.3).release(.3).gain(.35)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "save-point",
+      "name": "Save Point",
+      "description": "Headphones on: a safe room with a glowing crystal. A 2 Hz binaural drone hums in the delta range, below the rates that trigger a pulse warning, a music box plays the save theme above your head in 3/4, a campfire crackles to one side and a healing shimmer circles you slowly.",
+      "category": "Beats",
+      "tags": ["60 bpm", "3/4", "C major", "binaural", "delta"],
+      "source": "setcpm(60/3)\n\n// One cycle is a bar of 3/4\n// A 2 Hz binaural drone: each ear is detuned by 1 Hz, below the 3-30 Hz warning range\ndrone: note(\"[c2,g2]\").slow(8).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.24)\n\n// The save theme on a music box, floating above your head: C, G, F, C, C, G, C, C\nmusicbox: note(\"<[e5 g5 c6] [b5@2 g5] [a5 f5 a5] [g5@3] [e5 g5 c6] [d6@2 b5] [c6 g5 e5] [c6@3]>\")\n  .s(\"sine\").fm(2).fmh(4).attack(.002).decay(1).sustain(0).release(1.5)\n  .elevation(40).distance(2).room(.6).size(.85).gain(.2)\n\n// A soft root on each downbeat\nbass: note(\"<c2 g1 f1 c2 c2 g1 c2 c2>\").s(\"triangle\").timbre(\"soft\")\n  .attack(.01).decay(1).sustain(0).release(1).gain(.2)\n\n// A healing shimmer circling you slowly, and a campfire to one side\nshimmer: n(irand(6).segment(3)).scale(\"C:major pentatonic\").transpose(24)\n  .degradeBy(.5).seed(\"save\")\n  .s(\"triangle\").timbre(\"glass\").decay(.8).sustain(0).release(1)\n  .azimuth(saw.range(-180, 180).slow(8)).distance(2).posglide(.4).gain(.07)\nfire: s(\"fire\").slow(4).intensity(.2).density(4).azimuth(-40).distance(3).gain(.12)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    }
+  ]
+}

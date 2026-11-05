@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "mockery",
+  "name": "A Mockery of Human Music",
+  "description": "Music about music, written by something that has listened to a great deal of it: the four chords every song uses, the key change that lifts for no reason, the millennial whoop, the drop that never comes, the guitar solo that outlasts the band, elevator bossa, hold music, a love song from a two-page rhyming dictionary, smooth saxophone excess and a rock ending that ends four times. Every tune is newly written in the style it mocks, and the comments explain the joke. Written with affection.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Parody",
+  "tags": ["parody", "satire", "pop", "clichés", "absurd"],
+  "exportedAt": "2026-11-12T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "four-chords-forever",
+      "name": "Four Chords Forever",
+      "description": "C, G, Am, F: the progression under every song you know, with a strummed guitar, a dutiful beat and a singer who knows exactly four words.",
+      "category": "Pop",
+      "tags": ["112 bpm", "C major", "I-V-vi-IV", "voice"],
+      "source": "setcpm(112/4)\n\n// The four chords: C, G, Am, F. Every song you know. Probably this one too\nchords: note(\"<[c3,e3,g3] [b2,d3,g3] [a2,c3,e3] [a2,c3,f3]>\").struct(\"x ~ x x ~ x x ~\")\n  .s(\"triangle\").timbre(\"bright\").body(\"guitar\").bodymix(.3)\n  .decay(.3).sustain(.2).release(.2).gain(.24)\nbass: note(\"<c2 g1 a1 f1>\").struct(\"x ~ ~ x x ~ ~ ~\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.4).release(.1).gain(.45)\ndrums: s(\"bd ~ sd ~ bd bd sd ~, hh*8\").gain(.4)\n\n// The singer knows four words and is not afraid to use them\n// The syllables carry the same weights as the notes\nsinger: note(\"<[e4@3 e4 g4@2 e4@2] [d4@4 b3@4] [c4@2 e4@2 a4@2 g4@2] [f4@4 ~@4]>\")\n  .s(\"voice\").syl(\"<[ba@3 bee i@2 nid@2] [yoo@4 _@4] [oh@2 oh@2 yeh@2 ba@2] [bee@4 ~@4]>\")\n  .voicetype(\"tenor\").mono(1).vglide(.08).attack(.05).release(.5).room(.3).gain(.3)\n\n// A tambourine, because the producer said so\ntambourine: s(\"[~ hh]*4\").hpf(6000).gain(.18)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "truck-drivers-gear-change",
+      "name": "The Truck Driver's Gear Change",
+      "description": "A ballad that lifts a half step every two bars, with a drum fill to announce it and a crash to confirm it. After sixteen bars it is a fifth higher, then it loops back down as if nothing happened.",
+      "category": "Pop",
+      "tags": ["96 bpm", "C major", "key change", "ballad"],
+      "source": "setcpm(96/4)\n\n// Every two bars the song lifts a half step, whether it needs to or not\n// After sixteen bars it is a fifth higher, then loops back down as if nothing happened\nconst lift = \"<0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7>\"\n\n// The ballad itself: one phrase over C and F, which is all it ever had\nmelody: note(\"<[g4@3 a4 c5@4] [a4@2 g4@2 e4@4]>\").add(lift)\n  .s(\"sawtooth\").unison(2).detune(10).lpf(2400).vib(5).vibdepth(.1)\n  .attack(.04).sustain(.7).release(.4).room(.4).gain(.2)\nchords: note(\"<[c3,e3,g3] [f3,a3,c4]>\").add(lift)\n  .s(\"sawtooth\").unison(4).detune(20).lpf(1500).attack(.4).sustain(.9).release(1).room(.5).gain(.12)\nbass: note(\"<c2 f2>\").add(lift).s(\"sine\").attack(.05).sustain(.8).release(.5).gain(.36)\n\n// A drum fill announces every change, and a crash confirms it\ndrums: s(\"bd ~ sd ~, hh*8\").gain(.4)\nfill: s(\"<~ [~ ~ ~ [lt mt ht ht]]>\").gain(.4)\ncrash: s(\"<cr ~>\").room(.5).gain(.32)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "millennial-whoop",
+      "name": "The Millennial Whoop",
+      "description": "A fifth and a third, back and forth, on 'wo', forever: a choir whoops over a freshly discovered ukulele, stomp-clap percussion, a whimsical glockenspiel and a shout of 'hey'.",
+      "category": "Pop",
+      "tags": ["116 bpm", "C major", "whoop", "stomp-clap"],
+      "source": "setcpm(116/4)\n\n// The millennial whoop: a fifth and a third, back and forth, on wo, forever\nwhoop: note(\"<[g4 e4 g4 e4 g4@2 e4@2] [g4 e4 g4 e4 a4@2 g4@2]>\")\n  .s(\"choir\").syl(\"wo\").attack(.02).release(.2).room(.4).gain(.3)\n\n// A ukulele strummed by someone who has just discovered ukuleles: C, Am, F, G\nuke: note(\"<[c4,e4,g4,c5] [a3,c4,e4,a4] [a3,c4,f4,a4] [b3,d4,g4,b4]>\").struct(\"x ~ x x ~ x x x\")\n  .s(\"triangle\").timbre(\"bright\").attack(.002).decay(.2).sustain(0).release(.15)\n  .body(\"box\").bodysize(.5).bodymix(.4).gain(.2)\nbass: note(\"<c2 a1 f1 g1>\").struct(\"x ~ x ~\").s(\"sine\").decay(.3).sustain(.4).gain(.38)\n\n// Stomp, clap, stomp, clap. Everyone in the barn is wearing braces\nstomp: s(\"bd ~ bd ~\").lpf(400).gain(.5)\nclap: s(\"~ cp ~ cp\").room(.4).gain(.4)\n\n// A glockenspiel, for whimsy, and a shout of hey at the end of every other bar\nglock: note(\"<[e5 ~ g5 ~] [c6 ~ g5 ~]>\").s(\"sine\").fm(3).fmh(3.5)\n  .decay(.8).sustain(0).release(.6).room(.4).gain(.14)\nhey: note(\"<~ [~ ~ ~ [c4,e4,g4]]>\").s(\"aah\").attack(.01).release(.3).room(.3).gain(.24)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "drop-that-never-comes",
+      "name": "The Drop That Never Comes",
+      "description": "Seven bars of festival build-up: a snare roll that keeps accelerating, a white-noise riser, plucks opening wider and a hype man asking if you are ready. Bar eight is the drop. The drop is a sad trombone. Then it starts building again.",
+      "category": "Electronic",
+      "tags": ["128 bpm", "F minor", "build-up", "anticlimax"],
+      "source": "setcpm(128/4)\n\n// Seven bars of build. Bar eight is the drop. The drop is a sad trombone\nconst build = \"<1 1 1 1 1 1 1 0>\"\n\n// The snare roll gets faster and faster, as if this is going somewhere\nroll: s(\"<sd*2 sd*4 sd*4 sd*8 sd*8 sd*16 sd*32 ~>\").gain(saw.range(.15, .5)).hpf(400).room(.3)\n\n// The riser climbs for seven bars\nriser: s(\"white\").mask(build).hpf(saw.range(300, 9000).slow(8)).gain(saw.range(.02, .1).slow(8))\n\n// Plucks whose filter opens wider and wider\nplucks: n(\"0 2 4 7 4 2 0 4\").scale(\"F:minor\").transpose(12).mask(build)\n  .s(\"square\").pw(.3).lpf(saw.range(400, 6000).slow(8)).decay(.1).sustain(0)\n  .delay(.3).delaytime(3/16).gain(.18)\n\n// The hype man asks the obvious question in bar seven\nhype: note(\"<~ ~ ~ ~ ~ ~ [f4 f4 ab4 c5] ~>\").s(\"voice\").syl(\"ar yoo re dee\").voicetype(\"tenor\")\n  .mono(1).vglide(.04).attack(.02).release(.3).room(.4).gain(.3)\n\n// And here it is: the drop\ntrombone: note(\"<~ ~ ~ ~ ~ ~ ~ [g3 gb3 f3 e3@4]>\").s(\"sawtooth\").timbre(\"reed\").vowel(\"oo\")\n  .mono(1).glide(.12).vib(5).vibdepth(.3).lpf(1400)\n  .attack(.03).sustain(.8).release(.6).gain(.22)\n\n// Then it starts building again. It will always start building again\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "guitar-solo-extended",
+      "name": "Guitar Solo (Extended Cut)",
+      "description": "Every note of the pentatonic scale, as fast as possible, for as long as possible. Over bars nine to sixteen the band slowly gives up and goes home, and so does the crowd. The solo does not notice.",
+      "category": "Rock",
+      "tags": ["120 bpm", "E minor pentatonic", "overdrive", "fadeout"],
+      "source": "setcpm(120/4)\n\n// The patch: a saw pushed into a tube curve and out of a combo cabinet\nconst overdrive = (x) => x.s(\"sawtooth\").curve(\"tube\").drive(14).bias(.1)\n  .attack(.003).decay(.3).sustain(.5).release(.1).lpf(3400).cab(\"combo\").room(.25)\n\n// The band vamps on E minor and A, politely, then fades out over bars 9 to 16 and goes home\ndrums: s(\"bd ~ sd ~ bd bd sd ~, hh*8\").gain(.45).fadeout(8, 8)\nbass: note(\"<e2 e2 a1 a1>\").struct(\"x ~ x x ~ x x ~\").s(\"sawtooth\").lpf(600)\n  .decay(.2).sustain(.4).release(.1).gain(.4).fadeout(8, 8)\nrhythm: note(\"<[e3,b3,e4] [e3,b3,e4] [a2,e3,a3] [a2,e3,a3]>\").struct(\"x ~ ~ x ~ ~ x ~\")\n  .overdrive().gain(.14).fadeout(8, 8)\n\n// The solo: seeded noodling with ratchets, and a whammy-bar dive at the end of every fourth bar\n// It does not notice that the band has left\nsolo: n(irand(12).segment(16)).scale(\"E:minor pentatonic\").transpose(12)\n  .sometimesBy(.3, x => x.ply(2)).lastOf(4, x => x.penv(-12).pdecay(.4))\n  .mono(1).glide(.02).overdrive().seed(\"noodle\").gain(.18)\n\n// The audience claps politely at first, and leaves with the band\ncrowd: s(\"crowd\").slow(4).intensity(.3).gain(.1).fadeout(8, 8)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "elevator-to-floor-47",
+      "name": "Elevator to Floor 47",
+      "description": "Bossa nova with every edge sanded off: seventh chords that never resolve, a flute that has never felt anything strongly, the hum of the shaft, a ding at every floor and a robot announcing that you are going up.",
+      "category": "Easy Listening",
+      "tags": ["100 bpm", "C major", "muzak", "bossa"],
+      "source": "setcpm(100/4)\n\n// Bossa nova with the edges sanded off: the clave turned down so nobody is alarmed\nperc: stack(\n  s(\"rim ~ ~ rim ~ ~ rim ~\").gain(.18),\n  s(\"hh*8\").hpf(7000).gain(.08)\n)\n\n// Easy-listening chords: Fmaj7, Em7, Dm7, Cmaj7, the way an elevator dreams\nkeys: note(\"<[f3,a3,c4,e4] [e3,g3,b3,d4] [d3,f3,a3,c4] [c3,e3,g3,b3]>\").struct(\"x ~ ~ x ~ ~ x ~\")\n  .s(\"sine\").fm(1.1).fmh(2).decay(.8).sustain(.3).release(.6).lpf(1800).gain(.22)\nbass: note(\"<[f2@3 c2] [e2@3 b1] [d2@3 a1] [c2@3 g1]>\")\n  .s(\"sine\").decay(.4).sustain(.3).release(.2).gain(.4)\n\n// A flute that has never felt anything strongly\nflute: note(\"<[a4@3 g4 e4@4] [g4@3 f4 d4@4] [f4@3 e4 c4@4] [e4@6 ~@2]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(4).vibdepth(.06)\n  .attack(.1).sustain(.5).release(.5).lpf(2400).room(.3).gain(.2)\n\n// The ding at every floor, the hum of the shaft and an announcement every eight bars\nding: note(\"<~ ~ ~ [~ ~ e5 c5]>\").s(\"sine\").fm(2).fmh(3.5).decay(1).sustain(0).release(1).gain(.14)\nshaft: s(\"engine\").slow(8).lpf(250).gain(.08)\nannounce: note(\"<~ ~ ~ ~ ~ ~ ~ [e4 c4 g4 ~]>\").s(\"voice\").syl(\"go ing up ~\").voicetype(\"alto\")\n  .spectral(\"robot\").samount(.6).mono(1).vglide(.04).gain(.2)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "hold-music",
+      "name": "Hold Music",
+      "description": "Your call is important: an original tune of no importance, crushed down a phone line. In bar seven a robot reassures you, and when the music comes back it picks up somewhere in the middle, as hold music always does.",
+      "category": "Easy Listening",
+      "tags": ["110 bpm", "C major", "phone", "robot"],
+      "source": "setcpm(110/4)\n\n// Your call is important: an original tune of no importance, played down a phone line\nconst line = (x) => x.body(\"phone\").bodymix(.8).crush(7).hpf(300).lpf(3400)\n\n// Bar seven is the robot; the music returns from somewhere in the middle, as hold music does\nconst hold = \"<1 1 1 1 1 1 0 1>\"\n\ntune: note(\"<[c5 e5 g5 e5 c5@2 d5 e5] [f5 e5 d5 c5 b4@4] [a4 c5 f5 e5 d5@2 c5 b4] [c5@4 g4@4]>\")\n  .s(\"triangle\").timbre(\"bright\").decay(.2).sustain(.4).release(.1).mask(hold).line().gain(.22)\nchords: note(\"<[c4,e4] [d4,g4] [c4,f4] [e4,g4]>\").struct(\"x ~ x ~ x ~ x ~\")\n  .s(\"square\").pw(.3).decay(.1).sustain(.1).mask(hold).line().gain(.1)\nbass: note(\"<c3 g2 f2 c3>\").struct(\"x ~ ~ ~ x ~ ~ ~\").s(\"sine\").mask(hold).line().gain(.3)\n\n// The robot reassures you, and will reassure you again in eight bars\nrobot: note(\"<~ ~ ~ ~ ~ ~ [c4 c4 c4 c4 c4 c4 bb3 c4] ~>\")\n  .s(\"voice\").syl(\"yor kol iz im por tant too us\").voicetype(\"alto\")\n  .spectral(\"robot\").samount(.8).mono(1).vglide(.03).line().gain(.26)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "rhyming-dictionary",
+      "name": "The Rhyming Dictionary",
+      "description": "A crooner's love song written with a rhyming dictionary that only has two pages: every word rhymes with moon or with heart. The strings come in exactly when you knew they would.",
+      "category": "Ballad",
+      "tags": ["72 bpm", "C major", "crooner", "syllables"],
+      "source": "setcpm(72/4)\n\n// A love song, written with a rhyming dictionary that only has two pages\n// Piano arpeggios through C, Am, F and G\npiano: note(\"<[c3 g3 c4 e4 g4 e4 c4 g3] [a2 e3 a3 c4 e4 c4 a3 e3] [f2 c3 f3 a3 c4 a3 f3 c3] [g2 d3 g3 b3 d4 b3 g3 d3]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(.8).sustain(.1).release(.9).room(.5).gain(.26)\n\n// Every word rhymes with moon, or with heart: there are no other feelings\n// The syllables carry the same weights as the notes\ncrooner: note(\"<[e4@3 g4 c5@4] [c5@2 b4@2 a4@4] [a4@3 g4 f4@2 e4@2] [d4@6 ~@2]>\")\n  .s(\"voice\").syl(\"<[moon@3 yoon spoon@4] [toon@2 kroon@2 soon@4] [hart@3 part star@2 far@2] [oo@6 ~@2]>\")\n  .voicetype(\"tenor\").mono(1).vglide(.12)\n  .attack(.1).release(1).space(\"hall\").gain(.3)\n\n// The strings come in exactly when you knew they would\nstrings: note(\"<[e3,g3,c4] [e3,a3,c4] [f3,a3,c4] [g3,b3,d4]>\").mask(\"<0 0 0 0 1 1 1 1>\")\n  .s(\"sawtooth\").unison(4).detune(20).lpf(1800).attack(.8).sustain(.9).release(1.5).room(.6).gain(.12)\nbass: note(\"<c2 a1 f1 g1>\").s(\"sine\").attack(.05).sustain(.8).release(.6).gain(.32)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "smooth-saxophone-excess",
+      "name": "Smooth Saxophone Excess",
+      "description": "Smooth jazz at its smoothest: a saxophone with far too much vibrato and glide, an unnecessary run up the scale at the end of every phrase, chords so major-seventh they are lying down, a sliding fretless bass and a wind chime for no reason.",
+      "category": "Jazz",
+      "tags": ["84 bpm", "C major", "smooth jazz", "saxophone"],
+      "source": "setcpm(84/4)\n\n// The patch: a reedy saw through an o vowel, with far too much vibrato and far too much glide\nconst sax = (x) => x.s(\"sawtooth\").timbre(\"reed\").vowel(\"o\").mono(1).glide(.12)\n  .vib(5).vibdepth(.4).attack(.05).sustain(.7).release(.4).lpf(2200).room(.5)\n\n// Every phrase ends with an unnecessary run up the scale, to show that it can\nlead: note(\"<[e5@3 d5 b4@4] [c5@2 d5@2 e5@4] [g5@3 e5 d5@2 b4@2] [a4 b4 c5 d5 e5 g5 a5 b5]>\")\n  .sax().gain(.22)\n\n// Rhodes chords so major-seventh they are basically lying down: Cmaj9, Am9, Fmaj9, G13\nkeys: note(\"<[e3,g3,b3,d4] [c3,e3,g3,b3] [a3,c4,e4,g4] [f3,a3,b3,e4]>\").struct(\"x ~ ~ [~ x] ~ ~ x ~\")\n  .s(\"sine\").fm(1.1).fmh(2).trem(4).tremdepth(.25)\n  .decay(1).sustain(.3).release(.8).lpf(2400).room(.4).gain(.24)\n\n// A fretless bass that slides into every note, and a snare drowning in reverb\nbass: note(\"<[c2@3 g1] [a1@3 e2] [f1@3 c2] [g1@3 d2]>\").s(\"sine\").mono(2).glide(.1).shape(.1)\n  .decay(.6).sustain(.4).release(.3).gain(.4)\ndrums: s(\"bd ~ ~ bd, ~ sd ~ sd, [~ hh]*4\").room(.7).size(.9).gain(.32)\n\n// A wind chime on every downbeat, for no reason at all\nchime: n(irand(8).segment(1)).scale(\"C:major pentatonic\").transpose(24)\n  .s(\"sine\").fm(3).fmh(2.76).decay(2).sustain(0).release(2)\n  .pan(rand).seed(\"chime\").room(.6).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "the-big-finish",
+      "name": "The Big Finish",
+      "description": "The rock-show ending: four bars of song, then a huge held chord with a drum roll. Then one more bar because the crowd is still there, and another ending. And another. And then, at last, the real one, followed by applause. The form plays once and stops.",
+      "category": "Rock",
+      "tags": ["140 bpm", "E", "form", "once"],
+      "source": "setcpm(140/4)\n\n// The song plays for four bars, then ends. Then ends again. Then ends again. Then actually ends\n// form: A is the song, B the big held chord, C one more bar because the crowd is still there\n// .once() plays the layout a single time, and then there is finally silence\nconst song = note(\"<[e3,b3,e4] [e3,b3,e4] [g3,d4,g4] [a3,e4,a4]>\").struct(\"x ~ x x ~ x x ~\")\nconst held = note(\"[e3,b3,e4,g#4]\").slow(4)\nconst burst = note(\"[e3,b3,e4]*8\")\n\nguitar: form(\"A@4 B@2 C B@2 C B@2 C B@4\", song, held, burst).once()\n  .s(\"sawtooth\").curve(\"tube\").drive(14).attack(.003).decay(.4).sustain(.6).release(.6)\n  .lpf(3200).cab(\"stack\").room(.3).gain(.16)\nbass: form(\"A@4 B@2 C B@2 C B@2 C B@4\", note(\"<e1 e1 g1 a1>\").struct(\"x*8\"), note(\"e1\").slow(4), note(\"e1*8\")).once()\n  .s(\"sawtooth\").lpf(500).decay(.3).sustain(.6).release(.5).gain(.36)\n\n// The drummer rolls into a crash on every ending, and believes every one of them\ndrums: form(\"A@4 B@2 C B@2 C B@2 C B@4\",\n  s(\"bd ~ sd ~ bd bd sd ~, hh*8\"),\n  s(\"[cr,bd] ~ ~ ~, [lt mt ht lt mt ht ht ht]*2\"),\n  s(\"bd sd bd sd, hh*8\")).once().gain(.45)\n\n// The house cheers, at last, and the applause dies away\napplause: s(\"crowd\").slow(4).intensity(.8).gain(.22).enter(13).exit(22).fadeout(4, 18)\nclaps: s(\"cp*16?0.5\").seed(\"encore\").pan(rand).gain(rand.range(.08, .2)).enter(13).exit(22).fadeout(4, 18)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    }
+  ]
+}

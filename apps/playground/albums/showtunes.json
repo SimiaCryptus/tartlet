@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "showtunes",
+  "name": "Curtain Up",
+  "description": "A night at the musical theatre, from the pit tuning to the curtain call: an overture with brass fanfares, the heroine's 'I want' song, a tap number, a patter song faster than anyone can follow, an eleven o'clock ballad with its key change, a Viennese palace waltz, the villain's tango, a vaudeville soft-shoe, a kickline showstopper and bows to applause. Every tune is newly written in the style of the stage.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Theatre",
+  "tags": ["showtunes", "musicals", "broadway", "theatre", "voices"],
+  "exportedAt": "2026-11-10T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "places-please",
+      "name": "Places, Please",
+      "description": "The house settles, the oboe gives the A and the pit tunes to it. The lights go down on a timpani roll, and on bar five the overture strikes up with a brass fanfare over running strings.",
+      "category": "Overture",
+      "tags": ["100 bpm", "C major", "overture", "enter and exit"],
+      "source": "setcpm(100/4)\n\n// Bars 1 to 4: the house settles and the pit tunes; the overture strikes up on bar 5\ncrowd: s(\"crowd\").slow(4).intensity(.4).gain(.14).fadeout(3, 1)\n\n// The oboe gives the A, then the strings tune to it\noboe: note(\"a4\").s(\"sawtooth\").timbre(\"reed\").vowel(\"e\").lpf(3000)\n  .attack(.1).sustain(.8).release(.5).room(.5).gain(.16).exit(2)\ntuning: note(\"[g3,d4,a4,e5]\").s(\"sawtooth\").unison(5).detune(30).vib(5).vibdepth(.15)\n  .lpf(1800).attack(.8).sustain(1).release(1.5).room(.6).gain(.06).enter(1).exit(3)\n\n// The lights go down: a timpani roll swells through bar 4\nroll: note(\"c2*16\").s(\"sine\").fm(1.2).fmh(1.5).penv(2).pdecay(.06)\n  .decay(.4).sustain(0).release(.3).gain(saw.range(.1, .45)).space(\"hall\").enter(3).exit(4)\n\n// The overture: a brass fanfare in C over a running string line\nfanfare: note(\"<[[c4,e4,g4]@3 [c4,e4,g4] [f4,a4,c5]@2 [g4,b4,d5]@2] [[e4,g4,c5]@4 [g4,c5,e5]@4] [[f4,a4,c5]@2 [e4,g4,c5]@2 [d4,f4,b4]@2 [d4,g4,b4]@2] [[e4,g4,c5]@8]>\")\n  .s(\"sawtooth\").unison(3).detune(15).lpf(1600).lpenv(2).lpattack(.03)\n  .attack(.03).sustain(.7).release(.4).room(.5).gain(.2).enter(4)\nstrings: n(\"<[0 1 2 3 4 5 6 7] [7 6 5 4 3 2 1 0] [3 4 5 6 7 8 9 10] [11@4 ~@4]>\").scale(\"C:major\")\n  .s(\"sawtooth\").vib(5.5).vibdepth(.1).lpf(2600).attack(.02).sustain(.6).release(.15)\n  .room(.5).gain(.14).enter(4)\nbass: note(\"<c2 e2 f2 c2>\").s(\"sawtooth\").lpf(500).attack(.02).sustain(.7).release(.4).gain(.3).enter(4)\ncymbals: s(\"<cr ~ ~ ~>\").room(.6).gain(.3).enter(4)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "the-wanting-song",
+      "name": "The Wanting Song",
+      "description": "The heroine's 'I want' song: a soprano over rolling piano in G, strings joining on the second phrase and a lift up a whole step for the second verse.",
+      "category": "Ballad",
+      "tags": ["76 bpm", "G major", "soprano", "key change"],
+      "source": "setcpm(76/4)\n\n// Four bars in G, then the whole song lifts a whole step\nconst lift = \"<0 0 0 0 2 2 2 2>\"\n\n// Rolling piano: G, Em, C, D\npiano: note(\"<[g2 d3 g3 b3 d4 b3 g3 d3] [e2 b2 e3 g3 b3 g3 e3 b2] [c3 g3 c4 e4 g4 e4 c4 g3] [d3 a3 d4 f#4 a4 f#4 d4 a3]>\").add(lift)\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(.8).sustain(.1).release(.8).room(.4).gain(.26)\n\n// She sings of somewhere else; the syllables carry the same weights as the notes\nheroine: note(\"<[d4@3 e4 g4@4] [b4@3 a4 g4@2 e4@2] [e4@2 g4@2 c5@3 b4] [a4@6 ~@2]>\").add(lift)\n  .s(\"voice\").syl(\"<[so@3 me de@4] [i@3 wa na@2 go@2] [oo@2 ta@2 ri@3 a] [ho@6 ~@2]>\")\n  .voicetype(\"soprano\").mono(1).vglide(.1).attack(.08).release(.8).space(\"hall\").gain(.3)\n\n// The strings join on the second phrase\nstrings: note(\"<[g3,b3,d4] [g3,b3,e4] [g3,c4,e4] [f#3,a3,d4]>\").add(lift).mask(\"<0 0 1 1 1 1 1 1>\")\n  .s(\"sawtooth\").unison(4).detune(20).lpf(1800).attack(.8).sustain(.9).release(1.5).room(.6).gain(.12)\nbass: note(\"<g1 e2 c2 d2>\").add(lift).s(\"sine\").attack(.05).sustain(.8).release(.6).gain(.32)\n\n// A cymbal swell carries her up into the new key\nswell: s(\"pink\").mask(\"<0 0 0 1 0 0 0 0>\").hpf(3000).attack(2.5).release(.3).gain(.05)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "taps-at-midnight",
+      "name": "Taps at Midnight",
+      "description": "A tap number under a streetlamp: swung toes and heels on the boards, a walking bass, a sax section on the tune and brass shouts at the end of each phrase.",
+      "category": "Dance",
+      "tags": ["152 bpm", "Bb major", "tap", "swing"],
+      "source": "setcpm(152/4)\n\n// The tap dancer: toes, heels and shuffles, all swung\ntaps: s(\"[click click] ~ click [~ click] click ~ [click click click] ~\").swing(4)\n  .hpf(1500).room(.2).gain(.28)\nheels: s(\"~ step ~ step\").lpf(3000).gain(.2)\n\n// A swinging kit and a walking bass: Bb6, Eb7, F7, Bb\ndrums: s(\"rd [rd@2 rd] rd [rd@2 rd], ~ hh ~ hh, bd*4\").gain(.24)\nbass: note(\"<[bb1 d2 f2 g2] [eb2 g2 bb2 c3] [f1 a1 c2 eb2] [bb1 f2 d2 bb1]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.3).release(.1).gain(.48)\n\n// Piano comping on the pushed beats\npiano: note(\"<[d3,f3,g3,bb3] [db3,f3,g3,bb3] [eb3,f3,a3,c4] [d3,f3,bb3,d4]>\").struct(\"~ [~@2 x] ~ x\")\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(.1).release(.3).pan(.3).gain(.2)\n\n// The sax section carries the tune\nsaxes: note(\"<[f4@2 g4 bb4 c5@2 bb4 g4] [bb4@4 g4@4] [a4@2 c5 eb5 f5@2 eb5 c5] [d5@6 ~@2]>\").swing(4)\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"o\").unison(2).detune(10).lpf(2200)\n  .attack(.03).sustain(.6).release(.15).pan(.4).gain(.2)\n\n// Brass shouts answer at the end of every other bar\nbrass: note(\"<~ [~ ~ ~ [~@2 [g4,bb4,db5]]] ~ [~ ~ [[f4,g4,bb4,d5]@2 [f4,g4,bb4,d5]] [f4,g4,bb4,d5]]>\")\n  .s(\"sawtooth\").unison(2).detune(10).lpf(2400).lpenv(2).lpattack(.02)\n  .attack(.02).decay(.2).sustain(.4).release(.1).pan(.6).room(.3).gain(.22)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "patter-song",
+      "name": "The Patter Song",
+      "description": "In the manner of the comic operas: a tenor rattles off a syllable on every quaver over oom-pah tuba and off-beat brass, and a piccolo trills when he finally takes a breath.",
+      "category": "Comic",
+      "tags": ["168 bpm", "F major", "patter", "tenor"],
+      "source": "setcpm(168/4)\n\n// The patter: a syllable on every quaver, faster than anyone can follow\nsinger: note(\"<[f4 f4 g4 a4 bb4 a4 g4 f4] [g4 g4 a4 bb4 c5 bb4 a4 g4] [a4 a4 bb4 c5 d5 c5 bb4 a4] [g4 e4 c4 e4 f4@2 ~@2]>\")\n  .s(\"voice\").syl(\"<[ta ka ti ka ta ka ti ka] [pi ti ka ta mo di ka ri] [la di da di la di da di] [mo de ra ti va@2 ~@2]>\")\n  .voicetype(\"tenor\").mono(1).vglide(.02).attack(.02).release(.1).room(.3).gain(.3)\n\n// Oom-pah below and brass on the off-beats: F, C7, F, C7\ntuba: note(\"<[f1 ~ c2 ~] [c2 ~ g1 ~] [f1 ~ c2 ~] [c2 ~ f1 ~]>\")\n  .s(\"sawtooth\").lpf(450).lpenv(1).lpattack(.02)\n  .attack(.02).decay(.25).sustain(.4).release(.1).gain(.42)\nbrass: note(\"<[a3,c4,f4] [bb3,c4,e4] [a3,c4,f4] [bb3,c4,e4]>\").struct(\"~ x ~ x\")\n  .s(\"sawtooth\").unison(2).detune(10).lpf(1500).decay(.15).sustain(.2).release(.1).gain(.18)\n\n// Woodblocks keep the clock\nblocks: s(\"rim*8\").speed(.8).gain(\"[.2 .1]*4\")\n\n// When he finally takes a breath, a piccolo trills\npiccolo: note(\"<~ ~ ~ [~ ~ ~ ~ ~ ~ [c6 a5] f6]>\").s(\"sine\").timbre(\"hollow\")\n  .decay(.15).sustain(.4).release(.1).gain(.14)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "eleven-oclock",
+      "name": "Eleven O'Clock",
+      "description": "The big number late in the second act: an alto belts it out over piano chords, the strings swell in, and after a timpani crescendo the whole song shifts up a half step for the last chorus.",
+      "category": "Ballad",
+      "tags": ["66 bpm", "Eb major", "belt", "key change"],
+      "source": "setcpm(66/4)\n\n// The big number: four bars in Eb, then up a half step for the last chorus\nconst lift = \"<0 0 0 0 1 1 1 1>\"\n\n// She sings it out, alone in the spotlight\nbelt: note(\"<[g4@3 ab4 bb4@4] [c5@3 bb4 ab4@2 g4@2] [f4@2 g4@2 ab4@2 c5 d5] [eb5@6 ~@2]>\").add(lift)\n  .s(\"voice\").syl(\"<[ho@3 la mi@4] [no@3 la ma@2 na@2] [so@2 ri@2 la@2 ho a] [o@6 ~@2]>\")\n  .voicetype(\"alto\").mono(1).vglide(.1).attack(.1).release(1).space(\"hall\").gain(.34)\n\n// Piano chords on every beat: Eb, Cm, Fm7 to Bb7, Eb\npiano: note(\"<[eb3,g3,bb3] [c3,eb3,g3] [[f3,ab3,c4]@2 [f3,ab3,bb3,d4]@2] [eb3,g3,bb3,eb4]>\").add(lift)\n  .struct(\"x x x x\").s(\"triangle\").timbre(\"soft\")\n  .attack(.005).decay(.8).sustain(.15).release(.8).room(.4).gain(.24)\n\n// The strings swell in on the second phrase\nstrings: note(\"<[g3,bb3,eb4] [g3,c4,eb4] [[ab3,c4,f4]@2 [ab3,bb3,d4]@2] [g3,bb3,eb4,g4]>\").add(lift)\n  .mask(\"<0 0 1 1 1 1 1 1>\")\n  .s(\"sawtooth\").unison(4).detune(20).lpf(2000).attack(.6).sustain(.9).release(1.5).room(.6).gain(.12)\nbass: note(\"<eb2 c2 [f1 bb1] eb2>\").add(lift).s(\"sine\").attack(.05).sustain(.8).release(.6).gain(.36)\n\n// A timpani crescendo into the key change, and a crash on the new key\ntimpani: note(\"bb1*8\").mask(\"<0 0 0 1 0 0 0 0>\").s(\"sine\").fm(1.2).fmh(1.5).penv(2).pdecay(.06)\n  .decay(.4).sustain(0).release(.3).gain(saw.range(.1, .5)).space(\"hall\")\ncrash: s(\"<~ ~ ~ ~ cr ~ ~ ~>\").room(.6).gain(.35)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "palace-waltz",
+      "name": "Waltz at the Palace",
+      "description": "Operetta in the ballroom: a quick Viennese waltz in D, strings on oom-pah-pah, sweeping violins, soft horns, a harp glissando and the swish of skirts across the floor.",
+      "category": "Operetta",
+      "tags": ["180 bpm", "3/4", "D major", "waltz"],
+      "source": "setcpm(180/3)\n\n// One cycle is a bar of 3/4, at a quick Viennese lilt\n// The strings play oom-pah-pah: D, D, A7, A7, A7, A7, D, D\nwaltz: note(\"<[d2 [f#3,a3] [f#3,a3]] [d2 [f#3,a3] [f#3,a3]] [a1 [e3,g3] [e3,g3]] [a1 [e3,g3] [c#3,g3]] [a1 [e3,g3] [e3,g3]] [e2 [e3,g3] [c#3,g3]] [d2 [f#3,a3] [f#3,a3]] [d2 [f#3,a3] ~]>\")\n  .s(\"sawtooth\").lpf(1200).attack(.01).decay(.25).sustain(.3).release(.2).room(.5).gain(.22)\n\n// The violins sweep the tune\nviolins: note(\"<[a4@2 f#5] [f#5@3] [e5 d5 c#5] [e5@3] [g5@2 e5] [c#5 b4 a4] [d5 f#5 a5] [d6@2 ~]>\")\n  .s(\"sawtooth\").unison(3).detune(12).vib(5.5).vibdepth(.12).lpf(3200)\n  .attack(.06).sustain(.7).release(.3).room(.6).gain(.18)\n\n// Horns hold the harmony\nhorns: note(\"<[d4,f#4] [d4,f#4] [c#4,e4] [c#4,g4] [c#4,g4] [c#4,e4] [d4,f#4] [d4,f#4]>\")\n  .s(\"sawtooth\").lpf(900).attack(.3).sustain(.8).release(.6).room(.5).gain(.12)\n\n// A harp sweeps up into the last bar, and a triangle rings every four bars\nharp: note(\"<~ ~ ~ ~ ~ ~ [d4 f#4 a4 d5 f#5 a5 d6 f#6 a6] ~>\")\n  .s(\"triangle\").timbre(\"soft\").decay(.8).sustain(0).release(.8).room(.6).gain(.18)\nding: note(\"a6 ~ ~\").mask(\"<1 0 0 0 1 0 0 0>\").s(\"sine\").fm(3).fmh(3.5)\n  .decay(1).sustain(0).release(1).gain(.08)\n\n// Skirts swishing across the floor, and the guests watching\nswish: s(\"pink ~ ~\").hpf(2500).lpf(7000).attack(.15).decay(.3).sustain(0).release(.2)\n  .pan(sine.slow(2)).gain(.03)\nguests: s(\"crowd\").slow(8).intensity(.2).gain(.06)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "villains-tango",
+      "name": "The Villain's Tango",
+      "description": "The villain steps out of the shadows: a bass voice singing and laughing over bandoneon on the 3-3-2, a marcato bass, castanets, a sinister stinger and thunder outside his lair.",
+      "category": "Character",
+      "tags": ["116 bpm", "D minor", "tango", "bass voice"],
+      "source": "setcpm(116/4)\n\n// The villain steps out of the shadows, singing low: Dm, Gm, A7, Dm\nvillain: note(\"<[a2@3 bb2 a2@2 g#2 a2] [d3@4 c3 bb2 a2 g2] [f2@2 e2 f2 g2@2 a2 bb2] [a2@4 ~@4]>\")\n  .s(\"voice\").syl(\"<[ah@3 ha ha@2 ha ha] [mo@4 ri ta la ga] [so@2 ni ta ka@2 ma na] [ha@4 ~@4]>\")\n  .voicetype(\"bass\").mono(1).vglide(.08).attack(.05).release(.6).space(\"hall\").gain(.34)\n\n// Bandoneon chords on the 3-3-2\nbandoneon: note(\"<[d3,f3,a3] [d3,g3,bb3] [c#3,e3,g3,a3] [d3,f3,a3]>\").struct(\"x ~ ~ x ~ ~ x ~\")\n  .s(\"sawtooth\").timbre(\"reed\").unison(2).detune(15)\n  .attack(.01).decay(.2).sustain(.3).release(.1).lpf(2000).pan(.4).gain(.26)\n\n// A marcato bass, creeping chromatically home\nbass: note(\"<[d2 ~ a1 ~ d2 ~ a1 ~] [g1 ~ d2 ~ g1 ~ d2 ~] [a1 ~ e2 ~ a1 ~ c#2 ~] [d2 ~ a1 ~ d2 [a1 bb1] [b1 c#2] d2]>\")\n  .s(\"triangle\").attack(.003).decay(.2).sustain(.2).release(.1).gain(.5)\n\n// Castanets in the wings\ncastanets: s(\"[rim rim] ~ rim ~ [rim rim] ~ rim rim\").speed(1.4).hpf(2000).pan(.65).gain(.16)\n\n// A sinister stinger closes each verse, and thunder rolls outside his lair\nstinger: note(\"<~ ~ ~ [~ ~ ~ ~ ~ ~ [d3,ab3,c#4]@2]>\").s(\"sawtooth\").unison(4).detune(25)\n  .lpf(1800).lpenv(2).lpattack(.02).attack(.01).sustain(.5).release(.8).room(.6).gain(.22)\nthunder: s(\"<~ ~ ~ ~ ~ ~ ~ [lt ~ ~ ~]>\").speed(.4).lpf(300).room(.9).size(.95).gain(.4)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "soft-shoe",
+      "name": "Soft Shoe",
+      "description": "A vaudeville soft-shoe with a cane and a straw hat: sand brushed across the boards, light taps, stride piano and a clarinet singing the tune in C.",
+      "category": "Vaudeville",
+      "tags": ["112 bpm", "C major", "soft-shoe", "clarinet"],
+      "source": "setcpm(112/4)\n\n// The sand dance: sand brushed across the boards, swung\nsand: s(\"pink*8\").hpf(2000).lpf(6000).decay(.08).sustain(0).swing(4).gain(.05)\ntaps: s(\"~ click ~ [click click]\").swing(4).hpf(1500).gain(.22)\nsnare: s(\"~ sd ~ sd\").lpf(2500).gain(.15)\n\n// Stride piano: C, Am, Dm, G7\nstride: note(\"<[c2 [e3,g3,c4] g1 [e3,g3,c4]] [a1 [e3,a3,c4] e2 [e3,a3,c4]] [d2 [f3,a3,c4] a1 [f3,a3,c4]] [g1 [f3,g3,b3] d2 [f3,g3,b3]]>\")\n  .s(\"triangle\").timbre(\"bright\").attack(.003).decay(.3).sustain(.1).release(.2).lpf(2400).gain(.26)\n\n// A clarinet sings the tune\nclarinet: note(\"<[e4@2 g4 c5 e5@2 d5 c5] [a4@4 c5@2 e5@2] [d5@2 c5 a4 f4@2 a4 c5] [b4@2 g4@2 ~@4]>\").swing(4)\n  .s(\"square\").pw(.5).vib(4.5).vibdepth(.08).lpf(1700)\n  .attack(.04).sustain(.7).release(.25).room(.4).gain(.2)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "kickline",
+      "name": "Kickline",
+      "description": "The showstopper: the whole company in a line, heels hitting the boards on every beat, bright brass on the tune, the chorus singing out and a shout of 'hey!' at the end of each phrase.",
+      "category": "Finale",
+      "tags": ["144 bpm", "C major", "showstopper", "chorus"],
+      "source": "setcpm(144/4)\n\n// The showstopper: a driving kit with a crash every four bars\ndrums: stack(\n  s(\"bd ~ bd ~\").gain(.6),\n  s(\"~ sd ~ sd\").room(.2).gain(.45),\n  s(\"hh*8\").hpf(7000).gain(\"[.25 .12]*4\"),\n  s(\"<cr ~ ~ ~>\").gain(.3)\n)\n\n// Fifty heels hit the boards on every beat\nkicks: s(\"step*4\").lpf(2500).gain(.22)\n\n// A walking bass: C, G7, Dm, C\nbass: note(\"<[c2 e2 g2 e2] [g1 b1 d2 f2] [d2 f2 a2 f2] [c2 g1 c2 ~]>\")\n  .s(\"sine\").shape(.15).decay(.3).sustain(.4).release(.1).gain(.48)\n\n// Bright brass on the tune\nbrass: note(\"<[g4@2 c5@2 e5@2 g5@2] [f5@2 d5 b4 d5@4] [a4@2 d5@2 f5@2 a5@2] [g5@4 e5@2 c5@2]>\")\n  .s(\"sawtooth\").timbre(\"bright\").unison(2).detune(10).lpf(2800).lpenv(1.5).lpattack(.03)\n  .vib(5).vibdepth(.06).attack(.02).sustain(.7).release(.15).room(.4).gain(.22)\nsaxes: note(\"<[e3,g3,c4] [f3,g3,b3] [f3,a3,d4] [e3,g3,c4]>\").struct(\"~ x ~ x\")\n  .s(\"sawtooth\").timbre(\"reed\").unison(2).detune(10).lpf(1800)\n  .decay(.2).sustain(.3).release(.1).pan(.35).gain(.18)\n\n// The company sings out, and shouts at the end of each phrase\ncompany: note(\"<[e4,g4,c5] [d4,g4,b4] [d4,f4,a4] [e4,g4,c5]>\").struct(\"x@3 x x@4\")\n  .s(\"choir\").syl(\"<ah oh ah hey>\").attack(.05).release(.4).room(.4).pan(.6).gain(.24)\nshout: note(\"<~ ~ ~ [~ ~ ~ [c4,e4,g4,c5]]>\").s(\"aah\").attack(.01).release(.3).room(.3).gain(.25)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "curtain-call",
+      "name": "Curtain Call",
+      "description": "Bows, once: the heroine's theme for her bow, the kickline for the company, a last held chord with a drum fill and a crash, then the house rises to its feet in applause. The form plays a single time and stops.",
+      "category": "Finale",
+      "tags": ["120 bpm", "C major", "form", "once"],
+      "source": "setcpm(120/4)\n\n// The bows: the heroine's theme, then the company's kickline, then a last held chord\nconst heroine = note(\"<[d4@3 e4 g4@4] [b4@3 a4 g4@2 e4@2] [e4@2 g4@2 c5@3 b4] [a4@6 d5@2]>\")\nconst company = note(\"<[g4@2 c5@2 e5@2 g5@2] [f5@2 d5 b4 d5@4] [a4@2 d5@2 f5@2 a5@2] [g5@4 e5@2 c5@2]>\")\nconst last = note(\"[c4,e4,g4,c5]\").slow(4)\n\n// .once() plays each form a single time: twelve bars of bows, then silence\nlead: form(\"A@4 B@4 C@4\", heroine, company, last).once()\n  .s(\"sawtooth\").unison(3).detune(15).lpf(2400).lpenv(1.5).lpattack(.03)\n  .attack(.03).sustain(.7).release(1).room(.5).gain(.2)\nchords: form(\"A@4 B@4 C@4\", note(\"<[g3,b3,d4] [g3,b3,e4] [g3,c4,e4] [f#3,a3,d4]>\"), note(\"<[e3,g3,c4] [f3,g3,b3] [f3,a3,d4] [e3,g3,c4]>\"), note(\"[e3,g3,c4]\").slow(4)).once()\n  .s(\"sawtooth\").unison(4).detune(20).lpf(1600).attack(.2).sustain(.9).release(1.5).room(.6).gain(.12)\nbass: form(\"A@4 B@4 C@4\", note(\"<g1 e2 c2 d2>\"), note(\"<c2 g1 d2 c2>\"), note(\"c2\").slow(4)).once()\n  .s(\"sawtooth\").lpf(500).attack(.02).sustain(.8).release(.6).gain(.3)\n\n// The drums have their own layout: a fill into the last chord, then a single crash\ndrums: form(\"A@4 B@3 C D@4\", s(\"bd ~ bd ~, ~ rim ~ rim\"), s(\"bd ~ bd ~, ~ sd ~ sd, hh*8\"), s(\"[lt lt mt mt] [ht ht ht ht]\"), s(\"<[bd,cr] ~ ~ ~>\")).once().gain(.45)\n\n// The house rises to its feet, then the applause dies away\napplause: s(\"crowd\").slow(4).intensity(.8).gain(.22).enter(12).exit(20).fadeout(4, 16)\nclaps: s(\"cp*16?0.5\").seed(\"bravo\").pan(rand).gain(rand.range(.08, .2)).enter(12).exit(20).fadeout(4, 16)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    }
+  ]
+}

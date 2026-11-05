@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "crazy",
+  "name": "Crazy Shit",
+  "description": "The album where the language gets loose: breaks fed through a shredder, a choir that thinks it is a microwave, a soprano who can only say meow, sines bent into their own harmonics, melodies grown by rewriting rules, the world's fastest polka, five tempos colliding, a swarm of bees inside your skull, a piano melted four different ways and a toaster with opinions. Nothing here is tasteful. Every sketch explains its trick in the comments.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Experimental",
+  "tags": ["experimental", "weird", "glitch", "absurd", "showcase"],
+  "exportedAt": "2026-11-10T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "gremlin-factory",
+      "name": "Gremlin Factory",
+      "description": "One drum break, scrambled, ratcheted, hurried and bit-crushed differently almost every bar, over a bass ring-modulated into a gargling metal lump and bells that never know their key.",
+      "category": "Glitch",
+      "tags": ["150 bpm", "C minor", "scramble", "ringmod"],
+      "source": "setcpm(150/4)\n\n// One break, mangled differently almost every bar\nconst brk = s(\"bd ~ [~ bd] ~ sd ~ bd sd, hh*16\")\ndrums: brk.someCyclesBy(.5, x => x.scramble(16)).sometimesBy(.25, x => x.ply(\"<2 3 4>\"))\n  .chunk(4, x => x.hurry(2)).crush(\"<16 8 4 6>\").seed(\"gremlin\").gain(.6)\n\n// A bass ring-modulated into a gargling metal lump\nbass: note(\"c2 ~ c2 eb2 ~ c2 gb2 ~\").s(\"sawtooth\").ringmod(sine.range(30, 400).slow(4)).ringmix(.6)\n  .lpf(1200).decay(.15).sustain(.3).release(.05).gain(.4)\n\n// Clicks at random speeds that run backwards in random bars\nclicks: s(\"click*16?0.5\").speed(rand.range(.5, 3)).someCycles(x => x.rev())\n  .pan(rand).seed(\"sprocket\").gain(.15)\n\n// A frequency-shifted bell: every partial moves by the same hertz, so no key survives\nbells: note(\"<c5 gb5 a4 eb5>\").s(\"sine\").fm(4).fmh(1.41).fshift(\"<0 37 -113 250>\")\n  .decay(.4).sustain(0).delay(.3).delaytime(3/16).delayfeedback(.5).gain(.14)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "microwave-choir",
+      "name": "Microwave Choir",
+      "description": "A church choir that thinks it is a kitchen appliance: ring-modulated, frequency-shifted and humming like a turntable, while a robot sings beep boop and the timer dings three times.",
+      "category": "Voices",
+      "tags": ["70 bpm", "C major", "ringmod", "spectral robot"],
+      "source": "setcpm(70/4)\n\n// A choir ring-modulated at 220 Hz, its partials sliding back and forth by a few hertz\nchoir: note(\"<[c3,e3,g3] [ab2,c3,eb3] [f2,a2,c3] [g2,b2,d3]>\").s(\"choir\")\n  .syl(\"<ah oo ee oh>\").ringmod(220).ringmix(.4).fshift(sine.range(-60, 60).slow(8))\n  .attack(1).release(2).space(\"church\").gain(.3)\n\n// A robot tenor: the spectral robot effect flattens every partial onto one pitch\nrobot: note(\"<c4 ab3 a3 b3>\").s(\"voice\").syl(\"<beep boop bip bop>\").voicetype(\"tenor\")\n  .spectral(\"robot\").samount(.8).mono(1).vglide(.05).gain(.28)\n\n// The turntable hum, and the timer: three dings at the end of every eight bars\nhum: s(\"engine\").slow(8).lpf(300).gain(.12)\nding: note(\"<~ ~ ~ ~ ~ ~ ~ [c6 c6 c6 ~]>\").s(\"sine\").fm(3).fmh(3.5)\n  .decay(1.2).sustain(0).release(1).room(.4).gain(.2)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "cat-opera",
+      "name": "Cat Opera",
+      "description": "A soprano who can only say meow, gliding three vowels across every note with a dramatic scoop, a tenor tomcat answering from the fence, pizzicato strings in a violin body and a purr underneath.",
+      "category": "Voices",
+      "tags": ["66 bpm", "C major", "syllables", "opera"],
+      "source": "setcpm(66/4)\n\n// The diva: mi_a_u glides across three vowels in one note, scooping up into each\ndiva: note(\"<[g4@3 c5] [e5@2 d5 c5] [a5@4] [g5@2 ~@2]>\")\n  .s(\"voice\").syl(\"mi_a_u\").voicetype(\"soprano\").scoop(-7).jitter(.5)\n  .mono(1).vglide(.15).attack(.1).release(.8).space(\"hall\").gain(.3)\n\n// The tomcat answers from the fence, gravelly, off to the left\ntom: note(\"<~ [c3@2 g2@2] ~ [eb3@3 c3]>\").s(\"voice\").syl(\"ma_o\").voicetype(\"tenor\").fry(.6)\n  .mono(2).vglide(.2).release(.6).azimuth(-60).distance(3).gain(.26)\n\n// The orchestra plucks along inside a violin body\npizz: note(\"<[c3 e3 g3 e3] [f3 a3 c4 a3] [d3 f3 a3 f3] [g3 b3 d4 b3]>\").s(\"triangle\").timbre(\"bright\")\n  .decay(.15).sustain(0).body(\"violin\").bodymix(.3).room(.4).gain(.2)\n\n// The purr: a low saw trembling twenty-five times a second\npurr: note(\"c1\").slow(4).s(\"sawtooth\").lpf(200).trem(25).tremdepth(.8)\n  .attack(1).sustain(1).release(1).gain(.12)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "chebyshevs-revenge",
+      "name": "Chebyshev's Revenge",
+      "description": "A plain sine pushed through a different Chebyshev curve each bar, so the tune leaps up the harmonic series, over a bass folded onto itself until it tears and drums run through a rectifier.",
+      "category": "Distortion",
+      "tags": ["96 bpm", "A minor", "curve", "drive"],
+      "source": "setcpm(96/4)\n\n// A loud sine through chebyN comes out as its Nth harmonic:\n// one tune, jumping to the 2nd, 3rd, 5th and 7th harmonic bar by bar\nlead: n(\"0 2 4 7 4 2 0 -1\").scale(\"A:minor\").transpose(12)\n  .s(\"sine\").curve(\"<cheby2 cheby3 cheby5 cheby7>\").drive(18)\n  .decay(.2).sustain(.4).release(.1).lpf(6000).gain(.18)\n\n// A bass folded over on itself, harder every bar, through a stack cabinet\nbass: note(\"<a1 a1 f1 g1>\").struct(\"x ~ x x ~ x ~ x\").s(\"sine\")\n  .curve(\"fold\").drive(sine.range(4, 22).slow(4)).bias(.2)\n  .decay(.2).sustain(.4).release(.05).cab(\"stack\").gain(.35)\n\n// Drums through a full-wave rectifier, half wet\ndrums: s(\"bd ~ bd ~, ~ sd ~ sd, hh*8\").curve(\"rect\").drive(8).curvemix(.5).gain(.45)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "fractal-panic",
+      "name": "Fractal Panic",
+      "description": "A melody grown for seven generations of rewriting, in phrygian dominant, over kicks and snares from residue-class sieves, Thue-Morse hats, toms on the primes and a bass counting Collatz steps through a screaming filter.",
+      "category": "Generators",
+      "tags": ["140 bpm", "C phrygian dominant", "lsys", "sieve"],
+      "source": "setcpm(140/4)\n\n// Seven generations of rewriting: 0 becomes 0 3, 3 becomes 5 0, 5 becomes 3, spread over four bars\nmelody: n(lsys(\"0\", \"0=0 3, 3=5 0, 5=3\", 7, 4)).scale(\"C:phrygian dominant\").transpose(12)\n  .s(\"square\").pw(.2).decay(.08).sustain(0).delay(.25).delaytime(3/16).gain(.16)\n\n// Rhythms from number theory, layered until they make no sense\nkick: s(\"bd\").struct(sieve(\"3@0 | 5@1\", 16)).shape(.3).gain(.7)\nsnare: s(\"sd\").struct(sieve(\"7@3 | 11@6\", 16)).gain(.45)\nhats: s(\"hh\").struct(ints(\"thuemorse\", 16)).hpf(7000).gain(.25)\ntoms: s(\"lt\").struct(ints(\"prime\", 16)).speed(ints(\"ruler\", 16).add(1)).gain(.3)\n\n// The bass counts Collatz steps from each step number, folded into seven degrees, and screams about it\nbass: n(ints(\"collatz\", 4).mod(7)).scale(\"C:phrygian dominant\").octave(-1)\n  .s(\"sawtooth\").lpf(900).lpq(12).lpenv(3).lpdecay(.1).decay(.15).sustain(.3).gain(.35)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "polka-apocalypse",
+      "name": "Polka Apocalypse",
+      "description": "The world's fastest polka at 220 BPM, which rushes to double speed every eighth bar, while an air-raid siren wails and a rumble grows louder as the sky falls.",
+      "category": "Absurd",
+      "tags": ["220 bpm", "C major", "polka", "hurry"],
+      "source": "setcpm(220/4)\n\n// One function for the whole band: on the last bar of every eight, everything rushes twice as fast\nconst polka = (x) => x.lastOf(8, y => y.hurry(2))\n\n// Accordion oom-pah: two reeds tuned apart, through an a vowel\noompah: note(\"<[c2 [e3,g3] g1 [e3,g3]] [g1 [d3,f3,b3] d2 [d3,f3,b3]]>\")\n  .s(\"sawtooth\").timbre(\"reed\").unison(2).detune(16).vowel(\"a\").lpf(2000)\n  .decay(.15).sustain(.3).release(.05).polka().gain(.3)\n\n// The tune, far too cheerful\ntune: note(\"<[e5 g5 e5 c5] [d5 f5 d5 b4] [e5 g5 c6 g5] [d5@2 c5@2]>\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"e\").lpf(3000).attack(.01).sustain(.6).release(.05)\n  .polka().gain(.22)\n\ndrums: s(\"bd sd bd sd, hh*8\").polka().gain(.45)\n\n// Meanwhile, the sky is falling: an air-raid siren gliding up and down\nsiren: freq(sine.range(500, 1100).slow(2).segment(16)).s(\"sine\").mono(1).glide(.12)\n  .attack(.01).sustain(1).release(.05).gain(.06)\n\n// And a rumble that darkens and swells over eight bars\nrumble: s(\"brown*4\").lpf(saw.range(100, 1200).slow(8)).gain(saw.range(.02, .2).slow(8))\n  .attack(.05).release(.1)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "tempo-soup",
+      "name": "Tempo Soup",
+      "description": "One figure at five speeds at once, aligned so they all crash into the same note every sixteen bars, while two drummers who disagree drift apart and meet again.",
+      "category": "Processes",
+      "tags": ["100 bpm", "C minor pentatonic", "converge", "phase"],
+      "source": "setcpm(100/4)\n\n// One figure at five speeds, shifted so that every copy reaches the start together at bar 16\nsoup: n(\"0 3 5 7 10 7 5 3\").scale(\"C:minor pentatonic\").transpose(12)\n  .converge(16, 1, 7/6, 5/4, 4/3, 3/2)\n  .s(\"triangle\").timbre(\"glass\").decay(.15).sustain(0).pan(rand).room(.4).gain(.1)\n\n// Two drummers who disagree: one holds still, the other slips a sixteenth further every bar\ndrummer1: s(\"bd ~ sd ~ bd bd sd ~, hh*8\").pan(.3).gain(.4)\ndrummer2: s(\"bd ~ sd ~ bd bd sd ~, hh*8\").phase(1/16).pan(.7).gain(.35)\n\n// A crash on the meeting point, every sixteen bars\ncrash: s(\"<cr ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~>\").room(.6).gain(.4)\n\nbass: note(\"<c2 eb2 f2 g2>\").s(\"sine\").shape(.2).decay(.4).sustain(.4).release(.2).gain(.4)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "bees-in-your-skull",
+      "name": "Bees in Your Skull",
+      "description": "Headphones on: three insects circling your head at different speeds and heights, hats hopping between your ears in a seeded random order, and a drone whose interaural phase spins faster and faster, staying just below the rates that trigger a pulse warning. Only the kick stays in the middle.",
+      "category": "Headphones",
+      "tags": ["120 bpm", "E", "azimuth", "earswap", "irate"],
+      "source": "setcpm(120/4)\n\n// The swarm: one bee circles once a bar, one the other way every two bars, one darts at random\nbee1: s(\"insect*8\").azimuth(saw.range(-180, 180)).elevation(20).distance(1).posglide(.1).gain(.18)\nbee2: s(\"insect*8\").azimuth(isaw.range(-180, 180).slow(2)).elevation(-10).distance(1.5).posglide(.1).gain(.14)\nbee3: s(\"insect*16\").azimuth(rand.range(-180, 180)).elevation(rand.range(-40, 60))\n  .distance(.7).posglide(.05).seed(\"sting\").gain(.1)\n\n// Hats lean right, and a seeded coin flip sends some of them to the left\nhats: s(\"hh*16\").hpf(7000).ild(10).earswap(irand(2).segment(16)).seed(\"hop\").gain(.25)\n\n// The phase between the ears turns half a time, once, twice, then almost three times a second\ndrone: note(\"[e2,b2]\").s(\"sawtooth\").irate(\"<.5 1 2 2.9>\").lpf(800)\n  .attack(1).sustain(1).release(1).gain(.18)\n\n// The kick: the only thing left in the middle of your head\nkick: s(\"bd*4\").shape(.2).gain(.6)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "spectral-meltdown",
+      "name": "Spectral Meltdown",
+      "description": "One innocent piano phrase and four ways to wreck it, four bars each: played plainly, frozen into a smear, blurred into fog and combed into metal, while the bass is pitch-shifted further each section until it turns into a robot.",
+      "category": "Spectral",
+      "tags": ["80 bpm", "F major", "spectral", "form"],
+      "source": "setcpm(80/4)\n\n// One innocent piano phrase\nconst phrase = n(\"<[0 2 4 7] [5 4 2 0] [3 5 7 9] [7@2 4 2]>\").scale(\"F:major\").transpose(12)\n  .s(\"triangle\").timbre(\"soft\").decay(.6).sustain(.1).release(.6)\n\n// A: plain. B: frozen into a smear. C: blurred into fog. D: combed into metal at 110 Hz\npiano: form(\"A@4 B@4 C@4 D@4\", phrase,\n  phrase.spectral(\"freeze\").samount(.9),\n  phrase.spectral(\"blur\").samount(.8),\n  phrase.spectral(\"comb\").scomb(110).samount(.7)).room(.5).gain(.26)\n\n// The bass, shifted up a fourth, then down a fifth, then flattened into a robot\nconst line = note(\"<f2 d2 bb1 c2>\")\nbass: form(\"A@4 B@4 C@4 D@4\", line,\n  line.spectral(\"shift\").sshift(5).samount(1),\n  line.spectral(\"shift\").sshift(-7).samount(1),\n  line.spectral(\"robot\").samount(1))\n  .s(\"sawtooth\").lpf(800).attack(.05).sustain(.7).release(.3).gain(.25)\n\ndrums: s(\"bd ~ ~ bd, ~ rim ~ rim\").gain(.35)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "talking-toaster",
+      "name": "Talking Toaster",
+      "description": "A kitchen at breakfast: a saw bass that talks in syllables, a radio muttering through a bit-crusher, a kettle working up to a whistle, a toaster pop and a robot voice announcing that the toast is ready.",
+      "category": "Absurd",
+      "tags": ["110 bpm", "C minor", "talk", "syllables"],
+      "source": "setcpm(110/4)\n\n// A saw bass with something to say: talk puts a syllable track on it\nbass: note(\"c2 c2 eb2 c2 g1 c2 bb1 c2\").s(\"sawtooth\")\n  .syl(\"<[wa wa wo wi] [ya ya yo yu] [ba ba bo bi] [na na no neng]>\").talk(1)\n  .lpf(2400).decay(.2).sustain(.4).gain(.35)\n\n// A crunchy, swung breakfast beat\ndrums: s(\"bd ~ [~ bd] ~, ~ sd ~ sd, hh*8\").swing(4).crush(10).gain(.45)\n\n// The radio mutters in the corner\nradio: s(\"whisper*8?0.5\").syl(\"<sha ko ta ri>\").crush(4).hpf(1000).seed(\"static\").pan(.8).gain(.14)\n\n// The kettle works up to a whistle, and the toaster pops\nkettle: note(\"<~ ~ ~ c7>\").s(\"sine\").vib(8).vibdepth(.3).attack(1).sustain(1).release(.5).gain(.05)\npop: s(\"<~ ~ ~ [~ ~ ~ click]>\").speed(.5).gain(.5)\n\n// The announcement: toast is ready\nrobot: note(\"<c4 eb4 g4 bb4>\").s(\"voice\").syl(\"<toast is re_a dee>\").voicetype(\"bass\")\n  .spectral(\"robot\").samount(.7).mono(1).vglide(.04).gain(.26)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    }
+  ]
+}

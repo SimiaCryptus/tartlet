@@ -1,0 +1,131 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "symphonic",
+  "name": "Long Forms",
+  "description": "An album about music that unfolds over many bars instead of looping one: a rondo built with form and seeded variants, a thirty-two bar arc shaped by one envelope, a subject developed by inversion, retrograde and sequence, a round and a mensuration canon, pianos that phase apart, figures that grow and shrink, tempo canons that converge, melodies grown from integer sequences, sieves and rewriting systems, a twelve-tone row, change ringing and a finale that plays once and stops. Every sketch names the technique it uses in its comments.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Compositions",
+  "tags": ["long-form", "form", "generative", "process", "counterpoint"],
+  "exportedAt": "2026-11-08T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "rondo-in-form",
+      "name": "Rondo in Form",
+      "description": "A rondo laid out with form: the refrain returns between two episodes, each time as a seeded variant (A, A', A''), so its ornaments change while its tune stays. Each section starts its part from the beginning.",
+      "category": "Form",
+      "tags": ["96 bpm", "G major", "form", "variants"],
+      "source": "setcpm(96/4)\n\n// The refrain makes seeded choices, so its variants A' and A'' ornament it differently\nconst refrain = n(\"<[0 2 4 2] [5 4 2 0] [1 3 5 3] [4@2 2 0]>\")\n  .sometimesBy(.3, x => x.add(2)).degradeBy(.1)\n  .scale(\"G:major\").transpose(12)\n  .s(\"triangle\").timbre(\"bright\").decay(.25).sustain(.3).release(.2)\n\n// Two episodes: one in the relative minor, one in C\nconst episode1 = n(\"<[4 ~ 5 4] [2@2 0@2] [3 ~ 4 3] [1@4]>\").scale(\"E:minor\").transpose(12)\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.1).attack(.05).sustain(.6).release(.4)\nconst episode2 = n(\"<[0 4 7 4] [5 4 2 4] [0 4 7 9] [7@4]>\").scale(\"C:major\").transpose(12)\n  .s(\"sawtooth\").timbre(\"reed\").lpf(2400).attack(.03).sustain(.5).release(.2)\n\n// form: A is the first part, B the second, C the third; @4 makes each section four bars\n// Every section starts its part from its own first bar\nmelody: form(\"A@4 B@4 A'@4 C@4 A''@4\", refrain, episode1, episode2).room(.4).gain(.24)\n\n// The bass follows the same layout, without variants\nbass: form(\"A@4 B@4 A@4 C@4 A@4\", note(\"<g2 c3 d3 g2>\"), note(\"<e2 c2 a1 b1>\"), note(\"<c2 f2 c2 g2>\"))\n  .s(\"sawtooth\").lpf(700).attack(.02).decay(.3).sustain(.5).release(.2).gain(.3)\n\ndrums: s(\"bd ~ bd ~, ~ rim ~ rim, hh*8\").gain(.32)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "thirty-two-bar-arc",
+      "name": "Thirty-Two Bar Arc",
+      "description": "One breakpoint envelope shapes brightness and loudness over thirty-two bars, while parts enter, leave, fade in, fade out and change for a window of bars. Listen through once: after bar 32 only the pad remains, breathing on its own.",
+      "category": "Shape",
+      "tags": ["84 bpm", "D minor", "env", "during", "fades"],
+      "source": "setcpm(84/4)\n\n// One arc over 32 bars: soft, a long rise, a dip, a second peak, then nothing\nconst arc = env(\"0.1 1@5 0.4 0.9@2 0\", 32)\n\n// The pad's filter and level both follow the arc\npad: note(\"<[d3,f3,a3] [bb2,d3,f3] [g2,bb2,d3] [a2,c#3,e3]>\").slow(2)\n  .s(\"sawtooth\").unison(3).detune(.2).attack(1).release(2)\n  .lpf(arc.range(300, 2600)).room(.6).gain(arc.range(.04, .18))\n\n// fadein raises the strings from silence over the first eight bars\nstrings: note(\"<d2 bb1 g1 a1>\").slow(2).s(\"sawtooth\").lpf(600)\n  .attack(.3).sustain(.7).release(.8).gain(.24).fadein(8)\n\n// enter and exit: the hats play bars 4 to 27, the kick bars 8 to 23\nhats: s(\"hh*16\").hpf(7000).gain(arc.range(.05, .28)).enter(4).exit(28)\nkick: s(\"bd*4\").shape(.2).gain(.7).enter(8).exit(24)\n\n// during: from bar 16 to bar 23 the melody runs twice as fast\nmelody: n(\"<[0 ~ 2 4] [3 ~ 2 ~] [1 ~ 0 ~] [4@2 3 2]>\").scale(\"D:minor\").transpose(12)\n  .during(16, 24, x => x.fast(2))\n  .s(\"triangle\").timbre(\"soft\").decay(.5).sustain(.1).release(.6).room(.5).gain(.22)\n\n// fadeout lowers the bells over eight bars from bar 24\nbells: note(\"<a5 ~ f5 ~ d5 ~ e5 ~>\").s(\"sine\").fm(3).fmh(2.76)\n  .decay(2).sustain(0).release(2).space(\"hall\").gain(.12).fadeout(8, 24)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "mirror-subject",
+      "name": "Mirror Subject",
+      "description": "A two-bar subject developed in five sections: stated plainly, inverted, played backwards, sequenced one step higher each bar and broken into fragments, while the bass plays the subject four times slower.",
+      "category": "Motifs",
+      "tags": ["84 bpm", "D minor", "invert", "retro", "sequence"],
+      "source": "setcpm(84/4)\n\n// The subject, written as scale degrees so every transformation stays in the key\nconst subject = n(\"<[0 2 4 3] [1 2 0 -1]>\")\nconst voiced = (x) => x.scale(\"D:minor\").transpose(12)\n  .s(\"sawtooth\").vib(5).vibdepth(.1).lpf(2600).attack(.03).sustain(.6).release(.2)\n\n// Five sections of four bars:\n// A the subject, B inverted around degree 2, C each two-bar window backwards,\n// D raised one degree more each bar for four bars, E the opening half of each bar repeated\nlead: form(\"A@4 B@4 C@4 D@4 E@4\",\n  subject, subject.invert(2), subject.retro(2), subject.sequence(1, 4), subject.fragment(.5))\n  .voiced().room(.4).gain(.2)\n\n// augment: the bass plays the same subject four times slower, an octave down\nbass: subject.augment(4).scale(\"D:minor\").octave(-1)\n  .s(\"sawtooth\").lpf(700).attack(.1).sustain(.7).release(.5).room(.4).gain(.26)\n\ndrone: note(\"[d2,a2]\").slow(4).s(\"sine\").attack(2).sustain(1).release(3).gain(.14)\nclick: s(\"rim ~ rim ~\").gain(.12)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "round-table",
+      "name": "Round Table",
+      "description": "A round in three voices made by canon, each entering a bar later and an octave higher, over a cello that plays the same tune at half and quarter speed with prolation.",
+      "category": "Imitation",
+      "tags": ["72 bpm", "D major", "canon", "prolation"],
+      "source": "setcpm(72/4)\n\n// One tune; every strong beat lands on D, F# or A, so the entries fit together\nconst tune = n(\"<[0 2 4 2] [4 5 4 2] [7 6 7 4] [2@2 1 0]>\")\n\n// canon: three copies, each one bar later and seven degrees (an octave) higher\nround: tune.canon(3, 1, 7).scale(\"D:major\")\n  .s(\"sawtooth\").vib(5.5).vibdepth(.1).attack(.04).sustain(.6).release(.25)\n  .lpf(2600).room(.4).gain(.15)\n\n// prolation: the same tune at half speed and quarter speed at once, an octave down\ncello: tune.prolation(1/2, 1/4).scale(\"D:major\").octave(-1)\n  .s(\"sawtooth\").lpf(700).attack(.08).sustain(.6).release(.4).room(.4).gain(.18)\n\n// A harpsichord marks the off-beats\nharpsichord: note(\"[d4,f#4,a4]\").struct(\"~ x ~ x\").s(\"square\").pw(.15)\n  .decay(.15).sustain(0).lpf(3000).gain(.07)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "drifting-pianos",
+      "name": "Drifting Pianos",
+      "description": "Phasing after Steve Reich: two pianos play the same twelve-note figure, but phase shifts the second one a twelfth of a bar further each bar, so it walks through every alignment and lines up again after twelve bars.",
+      "category": "Processes",
+      "tags": ["100 bpm", "B minor", "phase", "minimalism"],
+      "source": "setcpm(100/4)\n\n// One twelve-note figure for both pianos\nconst figure = note(\"e4 f#4 b4 c#5 d5 f#4 e4 c#5 b4 f#4 d5 c#5\")\nconst keys = (x) => x.s(\"triangle\").timbre(\"bright\").attack(.002).decay(.2).sustain(0).release(.2)\n\n// The first piano holds still\nstill: figure.keys().pan(.25).gain(.24)\n\n// phase delays bar c by c twelfths of a bar, wrapped within the bar:\n// the second piano slips one note each bar and meets the first again every twelve\ndrift: figure.phase(1/12).keys().pan(.75).gain(.24)\n\n// A marimba keeps the low notes\nmarimba: note(\"b2 ~ e3 ~ f#3 ~\").s(\"sine\").fm(.6).fmh(4).decay(.35).sustain(0).room(.3).gain(.26)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "growing-figures",
+      "name": "Growing Figures",
+      "description": "Additive and subtractive processes in the manner of Philip Glass: one eight-note figure grows by a note each bar in one voice and loses a note each bar in the other, so the two breathe against each other.",
+      "category": "Processes",
+      "tags": ["112 bpm", "A minor", "additive", "subtractive"],
+      "source": "setcpm(112/4)\n\nconst figure = n(\"0 2 4 5 7 5 4 2\").scale(\"A:minor\")\n\n// additive cuts the figure into eight steps and plays one step more each bar, stretched to fill it\ngrow: figure.transpose(12).additive(8)\n  .s(\"square\").pw(.3).lpf(2400).decay(.12).sustain(0)\n  .delay(.25).delaytime(3/16).pan(.35).gain(.15)\n\n// subtractive plays one step fewer each bar\nshrink: figure.subtractive(8)\n  .s(\"triangle\").timbre(\"bright\").decay(.2).sustain(0).pan(.65).gain(.2)\n\n// A steady floor under the process\npad: note(\"<[a3,c4,e4] [f3,a3,c4]>\").slow(4).s(\"sawtooth\").unison(3).detune(.2)\n  .attack(1).release(2).lpf(1200).room(.6).gain(.12)\nbass: note(\"<a1 f1>\").slow(4).s(\"sine\").attack(.3).sustain(.8).release(1).gain(.3)\nkick: s(\"bd*4\").lpf(250).gain(.45)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "converging-clocks",
+      "name": "Converging Clocks",
+      "description": "A tempo canon after Conlon Nancarrow: converge plays one figure at speeds 1, 9/8 and 5/4, shifted so all three reach the start of the figure together every eight bars, where a bell rings.",
+      "category": "Processes",
+      "tags": ["90 bpm", "A minor pentatonic", "converge", "tempo canon"],
+      "source": "setcpm(90/4)\n\n// converge stacks copies at the given speed ratios, aligned so that at bar 8 they all start the figure together\n// With 1, 9/8 and 5/4 they meet again every eight bars\nclocks: n(\"0 2 4 7 4 2 0 -3\").scale(\"A:minor pentatonic\").transpose(12)\n  .converge(8, 1, 9/8, 5/4)\n  .s(\"triangle\").timbre(\"glass\").decay(.2).sustain(0).release(.3).room(.5).gain(.14)\n\n// A bell marks every meeting point\nbell: note(\"<a5 ~ ~ ~ ~ ~ ~ ~>\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(3).sustain(0).release(3).space(\"hall\").gain(.14)\n\n// The clock that keeps the steady tempo\ntick: s(\"tick*4\").gain(.1)\npad: note(\"[a2,e3,c4]\").slow(8).s(\"sawtooth\").unison(3).detune(.2)\n  .attack(3).release(4).lpf(900).room(.7).gain(.1)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "infinity-series",
+      "name": "Infinity Series",
+      "description": "Every part is a named integer sequence: Nørgård's self-similar infinity series for the melody, the ruler sequence for hat accents, Thue-Morse rims, van der Corput panning, Fibonacci bells modulo five and a bass counting Collatz steps.",
+      "category": "Generators",
+      "tags": ["90 bpm", "E dorian", "ints", "self-similar"],
+      "source": "setcpm(90/4)\n\n// Nørgård's infinity series: self-similar and never repeating, eight degrees per bar\n// The van der Corput sequence spreads the notes evenly across the stereo field\nmelody: n(ints(\"norgard\", 8)).scale(\"E:dorian\").transpose(12)\n  .s(\"triangle\").timbre(\"glass\").decay(.3).sustain(0).release(.5)\n  .pan(ints(\"vdc\", 8)).delay(.3).delaytime(3/16).room(.5).gain(.2)\n\n// The ruler sequence counts how often 2 divides each step number: a binary hierarchy of accents\nhats: s(\"hh*8\").hpf(7000).gain(ints(\"ruler\", 8).mod(4).mul(.08).add(.08))\n\n// Thue-Morse: a rhythm that never repeats any block three times in a row\nrims: s(\"rim*16\").mask(ints(\"thuemorse\", 16)).gain(.16)\n\n// Fibonacci numbers modulo 5, read as pentatonic degrees: the pattern repeats every ten bars\nbells: n(ints(\"fib\", 2, 5)).scale(\"E:minor pentatonic\").transpose(24)\n  .s(\"sine\").fm(2).fmh(2.76).decay(1).sustain(0).release(1.2).space(\"hall\").gain(.1)\n\n// The bass counts the Collatz steps from each bar number down to 1, folded into five degrees\nbass: n(ints(\"collatz\", 1).mod(5)).scale(\"E:minor pentatonic\").octave(-1)\n  .s(\"sawtooth\").lpf(700).attack(.05).sustain(.7).release(.4).gain(.28)\n\nkick: s(\"bd ~ ~ bd ~ ~ bd ~\").lpf(300).gain(.45)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "sieve-machine",
+      "name": "Sieve Machine",
+      "description": "Rhythms from number theory: sieves of residue classes after Xenakis, a Sturmian rhythm of five hits in thirteen, clicks on prime steps that thin out over time and a bass that reads the digits of the counting numbers in base five.",
+      "category": "Generators",
+      "tags": ["124 bpm", "C minor", "sieve", "sturm", "prime"],
+      "source": "setcpm(124/4)\n\n// sieve builds a rhythm from residue classes: m@r keeps the steps whose remainder modulo m is r\nkick: s(\"bd\").struct(sieve(\"4@0\", 16)).shape(.2).gain(.75)\nclap: s(\"cp\").struct(sieve(\"8@4\", 16)).room(.2).gain(.4)\n\n// | joins, & keeps the overlap and - takes the complement\nhats: s(\"hh\").struct(sieve(\"(2@1 | 3@0) & -8@4\", 16)).hpf(7000).gain(.24)\n\n// Steps count from the start of the piece, so moduli that do not divide 16 drift across bars\nrim: s(\"rim\").struct(sieve(\"5@0 | 7@3\", 16)).gain(.22)\n\n// A Sturmian rhythm: five hits spread as evenly as possible over every thirteen steps\ntoms: s(\"lt\").struct(ints(\"sturm\", 16, 5, 13)).gain(.3)\n\n// Clicks on the prime-numbered steps, growing sparser as the piece goes on\nclicks: s(\"click\").struct(ints(\"prime\", 16)).hpf(3000).gain(.12)\n\n// The bass reads the digits of 0, 1, 2, 3 ... written one after another in base 5\nbass: n(ints(\"digits\", 8, 5)).scale(\"C:minor\").octave(-1)\n  .s(\"sawtooth\").lpf(800).lpq(4).decay(.15).sustain(.3).release(.05).gain(.38)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "rewriting-garden",
+      "name": "Rewriting Garden",
+      "description": "Lindenmayer systems: a melody grown by rewriting degrees for six generations, a drum line rewritten from a single kick, and rims on the Fibonacci word.",
+      "category": "Generators",
+      "tags": ["96 bpm", "A minor", "lsys", "Fibonacci word"],
+      "source": "setcpm(96/4)\n\n// lsys rewrites its symbols generation by generation, then spreads the result over some bars\n// 0 becomes 0 2, 2 becomes 4, 4 becomes 0 4: after six generations, 28 notes over eight bars\nmelody: n(lsys(\"0\", \"0=0 2, 2=4, 4=0 4\", 6, 8)).scale(\"A:minor\").transpose(12)\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(.6).sustain(.1).release(.8)\n  .room(.5).gain(.24)\n\n// Sound names rewrite too: bd becomes bd hh, hh becomes sd bd; 20 hits over four bars\ndrums: s(lsys(\"bd\", \"bd=bd hh, hh=sd bd\", 5, 4)).gain(.4)\n\n// The Fibonacci word: 1 becomes 1 0, 0 becomes 1; after eight generations, 55 steps over four bars\nrims: s(\"rim\").struct(lsys(\"1\", \"1=1 0, 0=1\", 8, 4)).hpf(1500).gain(.2)\n\nbass: note(\"<a1 a1 f1 g1>\").s(\"sine\").attack(.1).sustain(.8).release(.6).gain(.32)\npad: note(\"<[a2,e3,c4] [f2,c3,a3]>\").slow(4).s(\"sawtooth\").unison(3).detune(.2)\n  .attack(2).release(3).lpf(1000).room(.7).gain(.1)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "twelve-tones",
+      "name": "Twelve Tones",
+      "description": "A twelve-tone row and its forms: the upper voice walks through the prime, an inversion, a retrograde and a retrograde inversion, two bars each, while the lower voice plays slower forms of the same row.",
+      "category": "Generators",
+      "tags": ["60 bpm", "row", "rowform", "serial"],
+      "source": "setcpm(60/4)\n\n// A row: every pitch class once, as numbers from 0 (C) to 11 (B)\nconst series = row(\"0 11 3 4 8 7 9 5 6 1 2 10\")\n\n// rowform: P plays the row, I inverts it, R reverses it, RI does both; the number transposes\nupper: series.rowform(\"<P0 I5 R3 RI7>\").slow(2).scale(\"C:chromatic\").transpose(12)\n  .s(\"sine\").fm(1.5).fmh(2).attack(.01).decay(.5).sustain(.2).release(.6)\n  .room(.5).gain(.22)\n\n// The lower voice plays the retrograde inversion and a transposed prime, four bars each\nlower: series.rowform(\"<RI0 P7>\").slow(4).scale(\"C:chromatic\").octave(-1)\n  .s(\"sawtooth\").lpf(900).attack(.1).sustain(.6).release(.6).room(.5).gain(.18)\n\n// A quiet pulse keeps the bars\npulse: s(\"rim ~ ~ ~\").room(.4).gain(.12)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "change-ringing",
+      "name": "Change Ringing",
+      "description": "Six bells ring plain hunt, a new row every bar, returning to rounds after twelve bars, while a chime above walks through the orderings of four notes with permute.",
+      "category": "Generators",
+      "tags": ["90 bpm", "F major", "ring", "permute", "bells"],
+      "source": "setcpm(90/4)\n\n// Six bells in rounds, highest first; ring cuts each bar into six and plays row c of plain hunt\n// The rows come back to rounds every twelve bars\nbells: note(\"c5 a4 g4 f4 d4 c4\").ring(\"plainhunt\", 6)\n  .s(\"sine\").fm(2).fmh(2.76).decay(1.2).sustain(0).release(1.5).space(\"church\").gain(.2)\n\n// permute plays four notes in the k-th of their 24 orderings, a different k each bar\nchime: n(\"0 2 4 7\").permute(4, \"<0 5 11 17 23 6>\").scale(\"F:major\").transpose(12)\n  .s(\"triangle\").timbre(\"glass\").decay(.4).sustain(0).release(.8)\n  .delay(.3).delaytime(3/8).room(.5).gain(.12)\n\n// An organ pedal under the tower\npedal: note(\"[f2,c3]\").slow(4).s(\"sawtooth\").timbre(\"organ\").lpf(500)\n  .attack(1).sustain(.8).release(2).space(\"church\").gain(.14)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    },
+    {
+      "id": "finale-once",
+      "name": "Finale, Once",
+      "description": "A twenty-bar finale that plays once and stops: a motif, its inversion climbing in sequence, then the motif again as a variant, over drums laid out by their own form with fills and a closing crash, and a pad that fades away at the end.",
+      "category": "Form",
+      "tags": ["104 bpm", "C major", "form", "once"],
+      "source": "setcpm(104/4)\n\n// The motif thins itself a little at random, so the variant A' differs from A\nconst motif = n(\"<[0 2 4 2] [3 2 1 ~] [4 5 6 4] [7@4]>\").degradeBy(.1)\n\n// .once() plays the form a single time: eight bars of the motif, eight of its inversion\n// climbing in sequence, four of the variant, then silence\nlead: form(\"A@8 B@8 A'@4\", motif, motif.invert(4).sequence(1, 4)).once()\n  .scale(\"C:major\").transpose(12)\n  .s(\"sawtooth\").timbre(\"bright\").lpf(2800).attack(.02).sustain(.6).release(.2)\n  .room(.4).gain(.22)\n\nbass: form(\"A@8 B@8 A@4\", note(\"<c2 f2 g2 c2>\"), note(\"<a1 e2 f2 g2>\")).once()\n  .s(\"sawtooth\").lpf(700).attack(.02).decay(.3).sustain(.5).release(.2).gain(.3)\n\n// The drums have their own twenty-bar form: grooves, fills and a crash on the last bar\nconst groove = s(\"bd ~ [~ bd] ~, ~ sd ~ sd, hh*8?0.2\")\nconst fill = s(\"[lt lt mt mt] [ht ht ht ht]\")\ndrums: form(\"A@6 B@2 A@6 B@2 A'@3 C\", groove, fill, s(\"[bd,cr] ~ ~ ~\")).once().gain(.5)\n\n// The pad fades out over the last four bars\npad: note(\"<[c3,e3,g3] [f3,a3,c4] [g3,b3,d4] [c3,e3,g3]>\").s(\"sawtooth\").unison(3).detune(.2)\n  .attack(.5).release(1.5).lpf(1500).room(.6).gain(.12).fadeout(4, 16)\n",
+      "savedAt": "2026-11-08T12:00:00.000Z"
+    }
+  ]
+}

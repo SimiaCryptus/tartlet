@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "cthulhu",
+  "name": "R'lyeh Wakes",
+  "description": "Cosmic horror for headphones, after the mythos of the Great Old Ones: the sunken city of R'lyeh humming from the centre of your head out into the stone, a call hidden in the noise of the deep that only both ears together can hear, a shoggoth's eyes opening all around you, Father Dagon circling beneath you, a colour out of space that pulls the ears apart in cents, cultists chanting in a ring around a swamp fire, non-Euclidean angles, the Necronomicon read aloud over your shoulder, dead Cthulhu dreaming over a slow delta drone and, once, the night the stars are right. The deepest things stay in the centre while the horrors use the space around you. Each sketch explains its trick in the comments. Headphones on, volume low, lights off if you dare.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["horror", "lovecraft", "binaural", "headphones", "dark ambient", "spatial"],
+  "exportedAt": "2026-11-12T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "rlyeh-rising",
+      "name": "R'lyeh Rising",
+      "description": "Headphones on: the sunken city far beneath the Pacific. The sea is muffled far above you, the city's hum steps from the centre of your head out into the stone, cyclopean masonry creaks from impossible angles and a drowned choir sings through the walls. On speakers the 180-degree bars of the hum nearly vanish.",
+      "category": "Sunken City",
+      "tags": ["48 bpm", "C minor", "iphase", "elevation", "occlude"],
+      "source": "setcpm(48/4)\n\n// The sea far above you, muffled by fathoms of water\nsurface: s(\"surf\").slow(8).intensity(.5).elevation(70).distance(10).occlude(.7).gain(.2)\n\n// The city's hum: 0 degrees sits in the centre of your head, 90 loosens, 180 spreads into the stone\n// On speakers the 180-degree bars nearly vanish\ncity: note(\"[c1,g1,db2]\").s(\"sawtooth\").lpf(400).iphase(\"<0 0 90 90 180 180 90 90>\")\n  .attack(3).sustain(1).release(4).gain(.2)\n\n// Cyclopean masonry shifting: a creak from a new and wrong angle every bar\nmasonry: s(\"~ ~ creak ~\").speed(.5).azimuth(\"<-120 60 150 -30 90 -150 30 180>\")\n  .elevation(\"<-20 10 -40 0 20 -10 -30 40>\").distance(5).space(\"church\").gain(.14)\n\n// Bubbles rising from the doors of the tomb, below and around you\nbubbles: s(\"drip*8?0.5\").speed(rand.range(.3, .8)).azimuth(rand.range(-180, 180))\n  .elevation(rand.range(-60, 0)).distance(rand.range(1, 4)).seed(\"rlyeh\").gain(.12)\n\n// A choir of the drowned, singing through the stone: Cm, Db, Ab, G\nchoir: note(\"<[c3,eb3,g3] [db3,f3,ab3] [ab2,c3,eb3] [g2,b2,d3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo oh oo ah>\").occlude(.6).attack(3).release(4).space(\"church\").gain(.22)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "the-call",
+      "name": "The Call",
+      "description": "The noise of the deep is white noise, but between the ears it carries a chant (Huggins pitch). Each ear alone hears only hiss; only both together hear the call. A quiet hum gives the first bar every four bars so you know what to listen for, while whispers circle your head. The effect is faint and differs between listeners.",
+      "category": "Dichotic",
+      "tags": ["60 bpm", "D phrygian", "dichotic", "Huggins pitch", "azimuth"],
+      "source": "setcpm(60/4)\n\n// The noise of the deep: the same white noise feeds both ears, but one ear is phase-shifted in a narrow band\n// Neither ear alone hears a tone; together they hear the call\ncall: s(\"white*4\").dichotic(\"<[294 311 349 311] [294 262 233 262] [349 392 440 392] [311 294 311 294]>\")\n  .dichoticq(30).attack(.03).sustain(1).release(.08).gain(.14)\n\n// A quiet hint: the first bar hummed, once every four bars\nhint: note(\"<[d4 eb4 f4 eb4] ~ ~ ~>\").s(\"hum\").attack(.05).release(.3).gain(.07)\n\n// Whispers circling your head once every four bars: the words nobody should say aloud\nwhispers: s(\"whisper*4?0.6\").syl(\"<[i_a i_a ka thu] [fa tag loo ah]>\").hpf(800)\n  .azimuth(saw.range(-180, 180).slow(4)).distance(1.5).posglide(.3).seed(\"call\").gain(.08)\n\n// The sea, and a low drone from far below\nsea: s(\"surf\").slow(8).intensity(.3).distance(6).gain(.14)\ndrone: note(\"[d1,a1]\").slow(8).s(\"sine\").attack(4).sustain(1).release(6).gain(.2)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "shoggoth",
+      "name": "Shoggoth",
+      "description": "Headphones on: eyes open and close at random places all over the dark around your head, the cry of tekeli-li circles you, and the shapeless bass sends its lows to one ear and its highs to the other. Only the kick stays in the middle.",
+      "category": "Abominations",
+      "tags": ["100 bpm", "E phrygian", "azimuth", "earsplit", "curve"],
+      "source": "setcpm(100/4)\n\n// Eyes opening all over its body: wet pops at random places around your head, near and far\neyes: s(\"click*16?0.5\").speed(rand.range(.3, 1.2))\n  .azimuth(rand.range(-180, 180)).elevation(rand.range(-40, 40)).distance(rand.range(.7, 3))\n  .seed(\"eyes\").gain(.2)\n\n// Tekeli-li! The cry circles you once every four bars\ncry: note(\"<[e5 e5 g5 e5] ~ [f5 f5 a5 f5] ~>\").s(\"voice\").syl(\"te ke li li\").voicetype(\"soprano\")\n  .fry(.4).jitter(.6).mono(1).vglide(.05).release(.3)\n  .azimuth(saw.range(-180, 180).slow(4)).distance(2).posglide(.3).gain(.18)\n\n// Its mass: a bass folded over on itself, the lows in one ear and the highs in the other\nmass: note(\"<e1 e1 f1 e1>\").struct(\"x ~ x x ~ x ~ x\").s(\"sawtooth\")\n  .curve(\"fold\").drive(sine.range(6, 20).slow(4)).earsplit(\"bands\").splitfreq(400)\n  .lpf(1500).decay(.2).sustain(.5).release(.1).gain(.3)\n\n// Slime: unrelated brown noise in each ear, oozing all around\nslime: s(\"brown\").slow(4).icorr(.1).lpf(sine.range(150, 500).slow(8)).gain(.14)\n\n// The kick: the one thing still in the middle of your head\nkick: s(\"bd ~ ~ bd ~ ~ bd ~\").shape(.3).gain(.6)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "father-dagon",
+      "name": "Father Dagon",
+      "description": "Headphones on: off the reef at Innsmouth, in the black water. A 2 Hz binaural drone hums in the delta range, below the rates that trigger a pulse warning, Father Dagon circles slowly beneath you, the Deep Ones' hum rolls inside your head and bubbles drift past your ears.",
+      "category": "The Deep",
+      "tags": ["44 bpm", "D minor", "binaural", "elevation", "irate"],
+      "source": "setcpm(44/4)\n\n// The abyss: a 2 Hz binaural drone, each ear detuned by 1 Hz, below the 3-30 Hz warning range\nabyss: note(\"<d1 d1 bb0 c1>\").slow(2).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.26)\n\n// The surface, far above and muffled by the water\nsurface: s(\"surf\").slow(8).intensity(.4).elevation(70).distance(10).occlude(.7).gain(.18)\n\n// Father Dagon circles slowly beneath you, once every sixteen bars, gliding from note to note\ndagon: note(\"<[d2@2 a1@6] ~ [f2@3 eb2@5] ~>\").s(\"sawtooth\").mono(1).glide(.5).vowel(\"oo\")\n  .lpf(600).attack(.5).sustain(.8).release(2)\n  .azimuth(saw.range(-180, 180).slow(16)).elevation(-40).distance(8).posglide(1).space(\"hall\").gain(.22)\n\n// The Deep Ones hum in the dark: irate turns the phase between the ears, all below 3 Hz\ndeepones: note(\"[d3,a3]\").s(\"sine\").timbre(\"hollow\").irate(\"<.25 .5 1 .5>\")\n  .attack(2).sustain(1).release(2).gain(.12)\n\n// Bubbles drifting up past your ears\nbubbles: s(\"drip*8?0.4\").speed(rand.range(.3, .7)).azimuth(rand.range(-180, 180))\n  .elevation(rand.range(-40, 40)).distance(2).seed(\"innsmouth\").gain(.12)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "colour-out-of-space",
+      "name": "The Colour Out of Space",
+      "description": "A meteor in the well: bells whose partials are shifted off any key strike from random places around you, a pad's ears drift apart in cents until it sickens into a wide, seasick blight, the well hums ring-modulated underneath and the insects on the farm fall silent one by one.",
+      "category": "Cosmic",
+      "tags": ["60 bpm", "no key", "earsh", "fshift", "icorr"],
+      "source": "setcpm(60/4)\n\n// A colour no eye has seen: bells whose partials are all shifted by the same hertz, so no key survives\nbells: note(\"<c5 ~ gb5 ~ a4 ~ eb5 ~>\").s(\"sine\").fm(3).fmh(1.41).fshift(\"<0 47 -91 133>\")\n  .decay(3).sustain(0).release(3)\n  .azimuth(rand.range(-150, 150)).elevation(30).distance(3).seed(\"meteor\").space(\"hall\").gain(.12)\n\n// The blight spreads: earsh raises the right ear and lowers the left, wider every two bars\n// 4 cents beats slowly; 60 cents is two different worlds, one in each ear\nblight: note(\"[c3,gb3,b3]\").s(\"sawtooth\").unison(2).detune(.1).earsh(\"<4 4 12 12 30 30 60 60>\")\n  .lpf(1100).attack(2).sustain(1).release(3).gain(.12)\n\n// The well hums, ring-modulated into something wrong\nwell: note(\"c2\").slow(4).s(\"sine\").ringmod(sine.range(20, 90).slow(8)).ringmix(.5)\n  .attack(3).sustain(1).release(4).gain(.16)\n\n// Grey dust in the air: unrelated noise in each ear, wide and everywhere\ndust: s(\"pink\").slow(8).icorr(.1).hpf(2000).lpf(6000).gain(.03)\n\n// The farm: the insects fall silent from bar 4, and the wind keeps on\ninsects: s(\"insect\").slow(4).azimuth(80).distance(5).gain(.06).fadeout(8, 4)\nwind: s(\"wind\").slow(8).intensity(.2).gain(.07)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "cultists-in-the-marsh",
+      "name": "Cultists in the Marsh",
+      "description": "Headphones on: a bonfire in a Louisiana swamp, and the cultists chanting in a ring around you, one voice ahead, one on each side and one behind, each a little later than the last. Drums hop from ear to ear, frogs croak in the reeds and a quiet 6 Hz binaural beat in the theta range hums under it all. The player asks before playing, as with any steady pulse.",
+      "category": "Cults",
+      "tags": ["96 bpm", "D minor", "azimuth", "ild", "earswap", "binaural"],
+      "source": "setcpm(96/4)\n\n// The bonfire at the heart of the swamp, and frogs in the reeds behind you\nfire: s(\"fire\").slow(4).intensity(.7).density(14).distance(2).gain(.2)\nfrogs: s(\"click*4?0.5\").lpf(1200).azimuth(160).distance(5).seed(\"marsh\").gain(.1)\n\n// One chant, sung from four places in a ring around you\nconst chant = note(\"<[d3 d3 f3 d3] [c3 c3 eb3 d3]>\").syl(\"<[i_a i_a ka thu] [fa tag loo ah]>\")\nconst cultist = (x, type, az) => x.s(\"voice\").voicetype(type).attack(.03).release(.4)\n  .azimuth(az).distance(3).room(.4)\n\nfront: chant.cultist(\"bass\", 0).gain(.2)\nright: chant.late(1/16).cultist(\"tenor\", 90).gain(.16)\nbehind: chant.late(1/8).cultist(\"bass\", 180).gain(.16)\nleft: chant.late(3/16).add(12).cultist(\"alto\", -90).gain(.14)\n\n// A frame drum in the middle; toms lean right and earswap throws the steps marked 1 to the left\nframe: s(\"bd ~ ~ bd ~ ~ bd ~\").lpf(300).gain(.5)\ntoms: s(\"lt*8\").speed(.8).ild(8).earswap(\"0 1 1 0 1 0 0 1\").gain(.24)\n\n// A 6 Hz binaural beat in the theta range: each ear is detuned by 3 Hz. Keep it quiet\ndrone: note(\"[d2,a2]\").slow(4).s(\"sine\").binaural(6)\n  .attack(3).sustain(1).release(4).gain(.12)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "non-euclidean-geometry",
+      "name": "Non-Euclidean Geometry",
+      "description": "Angles that are wrong: one figure plays at three speeds from random places around you and they meet every eight bars, the hats are spread evenly around your head by the van der Corput sequence, a second drummer on your right slips a sixteenth each bar and the drone leans from ear to ear on tiny delays, as if the room were tilting.",
+      "category": "Geometry",
+      "tags": ["110 bpm", "C phrygian dominant", "converge", "ints", "itd"],
+      "source": "setcpm(110/4)\n\n// One figure at three speeds, shifted so all three reach the start together every eight bars\n// Each note comes from a random place in front of and beside you\nfigure: n(\"0 1 4 3 6 5 1 0\").scale(\"C:phrygian dominant\").transpose(12)\n  .converge(8, 1, 9/8, 5/4)\n  .s(\"triangle\").timbre(\"glass\").decay(.2).sustain(0)\n  .azimuth(rand.range(-150, 150)).distance(2).seed(\"angles\").room(.4).gain(.1)\n\n// The van der Corput sequence spreads the hats evenly all the way around your head\nhats: s(\"hh*16\").hpf(7000).azimuth(ints(\"vdc\", 16).range(-180, 180)).distance(1.5).gain(.2)\n\n// A kick from a sieve of residue classes, kept in the middle\nkick: s(\"bd\").struct(sieve(\"3@0 | 5@2\", 16)).shape(.2).gain(.6)\n\n// A second drummer on your right, slipping a sixteenth further every bar\nrims: s(\"rim ~ rim rim ~ rim ~ ~\").phase(1/16).azimuth(90).distance(2).gain(.22)\n\n// The room tilts: under about 0.7 ms a delay between the ears leans the drone left, then right\nmasonry: note(\"[c2,gb2]\").s(\"sawtooth\").itd(sine.range(-.6, .6).slow(8)).lpf(600)\n  .attack(1).sustain(1).release(1).gain(.16)\n\n// A centred bass\nbass: note(\"<c2 db2 c2 b1>\").struct(\"x ~ ~ x ~ ~ x ~\").s(\"sine\").shape(.2)\n  .decay(.3).sustain(.4).release(.1).gain(.4)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "necronomicon",
+      "name": "The Necronomicon",
+      "description": "Late at night in the restricted stacks at Miskatonic: nothing is panned, yet the organ's brightness creeps slowly from ear to ear, as each ear has its own low-pass sweeping the other way. A candle burns on your left, a clock ticks on your right, rain falls beyond the leaded windows and someone reads aloud just behind your shoulder.",
+      "category": "Forbidden Books",
+      "tags": ["60 bpm", "D minor", "lcutoff", "rcutoff", "azimuth"],
+      "source": "setcpm(60/4)\n\n// The forbidden library: nothing is panned, yet the organ's brightness creeps from ear to ear\n// A low-pass on each ear alone, sweeping in opposite directions every eight bars\norgan: note(\"<[d3,f3,a3,c4] [bb2,db3,f3,ab3] [g2,bb2,db3,f3] [a2,c#3,e3,g3]>\")\n  .s(\"sawtooth\").timbre(\"organ\")\n  .lcutoff(saw.range(400, 3000).slow(8)).rcutoff(isaw.range(400, 3000).slow(8))\n  .attack(.5).sustain(.9).release(1).space(\"church\").gain(.12)\n\n// The pedal holds the roots, centred\npedal: note(\"<d2 bb1 g1 a1>\").s(\"sawtooth\").timbre(\"organ\").lpf(450)\n  .attack(.4).sustain(.8).release(1).space(\"church\").gain(.2)\n\n// A candle on your left, a clock on your right, rain beyond the leaded windows\ncandle: s(\"fire\").slow(4).intensity(.2).density(4).azimuth(-60).distance(2).gain(.12)\nclock: s(\"tick ~ tick ~\").azimuth(70).distance(4).gain(.05)\nrain: s(\"rain\").slow(4).intensity(.4).occlude(.6).gain(.14)\n\n// Pages turning, now and then\npages: s(\"~ ~ ~ pink\").mask(\"<0 1 0 0 0 0 1 0>\").hpf(2000).lpf(6000)\n  .attack(.05).decay(.2).sustain(0).gain(.06)\n\n// Someone reading aloud, right behind your shoulder\nreader: s(\"whisper*4?0.5\").syl(\"<[ne kro no mi] [al haz red ah]>\").hpf(900)\n  .azimuth(170).distance(1).seed(\"tome\").gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "dead-cthulhu-dreaming",
+      "name": "Dead Cthulhu Dreaming",
+      "description": "Headphones on: in his house at R'lyeh dead Cthulhu waits dreaming. A 2 Hz binaural drone hums in the delta range, below the rates that trigger a pulse warning, a drowned choir breathes through stone and water, his dreams circle slowly beneath you and the weight of the ocean presses in, different in each ear.",
+      "category": "Dreams",
+      "tags": ["40 bpm", "C phrygian", "binaural", "delta", "icorr"],
+      "source": "setcpm(40/4)\n\n// In his house at R'lyeh dead Cthulhu waits dreaming: a 2 Hz binaural drone, below the 3-30 Hz warning range\ndrone: note(\"<c1 c1 ab0 bb0>\").slow(4).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.26)\n\n// A drowned choir breathing slowly, heard through stone and water\nchoir: note(\"<[c3,eb3,g3] [ab2,c3,eb3] [f2,ab2,c3] [g2,b2,d3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo ah oo oh>\").occlude(.5).attack(3).release(4).space(\"church\").gain(.22)\n\n// His dreams reach out: glass notes circling your head once every sixteen bars, a little below\ndreams: n(irand(6).segment(4)).scale(\"C:phrygian\").transpose(12)\n  .degradeBy(.6).seed(\"dreams\")\n  .s(\"triangle\").timbre(\"glass\").decay(1.5).sustain(0).release(2)\n  .azimuth(saw.range(-180, 180).slow(16)).elevation(-20).distance(3).posglide(.5).room(.6).gain(.08)\n\n// The water pressing in on every side: unrelated brown noise in each ear\npressure: s(\"brown\").slow(8).icorr(.1).lpf(500).gain(.08)\n\n// A sleeper's breath, very slow\nbreath: s(\"pink\").slow(2).hpf(200).lpf(600).attack(4).release(5).gain(.03)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "the-stars-are-right",
+      "name": "The Stars Are Right",
+      "description": "Listen through once from the start. For four bars the cultists chant and the toms speed up while the noise in your ears spreads from a point into a wash; on bar five Cthulhu wakes and roars, dead centre. Then the city rises from below you, the stars wheel high overhead and a 2 Hz delta drone, below the rates that trigger a pulse warning, carries the new aeon.",
+      "category": "Awakening",
+      "tags": ["64 bpm", "C minor", "icorr", "elevation", "enter", "once"],
+      "source": "setcpm(64/4)\n\n// Bars 1-4: icorr 1 is the same noise in both ears, a point; near 0 it is unrelated noise in each, a wash\nriser: s(\"pink\").icorr(\"<1 .7 .4 .1>\").hpf(saw.range(200, 4000).slow(4))\n  .gain(\"<.03 .06 .09 .13>\").exit(4)\n\n// The cultists chant, faster drums under them\nchant: note(\"<[d3 d3 f3 d3] [d3 d3 g3 f3] [eb3 eb3 g3 eb3] [d3 f3 ab3 g3]>\").s(\"choir\")\n  .syl(\"<[i_a i_a ka thu] [i_a i_a ka thu] [fa tag loo ah] [fa tag loo ah]>\")\n  .attack(.05).release(.4).space(\"hall\").exit(4).gain(.24)\ntoms: s(\"<lt*4 lt*8 lt*16 lt*16>\").speed(.7).lpf(900).gain(saw.range(.2, .5)).exit(4)\n\n// Bar 5: he wakes. An impact, and the roar right in front of your face\nimpact: s(\"[bd,cr] ~ ~ ~\").speed(.3).lpf(400).room(.9).size(.95).enter(4).exit(5).gain(.8)\nroar: note(\"[c2@2 g2@3 db2@3]\").s(\"sawtooth\").unison(3).detune(25).mono(1).glide(.3)\n  .vowel(\"ah\").curve(\"tube\").drive(14).lpf(1200).attack(.1).sustain(.8).release(2)\n  .distance(1).enter(4).exit(6).gain(.22)\n\n// The city rises from below you over four bars, then fades\ncity: note(\"<[c3,eb3,g3,c4] [db3,f3,ab3,c4] [ab2,c3,eb3,g3] [g2,b2,d3,g3]>\")\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(1400).attack(.5).sustain(.8).release(1.5)\n  .elevation(saw.range(-60, 40).slow(4)).distance(4).posglide(.5).room(.6)\n  .enter(5).gain(.16).fadeout(4, 12)\n\n// The stars wheel high overhead\nstars: n(irand(8).segment(8)).scale(\"C:phrygian\").transpose(24)\n  .degradeBy(.7).seed(\"stars\")\n  .s(\"sine\").decay(.2).sustain(0).release(.5)\n  .azimuth(rand.range(-180, 180)).elevation(60).distance(4).enter(6).gain(.08)\n\n// The new aeon: a 2 Hz binaural drone, below the 3-30 Hz warning range\naeon: note(\"[c2,g2]\").slow(4).s(\"sine\").binaural(2).attack(4).sustain(1).release(6).enter(8).gain(.2)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,401 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "instruments",
+  "name": "Instrument Library",
+  "description": "A compendium of single reference instruments, all built from the synthesized kit: keyboards, mallets and bells, plucked and bowed strings, woodwinds, brass, free reeds and pipes, voices, percussion and classic synthesizers. Every sketch defines its instrument once as a patch function at the top, then plays a short reference phrase chosen to show it off. Copy the const line into any sketch and call it as a method, for example note(\"c4 e4 g4\").grand().",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Reference",
+  "tags": ["instruments", "reference", "patches", "sound design", "library"],
+  "exportedAt": "2026-11-09T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "grand-piano",
+      "name": "Grand Piano",
+      "description": "A soft hammered string with a long, falling decay. Reference: a C major scale up and down, a broken chord and block chords over the roots.",
+      "category": "Keyboards",
+      "tags": ["piano", "C major", "84 bpm"],
+      "source": "setcpm(84/4)\n\n// The patch: a soft triangle with a hammer-quick attack and a long, falling decay\n// Copy the const line into your own sketch and call .grand() on any note pattern\nconst grand = (x) => x.s(\"triangle\").timbre(\"soft\")\n  .attack(.003).decay(1.8).sustain(.06).release(1.5).envcurve(\"exp\")\n  .lpf(3400).room(.4).size(.75)\n\n// Reference: a scale up and down, a broken chord, then block chords\nright: note(\"<[c4 d4 e4 f4 g4 a4 b4 c5] [c5 b4 a4 g4 f4 e4 d4 c4] [c4 e4 g4 c5 e5 c5 g4 e4] [[c4,e4,g4]@2 [f4,a4,c5]@2 [g4,b4,d5]@2 [e4,g4,c5]@2]>\")\n  .grand().gain(.32)\n\n// The left hand holds the roots\nleft: note(\"<c3 g2 c3 [c3@2 f2@2 g2@2 c2@2]>\").grand().gain(.28)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "electric-piano",
+      "name": "Electric Piano",
+      "description": "Two-operator FM at ratio 2 with a gentle tremolo: the classic tine sound. Reference: four seventh chords and a melody over them.",
+      "category": "Keyboards",
+      "tags": ["Rhodes", "FM", "F major", "88 bpm"],
+      "source": "setcpm(88/4)\n\n// The patch: FM at ratio 2 with a gentle tremolo, the classic tine sound\nconst tines = (x) => x.s(\"sine\").fm(1.1).fmh(2).trem(4).tremdepth(.25)\n  .attack(.004).decay(1.2).sustain(.25).release(.8).lpf(2600).room(.35)\n\n// Reference: Fmaj7, Em7, Dm7, Cmaj7, then a melody over them\nchords: note(\"<[f3,a3,c4,e4] [e3,g3,b3,d4] [d3,f3,a3,c4] [c3,e3,g3,b3]>\").struct(\"x ~ ~ [~ x] ~ ~ x ~\")\n  .tines().gain(.28)\nmelody: note(\"<[c5@3 a4 g4@2 e4@2] [d5@3 b4 g4@4] [a4@2 c5@2 f5@2 e5 c5] [b4@4 g4@4]>\")\n  .tines().gain(.24)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "harpsichord",
+      "name": "Harpsichord",
+      "description": "A narrow pulse plucked short inside a wooden case. Reference: a baroque figure in D over a walking bass.",
+      "category": "Keyboards",
+      "tags": ["baroque", "D major", "96 bpm"],
+      "source": "setcpm(96/4)\n\n// The patch: a narrow pulse plucked short, with a wooden case resonating around it\nconst harpsichord = (x) => x.s(\"square\").pw(.15)\n  .attack(.002).decay(.35).sustain(0).release(.2)\n  .lpf(3800).body(\"box\").bodymix(.3).room(.3)\n\n// Reference: a running figure in the right hand over a walking bass\nright: note(\"<[d5 a4 f#4 a4 d5 e5 f#5 d5] [g5 e5 c#5 e5 a5 g5 f#5 e5] [f#5 d5 b4 d5 g5 f#5 e5 d5] [c#5 a4 e5 c#5 d5@4]>\")\n  .harpsichord().gain(.2)\nleft: note(\"<[d3 f#3 a3 f#3] [a2 c#3 e3 c#3] [b2 d3 g2 b2] [a2 a2 d3@2]>\")\n  .harpsichord().gain(.18)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "pipe-organ",
+      "name": "Pipe Organ",
+      "description": "An organ-voiced saw that speaks quickly and holds for as long as the key is down, in a church. Reference: a four-chord chorale on the manual with the pedal below.",
+      "category": "Keyboards",
+      "tags": ["organ", "church", "C major", "60 bpm"],
+      "source": "setcpm(60/4)\n\n// The patch: an organ-voiced saw that speaks quickly and holds while the key is down\nconst pipes = (x) => x.s(\"sawtooth\").timbre(\"organ\")\n  .attack(.06).sustain(1).release(.6).lpf(2200).space(\"church\").room(.6)\n\n// Reference: a chorale on the manual, and the pedal a darker stop below\nmanual: note(\"<[c4,e4,g4] [a3,c4,f4] [g3,b3,d4,g4] [g3,c4,e4]>\").pipes().gain(.18)\npedal: note(\"<c2 f2 g2 c2>\").pipes().lpf(500).gain(.24)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "vibraphone",
+      "name": "Vibraphone",
+      "description": "FM bars with a long ring and a motor tremolo. Reference: a pentatonic run, a broken chord, ringing dyads and a falling line in F.",
+      "category": "Mallets & Bells",
+      "tags": ["vibes", "FM", "F major", "92 bpm"],
+      "source": "setcpm(92/4)\n\n// The patch: FM bars with a long ring and a motor tremolo\nconst vibes = (x) => x.s(\"sine\").fm(2).fmh(4).trem(5.5).tremdepth(.35)\n  .attack(.002).decay(2).sustain(0).release(1.6).room(.4)\n\n// Reference: a pentatonic run, a broken chord, two ringing dyads and a falling line\nreference: note(\"<[f4 g4 a4 c5 d5 f5 d5 c5] [a4 c5 e5 g5 e5 c5 a4 g4] [[f4,a4]@4 [g4,c5]@4] [f5 ~ d5 ~ c5 ~ a4 ~]>\")\n  .vibes().gain(.24)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "marimba",
+      "name": "Marimba",
+      "description": "A short, woody FM strike over resonator tubes. Reference: an interlocking pattern across two octaves in G, with low bars on the bass notes.",
+      "category": "Mallets & Bells",
+      "tags": ["mallets", "G major", "104 bpm"],
+      "source": "setcpm(104/4)\n\n// The patch: a short, woody FM strike over resonator tubes\nconst marimba = (x) => x.s(\"sine\").fm(.6).fmh(4)\n  .attack(.001).decay(.4).sustain(0).release(.3)\n  .body(\"tube\").bodymix(.25).room(.3)\n\n// Reference: a figure across two octaves through G, C, Am and D\nreference: note(\"<[g3 d4 b4 d4 g4 d4 b4 d4] [c4 e4 g4 e4 c5 g4 e4 c4] [a3 e4 c5 e4 a4 e4 c5 e4] [d4 f#4 a4 d5 c5 a4 f#4 d4]>\")\n  .marimba().gain(.3)\nlow: note(\"<g2 c3 a2 d3>\").struct(\"x ~ ~ x ~ ~ x ~\").marimba().gain(.3)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "glockenspiel",
+      "name": "Glockenspiel",
+      "description": "Small steel bars: bright, inharmonic FM with a quick fade. Reference: a simple tune high up in C.",
+      "category": "Mallets & Bells",
+      "tags": ["bells", "C major", "100 bpm"],
+      "source": "setcpm(100/4)\n\n// The patch: small steel bars, bright inharmonic FM with a quick fade\nconst glock = (x) => x.s(\"sine\").fm(3).fmh(3.5)\n  .attack(.001).decay(.9).sustain(0).release(.8).room(.45)\n\n// Reference: a simple tune in the top register\nreference: note(\"<[e5 g5 c6 g5] [a5 g5 e5 ~] [f5 a5 d6 a5] [g5@2 ~@2] [e5 g5 c6 e6] [d6 c6 a5 f5] [g5 b5 d6 b5] [c6@3 ~]>\")\n  .glock().gain(.2)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "tubular-bells",
+      "name": "Tubular Bells",
+      "description": "Long brass tubes: FM at the bell ratio 2.76, ringing for seconds in a hall. Reference: four bells rung in different orders.",
+      "category": "Mallets & Bells",
+      "tags": ["chimes", "FM", "60 bpm"],
+      "source": "setcpm(60/4)\n\n// The patch: long tubes, FM at the bell ratio 2.76, ringing for seconds\nconst chimes = (x) => x.s(\"sine\").fm(3).fmh(2.76)\n  .attack(.002).decay(4.5).sustain(0).release(4).space(\"hall\").room(.6)\n\n// Reference: four bells, rung in a new order each bar\nreference: note(\"<[e4 d4 c4 g3] [c4 e4 d4 g3] [c4 d4 e4 c4] [e4 c4 d4 g3]>\")\n  .chimes().gain(.2)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "steel-pan",
+      "name": "Steel Pan",
+      "description": "A hammered steel note: close FM with a peak where the pan sings. Reference: a calypso phrase in C ending on rolled long notes.",
+      "category": "Mallets & Bells",
+      "tags": ["steelpan", "calypso", "C major", "108 bpm"],
+      "source": "setcpm(108/4)\n\n// The patch: close FM and a peak in the upper mids where the steel sings\nconst steelpan = (x) => x.s(\"sine\").fm(1.4).fmh(2)\n  .attack(.002).decay(.7).sustain(.08).release(.4)\n  .peak(5).peakfreq(1600).room(.3)\n\n// Reference: a calypso phrase; long notes are played as rolls\nreference: note(\"<[c5 ~ e5 g5 ~ e5 c5 ~] [d5 ~ f5 a5 ~ f5 d5 ~] [e5 g5 e5 c5 d5 b4 g4 ~] [c5*8 e5*8]>\")\n  .steelpan().gain(.26)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "kalimba",
+      "name": "Kalimba",
+      "description": "A plucked metal tine over a small wooden box. Reference: alternating thumbs over the tines in G.",
+      "category": "Mallets & Bells",
+      "tags": ["thumb piano", "G major", "90 bpm"],
+      "source": "setcpm(90/4)\n\n// The patch: a plucked tine, FM with a high ratio, and a small box beneath it\nconst kalimba = (x) => x.s(\"sine\").fm(.8).fmh(5.4)\n  .attack(.001).decay(1).sustain(0).release(.9)\n  .body(\"box\").bodymix(.35).room(.35)\n\n// Reference: the thumbs alternate between low and high tines\nreference: note(\"<[g4 b4 d4 d5 g4 b4 d4 d5] [e4 g4 c4 c5 e4 g4 c4 c5] [d4 f#4 a3 a4 d4 f#4 a3 a4] [g4 b4 d5 g5 d5 b4 g4@2]>\")\n  .kalimba().gain(.28)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "nylon-guitar",
+      "name": "Nylon Guitar",
+      "description": "A soft pluck inside a guitar body. Reference: fingerpicking through Am, Dm and E, ending on a strummed chord.",
+      "category": "Plucked",
+      "tags": ["classical guitar", "A minor", "84 bpm"],
+      "source": "setcpm(84/4)\n\n// The patch: a soft pluck resonating in a guitar body\nconst nylon = (x) => x.s(\"triangle\").timbre(\"soft\")\n  .attack(.003).decay(.8).sustain(.05).release(.6)\n  .body(\"guitar\").bodymix(.4).lpf(2600).room(.3)\n\n// Reference: fingerpicking through Am, Dm, E and back to Am\nreference: note(\"<[a2 e3 a3 c4 e4 c4 a3 e3] [d3 a3 d4 f4 a4 f4 d4 a3] [e2 b2 e3 g#3 b3 g#3 e3 b2] [a2 e3 a3 c4 [a2,e3,a3,c4,e4]@4]>\")\n  .nylon().gain(.3)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "electric-guitar",
+      "name": "Overdriven Guitar",
+      "description": "A saw driven into a tube curve and out of a combo cabinet. Reference: power chords, then a single-note riff in E.",
+      "category": "Plucked",
+      "tags": ["electric guitar", "overdrive", "E minor", "120 bpm"],
+      "source": "setcpm(120/4)\n\n// The patch: a saw pushed into a tube curve and played through a combo cabinet\nconst overdrive = (x) => x.s(\"sawtooth\").curve(\"tube\").drive(14).bias(.1)\n  .attack(.003).decay(.4).sustain(.5).release(.15)\n  .lpf(3200).cab(\"combo\").room(.2)\n\n// Reference: two bars of power chords, then a riff\nreference: note(\"<[[e2,b2,e3]@3 [e2,b2,e3] [g2,d3,g3]@2 [a2,e3,a3]@2] [[e2,b2,e3]@3 [e2,b2,e3] [d2,a2,d3]@2 [c2,g2,c3]@2] [e3 g3 a3 b3 d4 b3 a3 g3] [e3 ~ e3 g3 a3 ~ b3@2]>\")\n  .overdrive().gain(.2)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "banjo",
+      "name": "Banjo",
+      "description": "A bright, short pluck on a drumhead; the can body gives the twang. Reference: a forward roll through G, C, D and G.",
+      "category": "Plucked",
+      "tags": ["bluegrass", "G major", "120 bpm"],
+      "source": "setcpm(120/4)\n\n// The patch: a bright, short pluck; the can body gives the drumhead twang\nconst banjo = (x) => x.s(\"triangle\").timbre(\"bright\")\n  .attack(.001).decay(.18).sustain(0).release(.15)\n  .body(\"can\").bodymix(.35)\n\n// Reference: a forward roll through G, C, D and G\nreference: note(\"<[g3 b3 d4 g4 b3 d4 g4 b4] [c4 e4 g4 c5 e4 g4 c5 e5] [d4 f#4 a4 d5 f#4 a4 d5 f#5] [g4 b4 d5 g5 d5 b4 g4@2]>\")\n  .banjo().gain(.26)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "harp",
+      "name": "Concert Harp",
+      "description": "A soft pluck with a long, warm ring. Reference: a glissando up and down in E-flat, then rolled chords.",
+      "category": "Plucked",
+      "tags": ["harp", "glissando", "Eb major", "72 bpm"],
+      "source": "setcpm(72/4)\n\n// The patch: a soft pluck with a long, warm ring\nconst harp = (x) => x.s(\"triangle\").timbre(\"soft\")\n  .attack(.002).decay(1.6).sustain(0).release(1.4).room(.55).size(.8)\n\n// Reference: a glissando up and down, then rolled chords of Eb, Ab, Bb and Eb\nreference: note(\"<[eb3 f3 g3 ab3 bb3 c4 d4 eb4 f4 g4 ab4 bb4 c5 d5 eb5 f5] [f5 eb5 d5 c5 bb4 ab4 g4 f4 eb4 d4 c4 bb3 ab3 g3 f3 eb3] [eb3 bb3 g4 eb5 ab3 eb4 c5 ab5] [bb2 f3 d4 bb4 eb3 bb3 g4 eb5]>\")\n  .harp().gain(.22)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "koto",
+      "name": "Koto",
+      "description": "A bright, dry pluck on a long wooden box. Reference: up and down the hirajoshi scale, then a phrase that settles on the root.",
+      "category": "Plucked",
+      "tags": ["Japan", "D hirajoshi", "72 bpm"],
+      "source": "setcpm(72/4)\n\n// The patch: a bright, dry pluck over a long wooden box\nconst koto = (x) => x.s(\"triangle\").timbre(\"bright\")\n  .attack(.002).decay(.6).sustain(0).release(.7)\n  .body(\"box\").bodymix(.3).room(.45)\n\n// Reference: the hirajoshi scale up and down, then a phrase ending on the root\nreference: n(\"<[0 1 2 3 4 5 6 7] [7 6 5 4 3 2 1 0] [2 4 3 1 2@2 0 -1] [0 ~ 4 ~ 5@2 0@2]>\").scale(\"D:hirajoshi\").transpose(12)\n  .koto().gain(.28)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "sitar",
+      "name": "Sitar",
+      "description": "A bright saw with a tiny pitch kick on every pluck, sliding between notes. Reference: rising and falling phrases in C lydian, the colour of raga Yaman.",
+      "category": "Plucked",
+      "tags": ["India", "C lydian", "72 bpm"],
+      "source": "setcpm(72/4)\n\n// The patch: a bright saw with a pitch kick on each pluck, gliding between notes\nconst sitar = (x) => x.s(\"sawtooth\").timbre(\"bright\").mono(1).glide(.1)\n  .penv(1).pdecay(.03).vib(6).vibdepth(.12)\n  .attack(.003).decay(.6).sustain(.35).release(.4).lpf(3600).room(.45)\n\n// Reference: phrases that climb and fall back home\nreference: n(\"<[0 1 2 3 4@2 3 2] [4 5 6 7 8@4] [7 6 5 4 3 2 1 2] [-1 1 0@6]>\").scale(\"C:lydian\").transpose(12)\n  .sitar().gain(.26)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "upright-bass",
+      "name": "Upright Bass",
+      "description": "A round, plucked sine with a little grit and a woody body. Reference: a walking line through a ii-V-I-VI in F.",
+      "category": "Bowed & Bass",
+      "tags": ["double bass", "walking", "F major", "120 bpm"],
+      "source": "setcpm(120/4)\n\n// The patch: a round sine with a little grit and a woody body, plucked\nconst upright = (x) => x.s(\"sine\").shape(.15)\n  .attack(.004).decay(.4).sustain(.3).release(.15)\n  .body(\"box\").bodymix(.2)\n\n// Reference: a walking line through Gm7, C7, Fmaj7 and D7\nreference: note(\"<[g1 a1 bb1 b1] [c2 e2 g2 bb2] [f1 a1 c2 e2] [d2 f#2 a2 c3]>\")\n  .upright().gain(.5)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "violin",
+      "name": "Violin",
+      "description": "A bowed saw with a gentle vibrato in a violin body. Reference: a slow scale in A minor, then a singing phrase high on the E string.",
+      "category": "Bowed & Bass",
+      "tags": ["strings", "A minor", "72 bpm"],
+      "source": "setcpm(72/4)\n\n// The patch: a bowed saw with a gentle vibrato, resonating in a violin body\nconst violin = (x) => x.s(\"sawtooth\").vib(5.5).vibdepth(.12)\n  .attack(.08).sustain(.75).release(.3)\n  .body(\"violin\").bodymix(.45).lpf(3600).room(.45)\n\n// Reference: a slow harmonic minor scale, then a singing phrase\nreference: note(\"<[a4 b4 c5 d5] [e5 f5 g#5 a5] [e5@3 d5 c5@2 b4 a4] [b4@2 c5 e5 a5@4]>\")\n  .violin().gain(.22)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "cello",
+      "name": "Cello",
+      "description": "The violin's body made twice as large: darker, slower to speak and lower. Reference: an open arpeggio and a phrase in C.",
+      "category": "Bowed & Bass",
+      "tags": ["strings", "C major", "60 bpm"],
+      "source": "setcpm(60/4)\n\n// The patch: the violin body made twice as large, darker and slower to speak\nconst cello = (x) => x.s(\"sawtooth\").vib(4.8).vibdepth(.1)\n  .attack(.12).sustain(.8).release(.5)\n  .body(\"violin\").bodysize(2).bodymix(.45).lpf(1600).room(.45)\n\n// Reference: an open-string arpeggio, then a falling and rising phrase\nreference: note(\"<[c2 g2 c3 e3] [g3@3 f3 e3@2 d3 c3] [b2@2 d3@2 g3@4] [c3@6 ~@2]>\")\n  .cello().gain(.28)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "string-ensemble",
+      "name": "String Ensemble",
+      "description": "Many slightly detuned saws, slow to swell, in a wide room. Reference: a chord progression in B-flat voiced across the section.",
+      "category": "Bowed & Bass",
+      "tags": ["strings", "unison", "Bb major", "60 bpm"],
+      "source": "setcpm(60/4)\n\n// The patch: five detuned saws, slow to swell, in a wide room\nconst strings = (x) => x.s(\"sawtooth\").unison(5).detune(18)\n  .attack(.6).sustain(1).release(1.5).lpf(2200).room(.7).size(.9)\n\n// Reference: Bb, Gm, Eb and F7 voiced across the section\nreference: note(\"<[bb2,f3,d4,f4] [g2,d3,bb3,d4] [eb3,bb3,g4] [f2,c3,a3,eb4]>\")\n  .strings().gain(.14)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "flute",
+      "name": "Flute",
+      "description": "A hollow sine with a soft attack and gentle vibrato. Reference: a G major scale up and down, then a lyrical phrase with a held top note.",
+      "category": "Woodwinds",
+      "tags": ["flute", "G major", "84 bpm"],
+      "source": "setcpm(84/4)\n\n// The patch: a hollow sine with a soft attack and a gentle vibrato\nconst flute = (x) => x.s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.12)\n  .attack(.06).sustain(.7).release(.35).room(.45)\n\n// Reference: a scale up and down, then a lyrical phrase\nreference: note(\"<[g4 a4 b4 c5 d5 e5 f#5 g5] [g5 f#5 e5 d5 c5 b4 a4 g4] [d5@2 e5 g5 b5@4] [a5@2 g5 e5 d5@4]>\")\n  .flute().gain(.26)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "clarinet",
+      "name": "Clarinet",
+      "description": "A plain square wave, because a clarinet's tone is mostly odd harmonics, softened by a filter. Reference: the warm low register, then a run up into the clarion.",
+      "category": "Woodwinds",
+      "tags": ["clarinet", "E minor", "80 bpm"],
+      "source": "setcpm(80/4)\n\n// The patch: a plain square (mostly odd harmonics, like a clarinet), softened by a filter\nconst clarinet = (x) => x.s(\"square\").pw(.5).vib(4.5).vibdepth(.06)\n  .attack(.05).sustain(.75).release(.25).lpf(1700).room(.4)\n\n// Reference: the low register, then a run up into the clarion register\nreference: note(\"<[e3@2 g3 a3 b3@4] [a3 b3 c4 d4 e4 f#4 g4 a4] [b4@3 a4 g4@2 e4@2] [d4@2 e4@6]>\")\n  .clarinet().gain(.22)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "oboe",
+      "name": "Oboe",
+      "description": "A reedy saw through a narrow e vowel: nasal and focused. Reference: a pastoral phrase in F.",
+      "category": "Woodwinds",
+      "tags": ["oboe", "double reed", "F major", "72 bpm"],
+      "source": "setcpm(72/4)\n\n// The patch: a reedy saw through a narrow e vowel, nasal and focused\nconst oboe = (x) => x.s(\"sawtooth\").timbre(\"reed\").vowel(\"e\").vib(5.2).vibdepth(.08)\n  .attack(.04).sustain(.7).release(.25).lpf(3000).room(.45)\n\n// Reference: a pastoral phrase\nreference: note(\"<[d5@3 c5 a4@2 f4@2] [g4@2 a4 bb4 a4@4] [c5@3 bb4 a4@2 g4 f4] [e4@2 f4@6]>\")\n  .oboe().gain(.22)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "saxophone",
+      "name": "Tenor Saxophone",
+      "description": "A reedy saw through an o vowel, gliding between notes like a breathing player. Reference: a swung blues lick in B-flat.",
+      "category": "Woodwinds",
+      "tags": ["sax", "blues", "Bb", "96 bpm"],
+      "source": "setcpm(96/4)\n\n// The patch: a reedy saw through an o vowel, gliding between notes\nconst sax = (x) => x.s(\"sawtooth\").timbre(\"reed\").vowel(\"o\").mono(1).glide(.05)\n  .vib(5).vibdepth(.15).attack(.03).sustain(.65).release(.2).lpf(2400).room(.35)\n\n// Reference: a swung blues lick\nreference: note(\"<[f4 ab4 bb4 b4 c5@2 bb4 ab4] [f4@4 ~@4] [bb4 db5 eb5 e5 f5@2 eb5 db5] [bb4@6 ~@2]>\").swing(4)\n  .sax().gain(.24)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "shakuhachi",
+      "name": "Shakuhachi",
+      "description": "A breathy bamboo flute: a hollow sine with a slow attack, wide vibrato and long glides. Reference: phrases in the in scale on D.",
+      "category": "Woodwinds",
+      "tags": ["Japan", "D in sen", "60 bpm"],
+      "source": "setcpm(60/4)\n\n// The patch: a hollow sine, slow to speak, with a wide vibrato and long glides\nconst shakuhachi = (x) => x.s(\"sine\").timbre(\"hollow\").mono(1).glide(.15)\n  .vib(4.5).vibdepth(.25).attack(.3).sustain(.7).release(1.2).room(.8).size(.9)\n\n// Reference: long breaths that bend from note to note\nreference: n(\"<[3@3 2] [1@2 0@2] [2@3 4] [3@4] [4@2 3 2] [1@4] [0@3 1] [0@4]>\").scale(\"D:in sen\").transpose(12)\n  .shakuhachi().gain(.28)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "trumpet",
+      "name": "Trumpet",
+      "description": "A bright saw whose filter opens on every attack, like a lip buzz. Reference: a fanfare on the open notes of C, then a stepwise phrase.",
+      "category": "Brass",
+      "tags": ["trumpet", "fanfare", "C major", "104 bpm"],
+      "source": "setcpm(104/4)\n\n// The patch: a bright saw whose filter opens on every attack, like a lip buzz\nconst trumpet = (x) => x.s(\"sawtooth\").timbre(\"bright\").lpf(1400).lpenv(2).lpattack(.03).lpdecay(.2)\n  .vib(5).vibdepth(.06).attack(.02).sustain(.7).release(.15).room(.4)\n\n// Reference: a fanfare on the open notes, then a stepwise phrase\nreference: note(\"<[g4@2 g4 c5 e5@2 c5@2] [g5@4 e5@2 c5@2] [d5 e5 f5 g5 a5@2 g5 f5] [e5@2 d5@2 c5@4]>\")\n  .trumpet().gain(.22)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "french-horn",
+      "name": "French Horn",
+      "description": "A dark saw with a slow filter swell in a large hall. Reference: a noble call in F.",
+      "category": "Brass",
+      "tags": ["horn", "F major", "66 bpm"],
+      "source": "setcpm(66/4)\n\n// The patch: a dark saw with a slow filter swell, far back in a hall\nconst horn = (x) => x.s(\"sawtooth\").lpf(800).lpenv(1).lpattack(.12)\n  .attack(.1).sustain(.8).release(.6).space(\"hall\").room(.6)\n\n// Reference: a noble call that rises a fifth, then an octave\nreference: note(\"<[f3@2 c4@2 f4@4] [e4@3 d4 c4@4] [bb3@2 d4@2 g4@3 f4] [f4@8]>\")\n  .horn().gain(.26)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "tuba",
+      "name": "Tuba",
+      "description": "A low, round saw with a short filter blip on each note. Reference: an oom-pah bass line in B-flat.",
+      "category": "Brass",
+      "tags": ["tuba", "oom-pah", "Bb major", "112 bpm"],
+      "source": "setcpm(112/4)\n\n// The patch: a low, round saw with a short filter blip on each note\nconst tuba = (x) => x.s(\"sawtooth\").lpf(450).lpenv(1).lpattack(.02)\n  .attack(.02).decay(.3).sustain(.5).release(.12)\n\n// Reference: root and fifth, oom-pah, through Bb, Eb and F\nreference: note(\"<[bb1 ~ f1 ~] [eb2 ~ bb1 ~] [f1 ~ c2 ~] [bb1 d2 f2 bb1]>\")\n  .tuba().gain(.45)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "harmonica",
+      "name": "Harmonica",
+      "description": "A reedy saw through an o vowel with wide vibrato and quick bends. Reference: blues phrases in A.",
+      "category": "Free Reeds & Pipes",
+      "tags": ["harp", "blues", "A blues", "90 bpm"],
+      "source": "setcpm(90/4)\n\n// The patch: a reedy saw through an o vowel, bending quickly between notes\nconst harmonica = (x) => x.s(\"sawtooth\").timbre(\"reed\").vowel(\"o\").mono(1).glide(.04)\n  .vib(5.5).vibdepth(.3).attack(.03).sustain(.6).release(.2).lpf(2600).room(.35)\n\n// Reference: two call-and-answer phrases in the blues scale\nreference: n(\"<[0 2 3 4 6@2 4 3] [2@2 0@6] [4 6 7 9 7@2 6 4] [3 2 0@6]>\").scale(\"A:blues\").transpose(12)\n  .harmonica().gain(.24)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "accordion",
+      "name": "Accordion",
+      "description": "Two reeds tuned slightly apart (the musette wobble) through an a vowel. Reference: a waltz in A minor, melody on the right and oom-pah-pah on the left.",
+      "category": "Free Reeds & Pipes",
+      "tags": ["musette", "3/4", "A minor"],
+      "source": "setcpm(108/3)\n\n// One cycle is a bar of 3/4\n// The patch: two reeds tuned slightly apart, the musette wobble, through an a vowel\nconst accordion = (x) => x.s(\"sawtooth\").timbre(\"reed\").unison(2).detune(16).vowel(\"a\")\n  .attack(.03).sustain(.8).release(.15).lpf(2400).room(.3)\n\n// Reference: a waltz, the tune on the right hand and oom-pah-pah on the left\nright: note(\"<[e5 c5 a4] [b4@2 g#4] [d5 b4 g#4] [a4@3] [c5 e5 a5] [g5@2 f5] [e5 d5 b4] [a4@3]>\")\n  .accordion().gain(.2)\nleft: note(\"<[a2 [c4,e4] [c4,e4]] [e2 [d4,e4] [d4,e4]] [e2 [d4,g#4] [d4,g#4]] [a2 [c4,e4] [c4,e4]] [a2 [c4,e4] [c4,e4]] [d2 [d4,f4] [d4,f4]] [e2 [d4,g#4] [b3,d4]] [a2 [c4,e4] ~]>\")\n  .accordion().gain(.14)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "bagpipes",
+      "name": "Bagpipes",
+      "description": "A reedy chanter, loud and unbroken, with drones a fifth apart beneath it. Reference: a tune in A with grace notes.",
+      "category": "Free Reeds & Pipes",
+      "tags": ["pipes", "drone", "A", "100 bpm"],
+      "source": "setcpm(100/4)\n\n// The patch: a reedy, never-breathing tone through a narrow vowel\nconst pipes = (x) => x.s(\"sawtooth\").timbre(\"reed\").vowel(\"e\")\n  .attack(.02).sustain(1).release(.1).lpf(3200)\n\n// Reference: a tune on the chanter, with a quick grace note in the first bar\nchanter: note(\"<[a4 ~ [g5 a4] b4 c#5@2 e5@2] [d5@2 c#5 b4 a4@4] [e5 f#5 e5 c#5 b4@2 a4 b4] [c#5@2 b4@2 a4@4]>\")\n  .pipes().gain(.2)\n\n// The drones: the same patch, darker, on A and E\ndrones: note(\"[a2,a3,e4]\").pipes().lpf(1200).gain(.12)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "choir",
+      "name": "Choir",
+      "description": "The choir voice singing open vowels with a slow breath in a church. Reference: four chords, each on its own vowel.",
+      "category": "Voices",
+      "tags": ["choir", "vowels", "D minor", "54 bpm"],
+      "source": "setcpm(54/4)\n\n// The patch: the choir voice, slow to breathe in and out, in a church\nconst ensemble = (x) => x.s(\"choir\").attack(1).release(2.5).space(\"church\")\n\n// Reference: Dm, Bb, C and A, each sung on its own vowel\nreference: note(\"<[d3,a3,f4] [bb2,f3,d4] [c3,g3,e4] [a2,e3,c#4]>\").slow(2)\n  .syl(\"<ah oh oo ah>\").ensemble().gain(.34)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "soprano",
+      "name": "Solo Soprano",
+      "description": "A single voice in the soprano range, gliding from syllable to syllable. Reference: a scale sung on la, then a phrase in the singing alphabet.",
+      "category": "Voices",
+      "tags": ["voice", "syllables", "C major", "66 bpm"],
+      "source": "setcpm(66/4)\n\n// The patch: one soprano line, gliding between notes, in a hall\nconst soprano = (x) => x.s(\"voice\").voicetype(\"soprano\").mono(1).vglide(.1)\n  .attack(.1).release(.9).space(\"hall\")\n\n// Reference: a scale on la, then a phrase; the syllables carry the same weights as the notes\nreference: note(\"<[c5 d5 e5 f5] [g5 a5 b5 c6] [g5@3 e5 c5@4] [d5@2 f5@2 e5@4]>\")\n  .syl(\"<[la la la la] [la la la la] [a@3 ve ma@4] [ri@2 a@2 _@4]>\")\n  .soprano().gain(.3)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "drum-kit",
+      "name": "Drum Kit",
+      "description": "Every piece of the built-in kit, one per bar (kick, snare, closed and open hats, clap, rim, toms, crash and ride), then two bars of groove that use them all.",
+      "category": "Percussion",
+      "tags": ["drums", "kit", "100 bpm"],
+      "source": "setcpm(100/4)\n\n// The kit: bd sd hh oh cp rim lt mt ht cr rd\n// One piece per bar, then two bars of groove that use them all\nreference: s(\"<[bd*4] [sd*4] [hh*8] [oh*4] [cp*4] [rim*8] [lt mt ht ~] [cr ~ rd rd] [bd hh sd hh, ~ ~ ~ oh] [bd [~ bd] sd [lt mt ht], hh*8, cr ~ ~ ~]>\")\n  .gain(.5)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "timpani",
+      "name": "Timpani",
+      "description": "A tuned drumhead: a low FM tone with a small pitch drop and a long hall. Reference: tonic and dominant strokes, then a roll.",
+      "category": "Percussion",
+      "tags": ["orchestral", "kettle drums", "72 bpm"],
+      "source": "setcpm(72/4)\n\n// The patch: a low FM tone that drops slightly in pitch, ringing in a hall\nconst timpani = (x) => x.s(\"sine\").fm(1.2).fmh(1.5).penv(2).pdecay(.06)\n  .attack(.002).decay(1.4).sustain(0).release(1.2).space(\"hall\").room(.5)\n\n// Reference: tonic and dominant strokes, growing busier, then a roll\nreference: note(\"<[c2 ~ g1 ~] [c2 ~ g1 g1] [c2 [~ c2] g1 [~ g1]] c2*16>\")\n  .timpani().gain(.45)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "hand-drums",
+      "name": "Hand Drums",
+      "description": "The kit's toms and rim tuned up and played by hand: low strokes, high slaps and finger taps, growing busier over four bars.",
+      "category": "Percussion",
+      "tags": ["hand percussion", "toms", "96 bpm"],
+      "source": "setcpm(96/4)\n\n// The kit's toms and rim tuned up: low strokes on lt, slaps on ht, finger taps on the rim\nreference: s(\"<[lt ~ [~ lt] ht] [lt ht [~ ht] ht, ~ ~ rim ~] [lt rim ~ rim lt ~ rim ~] [lt ht ht [ht ht], rim*8]>\")\n  .speed(1.2).room(.3).gain(.45)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "gong",
+      "name": "Gong",
+      "description": "A large metal plate: inharmonic FM with a little ring modulation, shimmering for many seconds. Reference: two strokes, a fifth apart.",
+      "category": "Percussion",
+      "tags": ["gong", "FM", "ring mod", "40 bpm"],
+      "source": "setcpm(40/4)\n\n// The patch: inharmonic FM plus a little ring modulation, shimmering for seconds\nconst gong = (x) => x.s(\"sine\").fm(1.6).fmh(1.41).ringmod(90).ringmix(.25)\n  .attack(.01).decay(8).sustain(0).release(8).space(\"hall\").room(.7)\n\n// Reference: two strokes a fifth apart, each left to ring out\nreference: note(\"<c2 ~ ~ ~ g1 ~ ~ ~>\").gong().gain(.3)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "acid-bass",
+      "name": "Acid Bass",
+      "description": "A resonant saw with a snappy filter envelope, short notes and accents. Reference: a classic sixteen-step line in A minor with a wandering cutoff.",
+      "category": "Synthesizers",
+      "tags": ["303", "acid", "A minor", "128 bpm"],
+      "source": "setcpm(128/4)\n\n// The patch: a resonant saw with a snappy filter envelope and short notes\nconst acid = (x) => x.s(\"sawtooth\").lpf(500).lpq(14).lpenv(3).lpdecay(.12)\n  .attack(.002).decay(.15).sustain(.3).release(.05).legato(.6)\n\n// Reference: a line with accents off the beat; the cutoff wanders on smooth noise\nreference: n(\"0 0 7 0 3 0 10 5 0 12 0 3 7 0 5 3\").scale(\"A:minor\").sub(12)\n  .acid().lpf(perlin.range(300, 2200)).accent(\"~ ~ x ~ ~ ~ x ~ ~ x ~ ~ ~ ~ x ~\").gain(.35)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "sub-808",
+      "name": "808 Sub",
+      "description": "A long sine with a punchy pitch drop, some grit and glide between notes. Reference: a two-bar trap line in C minor.",
+      "category": "Synthesizers",
+      "tags": ["808", "trap", "C minor", "140 bpm"],
+      "source": "setcpm(140/4)\n\n// The patch: a long sine with a punchy pitch drop, a little grit and glide between notes\nconst boom = (x) => x.s(\"sine\").mono(1).glide(.07).shape(.4).penv(6).pdecay(.03)\n  .attack(.003).decay(1.2).sustain(.6).release(.2)\n\n// Reference: long notes, short pickups and slides\nreference: note(\"<[c2@6 c2 ~ eb2@4 ~ ~ g1@2] [ab1@6 ab1 ~ g1@8]>\")\n  .boom().gain(.55)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "supersaw",
+      "name": "Supersaw Lead",
+      "description": "Seven detuned saws stacked into one wide, bright voice. Reference: an anthem lead in F minor.",
+      "category": "Synthesizers",
+      "tags": ["trance", "unison", "F minor", "128 bpm"],
+      "source": "setcpm(128/4)\n\n// The patch: seven detuned saws stacked into one wide, bright voice\nconst supersaw = (x) => x.s(\"sawtooth\").unison(7).detune(35)\n  .attack(.01).sustain(.8).release(.3).lpf(5000).room(.35)\n\n// Reference: an anthem lead\nreference: note(\"<[f4@3 ab4 c5@2 eb5@2] [db5@4 c5@2 ab4@2] [ab4@2 bb4 c5 eb5@2 f5@2] [g5@6 ~@2]>\")\n  .supersaw().gain(.18)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "warm-pad",
+      "name": "Warm Pad",
+      "description": "Detuned saws with slow envelopes and a filter that breathes over eight bars. Reference: four lush seventh chords.",
+      "category": "Synthesizers",
+      "tags": ["pad", "ambient", "C major", "60 bpm"],
+      "source": "setcpm(60/4)\n\n// The patch: detuned saws, slow to rise and fall, with a filter breathing over eight bars\nconst pad = (x) => x.s(\"sawtooth\").unison(4).detune(25)\n  .attack(2).sustain(1).release(3)\n  .lpf(sine.range(500, 1600).slow(8)).room(.8).size(.95)\n\n// Reference: Cmaj7, Am7, Fmaj7 and G with a raised eleventh, two bars each\nreference: note(\"<[c3,g3,e4,b4] [a2,e3,c4,g4] [f2,c3,a3,e4] [g2,d3,b3,f#4]>\").slow(2)\n  .pad().gain(.12)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "chip-pulse",
+      "name": "Chiptune Pulse",
+      "description": "A pulse wave with a quick envelope and a touch of vibrato, as on old game consoles. Reference: a melody that steps through the three classic duty cycles, 12.5%, 25% and 50%.",
+      "category": "Synthesizers",
+      "tags": ["8-bit", "pulse width", "C major", "150 bpm"],
+      "source": "setcpm(150/4)\n\n// The patch: a pulse wave with a quick envelope and a touch of vibrato\nconst chip = (x) => x.s(\"square\").pw(.25).vib(6).vibdepth(.05)\n  .attack(.001).decay(.1).sustain(.6).release(.04)\n\n// Reference: the same patch at each classic duty cycle, a bar at a time\nreference: note(\"<[e5 ~ c5 e5 g5 ~ e5 c5] [f5 ~ d5 f5 a5 ~ g5 f5] [e5 g5 c6 g5 e5 c5 d5 e5] [d5 ~ b4 ~ c5@4]>\")\n  .chip().pw(\"<.125 .25 .5 .25>\").gain(.18)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    },
+    {
+      "id": "theremin",
+      "name": "Theremin",
+      "description": "A pure sine that never stops sounding, sliding slowly between notes with a wide vibrato. Reference: an eerie phrase in A minor.",
+      "category": "Synthesizers",
+      "tags": ["theremin", "glide", "A minor", "60 bpm"],
+      "source": "setcpm(60/4)\n\n// The patch: a pure sine on one line, sliding slowly between notes with a wide vibrato\nconst theremin = (x) => x.s(\"sine\").mono(1).glide(.35).vib(6).vibdepth(.3)\n  .attack(.3).sustain(1).release(.8).room(.6)\n\n// Reference: wide leaps that the glide turns into swoops\nreference: note(\"<[a4@3 e5@5] [d5@2 c5@2 b4@4] [c5@3 a4@5] [e4@8]>\")\n  .theremin().gain(.24)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
+    }
+  ]
+}

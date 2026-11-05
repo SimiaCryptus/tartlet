@@ -1,0 +1,113 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "shrinkwrapped",
+  "name": "Shrinkwrapped Insanity",
+  "description": "Crazy Shit, vacuum-sealed and shipped straight into your skull: breaks scrambled while the hats hop between your ears, bubble wrap popping all around your head, a cat opera with a tomcat circling you, a microwave choir whose robot rides a turntable around you, a polka split by partials under a circling air-raid siren, Chebyshev curves with a different filter in each ear, fractal melodies hopping on Thue-Morse, five tempos placed around the room, a hook hidden in noise, a talking toaster in surround and a delta-wave meltdown to finish. Nothing here is tasteful, and almost nothing stays in the middle. Each sketch explains its trick in the comments. Headphones on, volume sensible.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["experimental", "binaural", "headphones", "glitch", "absurd"],
+  "exportedAt": "2026-11-11T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "vacuum-sealed",
+      "name": "Vacuum Sealed",
+      "description": "One break, scrambled, hurried and bit-crushed differently every bar, while hats hop between your ears on a seeded coin flip, a ring-modulated bass swings from side to side on tiny delays and keyless bells strike from random places around your head.",
+      "category": "Glitch",
+      "tags": ["140 bpm", "C minor", "earswap", "itd", "ringmod"],
+      "source": "setcpm(140/4)\n\n// One break, sealed tight: scrambled in some bars, a moving quarter hurried in every bar\nconst brk = s(\"bd ~ [~ bd] ~ sd ~ bd sd\")\ndrums: brk.someCyclesBy(.5, x => x.scramble(8)).chunk(4, x => x.hurry(2))\n  .crush(\"<16 8 6 4>\").seed(\"seal\").gain(.6)\n\n// Hats lean right; a seeded coin flip throws some of them into the left ear\nhats: s(\"hh*16\").hpf(7000).ild(10).earswap(irand(2).segment(16)).seed(\"wrap\").gain(.24)\n\n// A bass ring-modulated into a gargle, swinging between the ears on delays under a millisecond\nbass: note(\"c2 ~ c2 eb2 ~ c2 gb2 ~\").s(\"sawtooth\").ringmod(sine.range(30, 300).slow(4)).ringmix(.5)\n  .itd(sine.range(-.6, .6).slow(2)).lpf(1100).decay(.15).sustain(.3).release(.05).gain(.38)\n\n// Frequency-shifted bells with no key left, each struck from a random place around your head\nbells: note(\"<c5 gb5 a4 eb5>\").s(\"sine\").fm(4).fmh(1.41).fshift(\"<0 37 -113 250>\")\n  .azimuth(rand.range(-180, 180)).distance(2).decay(.4).sustain(0).seed(\"bell\").gain(.14)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "bubble-wrap",
+      "name": "Bubble Wrap",
+      "description": "Pops at random places all around your head, near and far, while a roll of plastic unspools from a point into a wide wash and a cheerful tune drifts apart between the ears in cents, wider every bar.",
+      "category": "Space",
+      "tags": ["110 bpm", "C major", "azimuth", "icorr", "earsh"],
+      "source": "setcpm(110/4)\n\n// Bubble wrap: pops at random places all around your head, some close, some far\npops: s(\"click*16?0.6\").speed(rand.range(.6, 2))\n  .azimuth(rand.range(-180, 180)).elevation(rand.range(-30, 60)).distance(rand.range(.6, 3))\n  .seed(\"pop\").gain(.3)\n\n// The roll unspooling: identical noise in both ears, a point, opening bar by bar into a wash\nunroll: s(\"pink\").icorr(\"<1 .6 .3 .05>\").hpf(saw.range(400, 5000)).gain(.05)\n\n// A cheerful tune whose ears drift apart in cents: 4, 12, 30, then a seasick 60\ntune: n(\"0 2 4 7 4 2 0 -1\").scale(\"C:major\").transpose(12).s(\"triangle\").timbre(\"glass\")\n  .earsh(\"<4 12 30 60>\").decay(.2).sustain(0).delay(.3).delaytime(3/16).gain(.2)\n\n// The kick and bass stay in the middle, pretending nothing is wrong\nkick: s(\"bd ~ [~ bd] ~\").shape(.2).gain(.6)\nbass: note(\"<c2 a1 f1 g1>\").struct(\"x ~ x ~\").s(\"sine\").shape(.2).decay(.3).sustain(.3).gain(.4)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "cat-in-a-box",
+      "name": "Cat in a Box",
+      "description": "Headphones on: a soprano who can only say meow sings straight ahead, a gravelly tomcat prowls in a slow circle around your head, the pizzicato sends its lows and highs to different ears and the purr sits diffusely all around your skull.",
+      "category": "Voices",
+      "tags": ["66 bpm", "C major", "azimuth", "earsplit", "iphase"],
+      "source": "setcpm(66/4)\n\n// The diva sings from straight ahead: mi_a_u glides across three vowels in one note\ndiva: note(\"<[g4@3 c5] [e5@2 d5 c5] [a5@4] [g5@2 ~@2]>\")\n  .s(\"voice\").syl(\"mi_a_u\").voicetype(\"soprano\").scoop(-7).jitter(.5)\n  .mono(1).vglide(.15).attack(.1).release(.8).distance(1.5).space(\"hall\").gain(.3)\n\n// The tomcat prowls in a slow circle around your head, once every four bars\ntom: note(\"<~ [c3@2 g2@2] ~ [eb3@3 c3]>\").s(\"voice\").syl(\"ma_o\").voicetype(\"tenor\").fry(.6)\n  .mono(2).vglide(.2).release(.6)\n  .azimuth(saw.range(-180, 180).slow(4)).distance(2.5).posglide(.4).gain(.26)\n\n// Pizzicato with its lows in one ear and its highs in the other, inside a violin body\npizz: note(\"<[c3 e3 g3 e3] [f3 a3 c4 a3] [d3 f3 a3 f3] [g3 b3 d4 b3]>\").s(\"triangle\").timbre(\"bright\")\n  .earsplit(\"bands\").splitfreq(600).decay(.15).sustain(0).body(\"violin\").bodymix(.3).room(.4).gain(.2)\n\n// The purr: the ears in opposite phase, so it hangs diffusely all around your head\npurr: note(\"c1\").slow(4).s(\"sawtooth\").lpf(200).trem(25).tremdepth(.8).iphase(180)\n  .attack(1).sustain(1).release(1).gain(.12)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "microwave-orbit",
+      "name": "Microwave Orbit",
+      "description": "The choir that thinks it is a kitchen appliance, now with a turntable: a robot tenor rides once around your head every two bars, the magnetron hum rolls inside your skull and the timer dings hop from ear to ear.",
+      "category": "Voices",
+      "tags": ["70 bpm", "C major", "azimuth", "irate", "ild"],
+      "source": "setcpm(70/4)\n\n// The choir in the centre, ring-modulated and sliding a few hertz either way\nchoir: note(\"<[c3,e3,g3] [ab2,c3,eb3] [f2,a2,c3] [g2,b2,d3]>\").s(\"choir\")\n  .syl(\"<ah oo ee oh>\").ringmod(220).ringmix(.4).fshift(sine.range(-60, 60).slow(8))\n  .attack(1).release(2).space(\"church\").gain(.28)\n\n// The turntable: a robot tenor rides once around your head every two bars\nrobot: note(\"<c4 ab3 a3 b3>\").s(\"voice\").syl(\"<beep boop bip bop>\").voicetype(\"tenor\")\n  .spectral(\"robot\").samount(.8).mono(1).vglide(.05)\n  .azimuth(saw.range(-180, 180).slow(2)).distance(1.5).posglide(.3).gain(.28)\n\n// The magnetron hum: the phase between the ears turns a quarter, half, one, then two times a second\nhum: note(\"[c2,g2]\").s(\"sawtooth\").irate(\"<.25 .5 1 2>\").lpf(300)\n  .attack(1).sustain(1).release(1).gain(.12)\n\n// The timer: three dings every eight bars, right, left, right\nding: note(\"<~ ~ ~ ~ ~ ~ ~ [c6 c6 c6 ~]>\").s(\"sine\").fm(3).fmh(3.5)\n  .ild(10).earswap(\"0 1 0 0\").decay(1.2).sustain(0).release(1).room(.4).gain(.2)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "polka-between-the-ears",
+      "name": "Polka Between the Ears",
+      "description": "The world's fastest polka, with its accordion split by partials so neither ear hears the whole thing, a tune that hops between your ears, an air-raid siren circling overhead and a rumble that opens from a point into a wash as the sky falls. The phase rotation reaches 2.9 Hz in the last bar, so the player asks before playing, as with any steady pulse.",
+      "category": "Absurd",
+      "tags": ["220 bpm", "C major", "earsplit", "earswap", "elevation"],
+      "source": "setcpm(220/4)\n\n// On the last bar of every eight, the whole band rushes twice as fast\nconst polka = (x) => x.lastOf(8, y => y.hurry(2))\n\n// Oom-pah split by partials: each ear hears every other harmonic of the accordion\noompah: note(\"<[c2 [e3,g3] g1 [e3,g3]] [g1 [d3,f3,b3] d2 [d3,f3,b3]]>\")\n  .s(\"sawtooth\").timbre(\"reed\").earsplit(\"harmonics\").vowel(\"a\").lpf(2000)\n  .decay(.15).sustain(.3).release(.05).polka().gain(.3)\n\n// The tune, far too cheerful, hopping from ear to ear on every other note\ntune: note(\"<[e5 g5 e5 c5] [d5 f5 d5 b4] [e5 g5 c6 g5] [d5@2 c5@2]>\")\n  .s(\"sawtooth\").timbre(\"reed\").vowel(\"e\").lpf(3000).attack(.01).sustain(.6).release(.05)\n  .ild(9).earswap(\"0 1 0 1\").polka().gain(.22)\n\ndrums: s(\"bd sd bd sd, hh*8\").polka().gain(.45)\n\n// Meanwhile an air-raid siren circles high overhead\nsiren: freq(sine.range(500, 1100).slow(2).segment(16)).s(\"sine\").mono(1).glide(.12)\n  .azimuth(saw.range(-180, 180).slow(4)).elevation(50).distance(4).posglide(.2)\n  .attack(.01).sustain(1).release(.05).gain(.06)\n\n// The rumble starts as one point in your head and opens into a wash over eight bars\nrumble: s(\"brown*4\").icorr(isaw.slow(8)).lpf(saw.range(100, 1200).slow(8))\n  .gain(saw.range(.02, .2).slow(8)).attack(.05).release(.1)\n\n// And a drone whose phase between the ears spins faster as the end approaches\nspin: note(\"[c2,g2]\").s(\"sine\").irate(\"<.5 .5 1 1 2 2 2.9 2.9>\").gain(.1)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "chebyshevs-headache",
+      "name": "Chebyshev's Headache",
+      "description": "A sine tune leaps up the harmonic series through a new Chebyshev curve each bar while each ear has its own low-pass sweeping the other way, over a folded bass whose phase rolls inside your head and rectified drums split lows from highs.",
+      "category": "Distortion",
+      "tags": ["96 bpm", "A minor", "curve", "lcutoff", "rcutoff"],
+      "source": "setcpm(96/4)\n\n// One sine tune through a different Chebyshev curve each bar: the 2nd, 3rd, 5th and 7th harmonic\n// Each ear has its own low-pass, sweeping in opposite directions every two bars\nlead: n(\"0 2 4 7 4 2 0 -1\").scale(\"A:minor\").transpose(12)\n  .s(\"sine\").curve(\"<cheby2 cheby3 cheby5 cheby7>\").drive(18)\n  .lcutoff(saw.range(500, 6000).slow(2)).rcutoff(isaw.range(500, 6000).slow(2))\n  .decay(.2).sustain(.4).release(.1).gain(.18)\n\n// A bass folded over on itself through a stack cabinet, its interaural phase turning slowly\nbass: note(\"<a1 a1 f1 g1>\").struct(\"x ~ x x ~ x ~ x\").s(\"sine\")\n  .curve(\"fold\").drive(sine.range(4, 22).slow(4)).bias(.2).irate(.5)\n  .decay(.2).sustain(.4).release(.05).cab(\"stack\").gain(.32)\n\n// Drums through a rectifier, half wet: the lows in one ear, the highs in the other\ndrums: s(\"bd ~ bd ~, ~ sd ~ sd, hh*8\").curve(\"rect\").drive(8).curvemix(.5)\n  .earsplit(\"bands\").splitfreq(900).gain(.45)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "fractal-ears",
+      "name": "Fractal Ears",
+      "description": "A melody grown by rewriting rules hops between your ears on the Thue-Morse sequence, the hats are placed evenly around your head by the van der Corput sequence, toms on the primes step around you by the ruler sequence and a Collatz bass has a different brightness in each ear.",
+      "category": "Generators",
+      "tags": ["140 bpm", "C phrygian dominant", "lsys", "ints", "azimuth"],
+      "source": "setcpm(140/4)\n\n// Seven generations of rewriting, hopping between the ears on the Thue-Morse sequence\nmelody: n(lsys(\"0\", \"0=0 3, 3=5 0, 5=3\", 7, 4)).scale(\"C:phrygian dominant\").transpose(12)\n  .s(\"square\").pw(.2).ild(9).earswap(ints(\"thuemorse\", 16)).decay(.08).sustain(0)\n  .delay(.25).delaytime(3/16).gain(.16)\n\n// Kicks and snares from sieves of residue classes, kept in the middle\nkick: s(\"bd\").struct(sieve(\"3@0 | 5@1\", 16)).shape(.3).gain(.65)\nsnare: s(\"sd\").struct(sieve(\"7@3 | 11@6\", 16)).gain(.4)\n\n// The van der Corput sequence spreads the hats evenly all the way around your head\nhats: s(\"hh*16\").hpf(7000).azimuth(ints(\"vdc\", 16).range(-180, 180)).distance(1.5).gain(.22)\n\n// Toms on the prime steps, stepping between five places in front of you by the ruler sequence\ntoms: s(\"lt\").struct(ints(\"prime\", 16)).azimuth(ints(\"ruler\", 16).mod(5).mul(45).sub(90)).gain(.28)\n\n// The bass counts Collatz steps; the left ear's filter wanders, the right ear's holds still\nbass: n(ints(\"collatz\", 4).mod(7)).scale(\"C:phrygian dominant\").octave(-1)\n  .s(\"sawtooth\").lcutoff(perlin.range(300, 2400)).rcutoff(900)\n  .decay(.15).sustain(.3).gain(.32)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "tempo-soup-in-the-round",
+      "name": "Tempo Soup in the Round",
+      "description": "One figure at five speeds at once, every note struck from its own place around the room, all crashing into the same note every sixteen bars, while two drummers who disagree stand at either ear and drift apart.",
+      "category": "Processes",
+      "tags": ["100 bpm", "C minor pentatonic", "converge", "phase", "azimuth"],
+      "source": "setcpm(100/4)\n\n// One figure at five speeds, shifted so every copy reaches the start together at bar 16\n// Each note sounds from a random place in front of and beside you\nsoup: n(\"0 3 5 7 10 7 5 3\").scale(\"C:minor pentatonic\").transpose(12)\n  .converge(16, 1, 7/6, 5/4, 4/3, 3/2)\n  .s(\"triangle\").timbre(\"glass\").decay(.15).sustain(0)\n  .azimuth(rand.range(-150, 150)).distance(2).seed(\"soup\").room(.4).gain(.1)\n\n// Two drummers who disagree: one on your left holds still, the one on your right slips a sixteenth each bar\ndrummer1: s(\"bd ~ sd ~ bd bd sd ~, hh*8\").azimuth(-90).distance(2).gain(.38)\ndrummer2: s(\"bd ~ sd ~ bd bd sd ~, hh*8\").phase(1/16).azimuth(90).distance(2).gain(.34)\n\n// A crash high above you on the meeting point, every sixteen bars\ncrash: s(\"<cr ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~>\").elevation(60).distance(3).room(.6).gain(.4)\n\n// The bass stays straight ahead\nbass: note(\"<c2 eb2 f2 g2>\").s(\"sine\").shape(.2).decay(.4).sustain(.4).release(.2).gain(.4)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "ghost-in-the-shrinkwrap",
+      "name": "Ghost in the Shrinkwrap",
+      "description": "The off-beat hiss carries a hook that exists only between your ears (Huggins pitch), a frozen synth hints at it once every four bars, a pad steps from the centre of your head to all around it and crushed clicks wander around the room. The hidden hook is faint and differs between listeners.",
+      "category": "Dichotic",
+      "tags": ["120 bpm", "A minor", "dichotic", "iphase", "spectral"],
+      "source": "setcpm(120/4)\n\n// The off-beats are white noise hiding a hook between the ears: each ear alone hears only hiss\nghost: s(\"[~ white]*4\").dichotic(\"<[440 523 659 523] [440 523 784 659] [349 440 523 440] [392 494 587 494]>\")\n  .dichoticq(30).attack(.005).sustain(1).release(.05).gain(.14)\n\n// The hook on a frozen, smeared synth, once every four bars, so you know what to listen for\nhint: note(\"<[~ a4 ~ c5 ~ e5 ~ c5] ~ ~ ~>\").s(\"square\").pw(.3).spectral(\"freeze\").samount(.6)\n  .decay(.15).sustain(.2).release(.1).gain(.08)\n\n// A pad that steps from the centre of your head to all around it, and nearly vanishes in mono\npad: note(\"<[a3,c4,e4] [f3,a3,c4] [d3,f3,a3] [e3,g#3,b3]>\").s(\"sawtooth\").unison(3).detune(.2)\n  .iphase(\"<0 90 180 90>\").lpf(1400).attack(.5).release(1).gain(.12)\n\n// A centred kick and bass\nkick: s(\"bd*4\").shape(.2).gain(.75)\nbass: note(\"<a1 f1 d1 e1>\").struct(\"~ x ~ x ~ x ~ x\").s(\"sawtooth\").lpf(600).decay(.15).sustain(.3).gain(.4)\n\n// Clicks crushed to four bits, drifting slowly around the room\nclicks: s(\"click*8?0.4\").crush(4).azimuth(sine.range(-150, 150).slow(8))\n  .distance(3).posglide(.4).seed(\"ghost\").gain(.12)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "talking-toaster-surround",
+      "name": "Talking Toaster, Surround",
+      "description": "Breakfast in surround: a saw bass that talks in syllables in front of you, a radio muttering behind the bread bin on your right, a kettle on your left whose whistle throbs five times a second, a toaster popping right behind you and a robot announcing from above that the toast is ready. The kettle pulses at 5 Hz, so the player asks before playing, as with any steady pulse.",
+      "category": "Absurd",
+      "tags": ["110 bpm", "C minor", "azimuth", "isochronic", "occlude"],
+      "source": "setcpm(110/4)\n\n// A saw bass with something to say, straight ahead: talk puts a syllable track on it\nbass: note(\"c2 c2 eb2 c2 g1 c2 bb1 c2\").s(\"sawtooth\")\n  .syl(\"<[wa wa wo wi] [ya ya yo yu] [ba ba bo bi] [na na no neng]>\").talk(1)\n  .lpf(2400).decay(.2).sustain(.4).gain(.35)\n\n// A crunchy, swung breakfast beat\ndrums: s(\"bd ~ [~ bd] ~, ~ sd ~ sd, hh*8\").swing(4).crush(10).gain(.45)\n\n// The radio mutters on your right, half hidden behind the bread bin\nradio: s(\"whisper*8?0.5\").syl(\"<sha ko ta ri>\").crush(4).hpf(1000)\n  .azimuth(70).distance(3).occlude(.4).seed(\"static\").gain(.14)\n\n// The kettle on your left works up to a whistle that throbs five times a second\nkettle: note(\"<~ ~ ~ c7>\").s(\"sine\").isochronic(5).isodepth(.6)\n  .attack(1).sustain(1).release(.5).azimuth(-70).distance(3).gain(.05)\n\n// The toaster pops right behind you\npop: s(\"<~ ~ ~ [~ ~ ~ click]>\").speed(.5).azimuth(180).distance(1).gain(.5)\n\n// The announcement, from directly above: toast is ready\nrobot: note(\"<c4 eb4 g4 bb4>\").s(\"voice\").syl(\"<toast is re_a dee>\").voicetype(\"bass\")\n  .spectral(\"robot\").samount(.7).mono(1).vglide(.04).elevation(60).distance(1.5).gain(.26)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "delta-meltdown",
+      "name": "Delta Meltdown",
+      "description": "The end of the album: one innocent piano phrase melted four ways, four bars each, over a 2 Hz binaural drone in the delta range, below the rates that trigger a pulse warning. The air of the room is wide and diffuse and a clock ticks somewhere behind you.",
+      "category": "Spectral",
+      "tags": ["60 bpm", "F major", "binaural", "delta", "spectral"],
+      "source": "setcpm(60/4)\n\n// One innocent piano phrase\nconst phrase = n(\"<[0 2 4 7] [5 4 2 0] [3 5 7 9] [7@2 4 2]>\").scale(\"F:major\").transpose(12)\n  .s(\"triangle\").timbre(\"soft\").decay(.6).sustain(.1).release(.6)\n\n// A 2 Hz binaural drone: each ear is detuned by 1 Hz, below the 3-30 Hz warning range\ndrone: note(\"<f2 d2 bb1 c2>\").s(\"sine\").binaural(2).attack(3).sustain(1).release(4).gain(.24)\n\n// Plain, frozen into a smear, blurred into fog, then combed into metal at 110 Hz\npiano: form(\"A@4 B@4 C@4 D@4\", phrase,\n  phrase.spectral(\"freeze\").samount(.9),\n  phrase.spectral(\"blur\").samount(.8),\n  phrase.spectral(\"comb\").scomb(110).samount(.7)).room(.5).gain(.24)\n\n// The air of the room: unrelated noise in each ear, wide and all around\nair: s(\"pink\").slow(8).icorr(.1).hpf(800).lpf(4000).gain(.025)\n\n// A clock ticking somewhere behind you\nclock: s(\"tick ~ tick ~\").azimuth(170).distance(4).gain(.05)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    }
+  ]
+}

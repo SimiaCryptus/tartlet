@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "deprogramming",
+  "name": "Unlearning",
+  "description": "Headphone music for unlearning: for anyone loosening the grip of a high-control belief system, a rigid upbringing or an old certainty, and finding their own voice again. A hymn that spreads from a point in your head into open space, slogans whispered from every side that fade one by one, an insistent voice and your own trading ears, a unison that drifts apart into two views, a march that fades while your own rhythm grows, questions left unresolved, a tune that exists only between your two ears, and rest over slow binaural drones before a first morning. Each sketch explains its trick in the comments. This is music, not therapy: if leaving has been hard, be gentle with yourself and lean on people you trust. Headphones on, volume low.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["binaural", "headphones", "reflection", "spiritual", "healing", "ambient"],
+  "exportedAt": "2026-11-11T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "loosening-the-hymn",
+      "name": "Loosening the Hymn",
+      "description": "The hymn you were taught, four square chords on the organ, steps through the interaural phase: it starts in the centre of your head and spreads into a haze around you. From the fifth bar a line of your own enters and stays. On speakers the 180-degree bars of the organ nearly vanish.",
+      "category": "Phase",
+      "tags": ["54 bpm", "C major", "iphase", "organ"],
+      "source": "setcpm(54/4)\n\n// The hymn you were taught: four square chords on the organ, two bars each\n// The organ steps through the interaural phase: 0 degrees sits in the centre of your head,\n// 90 loosens, 180 spreads all around you and nearly vanishes in mono\nhymn: note(\"<[c3,e3,g3,c4] [f2,c3,a3,c4] [g2,d3,b3,d4] [c3,e3,g3,c4]>\").slow(2)\n  .s(\"sawtooth\").timbre(\"organ\").iphase(\"<0 0 90 90 180 180 180 180>\")\n  .lpf(1400).attack(.6).sustain(.9).release(1.5).space(\"church\").gain(.14)\n\n// The pedal stays put, the same in both ears\npedal: note(\"<c2 f1 g1 c2>\").slow(2).s(\"sawtooth\").timbre(\"organ\").lpf(450)\n  .attack(.4).sustain(.8).release(1.5).space(\"church\").gain(.2)\n\n// From the fifth bar, a line of your own: lydian, unhurried, a few notes left out\n// enter keeps it silent until bar 4; once it arrives, it stays\nown: n(\"<[0 ~ 2 4] [6 ~ 4 ~] [7 ~ 6 4] [2@2 ~@2]>\").scale(\"C:lydian\").transpose(12)\n  .degradeBy(.2).seed(\"own\").enter(4)\n  .s(\"triangle\").timbre(\"soft\").attack(.01).decay(1.2).sustain(.1).release(1.4)\n  .room(.5).gain(.22)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "echo-chamber",
+      "name": "Echo Chamber",
+      "description": "Headphones on: the same few words are whispered from every side of your head at once, then each voice fades away in turn, until only a still pad in the middle and your own breathing remain. Listen through once from the start.",
+      "category": "Space",
+      "tags": ["60 bpm", "D", "azimuth", "elevation", "fadeout"],
+      "source": "setcpm(60/4)\n\n// The chamber: the same few words, whispered from every side at once\nconst slogan = s(\"whisper*4\").syl(\"<[sha ha sha ha] [ko ta ko ta]>\").hpf(800)\n\n// Each voice has its own place around your head, and each fades out in turn\n// fadeout(k, at) lowers the gain over k bars, starting at bar at\nleft: slogan.azimuth(-90).distance(1.5).gain(.12).fadeout(4, 4)\nright: slogan.late(1/8).azimuth(90).distance(1.5).gain(.12).fadeout(4, 6)\nbehind: slogan.late(1/4).azimuth(180).distance(2).gain(.1).fadeout(4, 8)\nabove: slogan.late(3/8).elevation(60).distance(2).gain(.1).fadeout(4, 10)\n\n// What is left when they have gone: a still pad in the middle, and your breath\npad: note(\"<[d3,a3,e4] [b2,f#3,d4]>\").slow(4).s(\"sawtooth\").unison(3).detune(.2)\n  .lpf(1100).attack(3).sustain(1).release(4).room(.6).gain(.12).fadein(12)\nbreath: s(\"pink\").slow(2).hpf(300).lpf(900).attack(3).release(4).gain(.04).fadein(12)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "two-voices",
+      "name": "Two Voices",
+      "description": "An old, insistent voice leans into one ear and your own voice into the other, through a level difference between the ears. Every fourth bar they trade places, so neither owns either ear, and over time the old voice grows quieter.",
+      "category": "Level",
+      "tags": ["66 bpm", "A major", "ild", "earswap", "voices"],
+      "source": "setcpm(66/4)\n\n// ild makes the right ear louder; earswap flips the ears on the bars marked 1\n// The old voice leans into one ear, flat and insistent, and fades from bar 8 to bar 24\nold: note(\"<[a2 a2 a2 a2] [a2 a2 g2 a2] [a2 a2 a2 a2] [g2 g2 a2 ~]>\")\n  .s(\"voice\").voicetype(\"bass\").syl(\"<[must must must must] [no no shud no] [must must must must] [shud shud no ~]>\")\n  .ild(8).earswap(\"<0 0 0 1>\").mono(1).vglide(.04)\n  .attack(.05).release(.3).room(.3).gain(.2).fadeout(16, 8)\n\n// Your own voice leans into the other ear, and on the fourth bar they trade places\nyours: note(\"<[e4@3 d4] [c#4@2 e4@2] [f#4@3 e4] [a4@4]>\")\n  .s(\"voice\").voicetype(\"alto\").syl(\"<[i@3 am] [hir@2 _@2] [i@3 am] [fri@4]>\")\n  .ild(8).earswap(\"<1 1 1 0>\").mono(2).vglide(.1)\n  .attack(.1).release(.8).room(.5).gain(.26)\n\n// A centred drone and soft harp chords, the same in both ears: A, F#m, D, E\ndrone: note(\"[a1,e2]\").slow(4).s(\"sine\").attack(2).sustain(1).release(3).gain(.16)\nharp: note(\"<[a3 c#4 e4 c#4] [f#3 a3 c#4 a3] [d3 f#3 a3 f#3] [e3 g#3 b3 g#3]>\")\n  .s(\"triangle\").timbre(\"soft\").decay(.5).sustain(0).release(.6).room(.5).gain(.16)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "cents-of-doubt",
+      "name": "Cents of Doubt",
+      "description": "One certainty, sounded in perfect unison, slowly drifts apart between the ears in cents and comes back again: at 3 cents it beats slowly, at 8 and 15 it shimmers, and at 30 it opens into a chorus of two views. A piano asks and answers in the centre.",
+      "category": "Pitch",
+      "tags": ["50 bpm", "D major", "earsh", "piano"],
+      "source": "setcpm(50/4)\n\n// One certainty in unison, then the ears drift apart in cents, two bars at a time, and back\n// earsh raises the right ear and lowers the left by half the value each\n// 0 cents is one point; 3 beats slowly; 8 and 15 shimmer; 30 opens into two views at once\ndrone: note(\"[d2,a2,d3]\").s(\"sawtooth\").earsh(\"<0 0 3 3 8 8 15 15 30 30 15 15 8 8 3 3>\")\n  .lpf(900).attack(1.5).sustain(1).release(1.5).gain(.16)\n\n// A piano in the middle of your head, asking and answering: D, Bm, G, A\npiano: note(\"<[f#4@3 e4] [d4@4] [d4@2 f#4 b4] [a4@4] [b4@3 a4] [g4@2 d4@2] [e4@2 f#4 a4] [a4@4]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(1.4).sustain(.1).release(1.6)\n  .room(.6).gain(.24)\n\n// Low chords holding the key\nchords: note(\"<[d3,f#3,a3] [b2,d3,f#3] [g2,b2,d3] [a2,c#3,e3]>\").slow(2)\n  .s(\"triangle\").timbre(\"soft\").attack(1).sustain(.6).release(2).lpf(1000).room(.6).gain(.14)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "your-own-rhythm",
+      "name": "Your Own Rhythm",
+      "description": "The march you kept step to plays dead centre, square and loud, and fades away from the fourth bar, while your own rhythm grows from nothing: hand drums placed all around you and a kalimba swaying between your ears on delays under a millisecond.",
+      "category": "Time",
+      "tags": ["96 bpm", "C major pentatonic", "itd", "azimuth", "fadein"],
+      "source": "setcpm(96/4)\n\n// The march you kept step to: centred, square and loud, fading out over bars 4 to 12\nmarch: s(\"bd ~ bd ~, ~ sd ~ sd, hh*8\").gain(.4).fadeout(8, 4)\ndrill: note(\"<c2 g1>\").struct(\"x ~ x ~\").s(\"sawtooth\").lpf(600)\n  .decay(.2).sustain(.3).release(.1).gain(.3).fadeout(8, 4)\n\n// Your own rhythm grows from nothing: hand drums placed around you, seeded but free\nhands: s(\"lt*8?0.45, rim*16?0.3\").azimuth(rand.range(-150, 150)).distance(2)\n  .seed(\"own-time\").room(.3).gain(.3).fadein(12)\n\n// Under about 0.7 ms a delay between the ears moves a sound sideways: the kalimba sways\nkalimba: n(irand(6).segment(8)).scale(\"C:major pentatonic\").transpose(12)\n  .degradeBy(.4).seed(\"sway\")\n  .s(\"sine\").fm(.8).fmh(5.4).decay(.8).sustain(0).release(.8)\n  .itd(sine.range(-.6, .6).slow(4)).room(.4).gain(.2).fadein(8)\n\n// A low pulse that never marches: one soft note per bar, centred\nroot: note(\"<c2 a1 f1 g1>\").s(\"sine\").attack(.3).sustain(.7).release(1).gain(.28)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "turning-it-over",
+      "name": "Turning It Over",
+      "description": "A drone's phase turns slowly between your ears, so it rolls around inside your head like an idea being turned over. Four bars of questions in the whole-tone scale, which has no home note, are followed by four bars of an answer in lydian that is allowed to stay open. All rates stay below 3 Hz.",
+      "category": "Phase",
+      "tags": ["56 bpm", "E lydian", "irate", "form", "whole tone"],
+      "source": "setcpm(56/4)\n\n// irate turns the phase between the ears, in turns per second: an idea rolled over slowly\n// All rates stay below 3 Hz, so no pulse warning is needed\ndrone: note(\"[e2,b2]\").s(\"sine\").irate(\"<.2 .2 .4 .4 .8 .8 .4 .4>\")\n  .attack(1).sustain(1).release(1).gain(.24)\n\n// Four bars of questions in the whole-tone scale, which has no home note,\n// then four bars of an answer in lydian that is allowed to stay open\nconst question = n(\"<[0 1 2 3] [4@3 3] [2 3 4 5] [6@4]>\").scale(\"E:whole tone\").transpose(12)\nconst answer = n(\"<[0 1 2 4] [5@3 4] [3 2 1 2] [4@4]>\").scale(\"E:lydian\").transpose(12)\nmelody: form(\"A@4 B@4\", question, answer)\n  .s(\"sine\").timbre(\"hollow\").vib(4.5).vibdepth(.12)\n  .attack(.08).sustain(.6).release(.8).room(.6).gain(.22)\n\n// A pad that follows the same form: an augmented chord for the questions, open chords for the answer\npad: form(\"A@4 B@4\", note(\"[e3,g#3,c4]\"), note(\"<[e3,g#3,b3] [a2,c#3,e3,g#3]>\").slow(2))\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(1200)\n  .attack(1.5).sustain(.9).release(2).room(.6).gain(.1)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "a-voice-only-you-can-hear",
+      "name": "A Voice Only You Can Hear",
+      "description": "Each ear alone hears only a hiss of white noise; together they carry a faint tune between them (Huggins pitch), something nobody can hand you, only hear for yourself. A quiet sine plays the first phrase every four bars so you know what to listen for. The effect is faint and differs between listeners.",
+      "category": "Dichotic",
+      "tags": ["60 bpm", "D major", "dichotic", "Huggins pitch"],
+      "source": "setcpm(60/4)\n\n// A quiet spring nearby and a breeze\nspring: s(\"stream\").slow(4).azimuth(-40).distance(3).gain(.16)\nbreeze: s(\"wind\").slow(8).intensity(.15).gain(.06)\n\n// The same noise feeds both ears, but one ear's noise is phase-shifted in a narrow band\n// Neither ear alone hears a tone; only the two together hear the tune between them\ntune: s(\"white*4\").dichotic(\"<[294 370 440 587] [494 440 370 330] [370 440 494 659] [554 440 330 440]>\")\n  .dichoticq(30).attack(.02).sustain(1).release(.05).gain(.14)\n\n// A quiet hint: the first phrase on a sine, once every four bars\nhint: note(\"<[d4 f#4 a4 d5] ~ ~ ~>\").s(\"sine\")\n  .decay(.3).sustain(.3).release(.2).gain(.08)\n\n// A soft pad holding the key: D, Bm, G, A\npad: note(\"<[d3,a3,f#4] [b2,f#3,d4] [g2,d3,b3] [a2,e3,c#4]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(1).sustain(.6).release(2)\n  .lpf(1000).room(.6).gain(.12)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "wide-open",
+      "name": "Wide Open",
+      "description": "Headphones on: soft noise steps from identical in both ears, a narrow point in the middle of your head, to unrelated in each, wide and all around you, over a 2 Hz binaural drone in the delta range, below the rates that trigger a pulse warning. A bell marks each step outward.",
+      "category": "Correlation",
+      "tags": ["40 bpm", "G minor", "icorr", "binaural", "delta"],
+      "source": "setcpm(40/4)\n\n// icorr 1: the same noise in both ears, a narrow point in the middle of your head\n// icorr near 0: unrelated noise in each ear, wide and all around you\nair: s(\"pink\").icorr(\"<1 .8 .6 .4 .2 .1 .1 .1>\").lpf(2500)\n  .attack(.5).sustain(1).release(.5).gain(.1)\n\n// A 2 Hz binaural drone: each ear is detuned by 1 Hz, below the 3-30 Hz warning range\ndrone: note(\"<g1 g1 eb1 f1>\").slow(2).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.26)\n\n// A pad that barely moves, and a bell at each step outward\npad: note(\"<[g2,d3,bb3] [eb2,bb2,g3]>\").slow(4).s(\"sawtooth\").unison(4).detune(.3)\n  .attack(4).release(6).lpf(700).room(.8).size(.9).gain(.1)\nbell: note(\"d5\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(4).sustain(0).release(4).space(\"hall\").gain(.08)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "theta-integration",
+      "name": "Theta Integration",
+      "description": "Headphones on: a 6 Hz binaural beat in the theta range under slow choir chords, while a pad sends alternate partials to each ear, so it sounds whole only when both ears hear it together, like pieces coming back into one. A stream runs nearby. The player asks before playing, as with any steady pulse.",
+      "category": "Beats",
+      "tags": ["44 bpm", "A minor", "binaural", "theta", "earsplit"],
+      "source": "setcpm(44/4)\n\n// A 6 Hz binaural beat in the theta range: each ear is detuned by 3 Hz. Keep the volume low\ndrone: note(\"<a1 a1 f1 g1>\").slow(4).s(\"sine\").binaural(6)\n  .attack(4).sustain(1).release(6).gain(.22)\n\n// Slow, breathing choir chords: Am, F, C, G\nchoir: note(\"<[a2,e3,c4] [f2,c3,a3] [c3,g3,e4] [g2,d3,b3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo ah oh ah>\").attack(3).release(4).space(\"hall\").gain(.2)\n\n// Pieces coming back together: earsplit(\"harmonics\") alternates the partials between the ears\n// Each ear hears a thinner chord; only both together, or mono, hear it whole\npad: note(\"<[a3,c4,e4] [f3,a3,c4] [c4,e4,g4] [g3,b3,d4]>\").slow(2)\n  .s(\"sawtooth\").earsplit(\"harmonics\").lpf(1400)\n  .attack(2).sustain(1).release(3).room(.6).gain(.1)\n\n// A stream nearby\nstream: s(\"stream\").slow(4).azimuth(60).distance(4).gain(.14)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "first-morning",
+      "name": "First Morning",
+      "description": "The first morning after: birds placed all around you, a lark gliding high overhead, a flute and harp straight ahead, a wide breeze through an open door and a quiet 10 Hz binaural beat in the alpha range for waking gently. The player asks before playing, as with any steady pulse.",
+      "category": "Beats",
+      "tags": ["80 bpm", "G major", "binaural", "alpha", "azimuth"],
+      "source": "setcpm(80/4)\n\n// The first morning: birds placed all around you, each in its own place\nrobin: s(\"bird\").slow(2).azimuth(-40).distance(3).gain(.22)\nwren: s(\"bird\").slow(3).azimuth(60).elevation(25).distance(4).gain(.18)\nlark: s(\"bird\").slow(4).azimuth(saw.range(-90, 90).slow(16)).elevation(50).distance(8).posglide(.5).gain(.14)\n\n// A 10 Hz binaural beat in the alpha range: keep it quiet\ndrone: note(\"<g2 g2 e2 c2>\").slow(2).s(\"sine\").binaural(10)\n  .attack(3).sustain(1).release(4).gain(.12)\n\n// A flute straight ahead, the same in both ears, and a harp: G, Em, C, D\nflute: note(\"<[d5@2 b4 g4 b4@2 d5@2] [e5@3 d5 b4@4] [c5@2 e5 g5 e5@2 d5 c5] [d5@6 ~@2]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.1)\n  .attack(.06).sustain(.6).release(.5).delay(.25).delaytime(3/8).room(.5).gain(.22)\nharp: note(\"<[g3 b3 d4 b3] [e3 g3 b3 g3] [c4 e4 g4 e4] [d3 f#3 a3 f#3]>\")\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(0).release(.5).room(.5).gain(.18)\n\n// The door is open: the breeze comes in wide, unrelated in each ear\nbreeze: s(\"pink\").slow(8).icorr(.15).hpf(300).lpf(2000).gain(.025)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    }
+  ]
+}

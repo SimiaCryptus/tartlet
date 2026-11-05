@@ -1,0 +1,113 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "dinosaurs",
+  "name": "Thunder Lizards",
+  "description": "Dinosaur music built for headphones: a Triassic swamp breathing all around you, a tyrant whose footsteps close in from behind, sauropods humming far overhead, pteranodons circling your head, a raptor pack hunting from both sides, a stegosaurus stomp split between the ears, a triceratops herd that drifts apart in cents, a volcano widened by delays, a mosasaur rolling in the deep, fossil voices hidden in the wind and a last day that plays once and ends in a new dawn. The heaviest things stay in the centre while the creatures use the space around you. Each sketch explains its trick in the comments. Headphones on, volume sensible.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["dinosaurs", "binaural", "headphones", "spatial", "cinematic"],
+  "exportedAt": "2026-11-11T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "triassic-swamp",
+      "name": "Triassic Swamp",
+      "description": "Headphones on: humid swamp air that is different in each ear, bubbles rising from the mud on every side, giant dragonflies circling your head and a far-off call across the water, over a 6 Hz binaural drone in the theta range. The player asks before playing, as with any steady pulse.",
+      "category": "Triassic",
+      "tags": ["64 bpm", "E minor", "icorr", "azimuth", "binaural"],
+      "source": "setcpm(64/4)\n\n// The swamp air: unrelated brown noise in each ear, wide and humid all around you\nair: s(\"brown\").slow(8).icorr(.15).lpf(700).gain(.12)\n\n// Bubbles rising from the mud, each one somewhere new around your head\nbubbles: s(\"drip*8?0.5\").speed(rand.range(.4, .9)).azimuth(rand.range(-180, 180))\n  .distance(2).seed(\"mud\").gain(.14)\n\n// Giant dragonflies circling once every two bars, a little above you\ndragonflies: s(\"insect\").slow(2).azimuth(saw.range(-180, 180).slow(2)).elevation(20)\n  .distance(1.5).posglide(.2).gain(.12)\n\n// Frogs, or something bigger, croaking on the right\nfrogs: s(\"lt ~ [~ lt] ~\").speed(.6).lpf(400).azimuth(40).distance(3).gain(.2)\n\n// A far-off call across the water, from the left\ncall: note(\"<~ ~ [e3@2 b2@6] ~>\").s(\"sawtooth\").mono(1).glide(.3).vowel(\"oo\")\n  .lpf(900).attack(.2).sustain(.7).release(1.5).azimuth(-70).distance(12).room(.6).gain(.14)\n\n// A murky pad and a 6 Hz binaural beat: each ear is detuned by 3 Hz. Keep it quiet\npad: note(\"<[e2,b2,g3] [c2,g2,e3]>\").slow(2).s(\"sawtooth\").unison(3).detune(.2)\n  .lpf(800).attack(2).release(3).room(.7).gain(.1)\ndrone: note(\"[e2,b2]\").slow(4).s(\"sine\").binaural(6)\n  .attack(3).sustain(1).release(4).gain(.12)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "tyrant-approaches",
+      "name": "The Tyrant Approaches",
+      "description": "Eight bars of dread: the footsteps start far behind you and close in, swinging round to the front as they get nearer, while the strings climb and your heartbeat doubles. On the eighth bar it roars, right in front of your face.",
+      "category": "Cretaceous",
+      "tags": ["84 bpm", "D minor", "distance", "azimuth", "cinematic"],
+      "source": "setcpm(84/4)\n\n// The roar: a gritty saw sliding down, through a tube curve and an ah vowel\nconst roar = (x) => x.s(\"sawtooth\").unison(3).detune(25).mono(1).glide(.3)\n  .vowel(\"ah\").curve(\"tube\").drive(12).lpf(1400).attack(.1).sustain(.8).release(1.5)\n\n// Footsteps: over eight bars the distance falls from 30 to 1.5\n// and the direction swings from behind you (160 degrees) round to straight ahead\nsteps: s(\"lt ~ ~ ~ lt ~ ~ ~\").speed(.3).lpf(250).shape(.3)\n  .azimuth(isaw.range(0, 160).slow(8)).distance(isaw.range(1.5, 30).slow(8)).posglide(.3)\n  .gain(saw.range(.2, .7).slow(8))\n\n// The ferns rustle along the same path\nferns: s(\"pink*8?0.4\").hpf(3000).decay(.05).sustain(0)\n  .azimuth(isaw.range(0, 160).slow(8)).distance(isaw.range(1.5, 30).slow(8)).seed(\"ferns\").gain(.05)\n\n// Your heartbeat, in the middle of your head, doubling for the last bars\nheart: s(\"bd ~ bd ~ ~ ~ ~ ~\").lpf(150).fast(\"<1 1 1 1 1 2 2 2>\").gain(.4)\n\n// Strings climbing in tremolo as it gets closer\nstrings: note(\"d2*8\").add(\"<0 0 1 1 3 3 5 6>\").s(\"sawtooth\").unison(2).detune(15)\n  .lpf(saw.range(600, 2600).slow(8)).decay(.1).sustain(.4).release(.05).room(.4).gain(.16)\n\n// The roar on the eighth bar, close and dead centre\ntrex: note(\"<~ ~ ~ ~ ~ ~ ~ [g1@2 d2@3 a1@3]>\").roar().distance(1).room(.5).gain(.24)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "brachiosaurus-lullaby",
+      "name": "Brachiosaurus Lullaby",
+      "description": "Headphones on: the sauropods graze high above the treetops, humming slowly as they drift from side to side over your head, over a 2 Hz binaural drone in the delta range, below the rates that trigger a pulse warning.",
+      "category": "Jurassic",
+      "tags": ["40 bpm", "G minor", "elevation", "binaural", "delta"],
+      "source": "setcpm(40/4)\n\n// A 2 Hz binaural drone: each ear is detuned by 1 Hz, below the 3-30 Hz warning range\ndrone: note(\"<g1 g1 eb1 f1>\").slow(2).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.26)\n\n// The giants hum far above your head, drifting slowly from side to side\ngiants: note(\"<[g2@3 d3] [c3@4] [bb2@2 f2@2] [g2@4]>\").slow(2).s(\"hum\")\n  .elevation(60).distance(6).azimuth(sine.range(-40, 40).slow(16)).posglide(.5)\n  .attack(2).release(3).gain(.2)\n\n// A calf answers, smaller and lower in the trees, off to the right\ncalf: note(\"<~ [d4@3 bb3] ~ ~>\").s(\"hum\").elevation(25).azimuth(60).distance(4)\n  .attack(1).release(2).gain(.1)\n\n// Wind in the treetops, up where they feed\nleaves: s(\"wind\").slow(8).intensity(.2).elevation(50).distance(5).gain(.08)\n\n// A warm pad that barely moves\npad: note(\"<[g2,d3,bb3] [eb2,bb2,g3]>\").slow(8).s(\"sawtooth\").unison(4).detune(.3)\n  .attack(6).release(8).lpf(600).room(.8).size(.95).gain(.1)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "pteranodon-glide",
+      "name": "Pteranodon Glide",
+      "description": "Over the cliffs: wingbeats circle your head once every two bars, shrieks wheel the other way, the sea crashes far below you and soaring Lydian strings lift everything up.",
+      "category": "Cretaceous",
+      "tags": ["96 bpm", "D lydian", "azimuth", "elevation", "soaring"],
+      "source": "setcpm(96/4)\n\n// Wingbeats: soft whooshes circling your head once every two bars, high up\nwings: s(\"pink*4\").hpf(500).lpf(2500).attack(.1).release(.3)\n  .azimuth(saw.range(-180, 180).slow(2)).elevation(45).distance(3).posglide(.3).gain(.06)\n\n// Shrieks wheeling the other way, slower and further out\nshrieks: note(\"<~ [c6@2 g5@2 ~@4] ~ [eb6 c6 ~ ~]>\").s(\"sine\").timbre(\"reed\")\n  .mono(1).glide(.06).vib(7).vibdepth(.3).attack(.02).sustain(.5).release(.3)\n  .azimuth(isaw.range(-180, 180).slow(4)).elevation(35).distance(6).posglide(.3).gain(.1)\n\n// The sea far below you\nsea: s(\"surf\").slow(8).intensity(.5).elevation(-40).distance(8).gain(.2)\n\n// Soaring strings and a wide pad, centred: D, E/D, Bm, G\nstrings: note(\"<[a4@3 b4 c#5@2 e5@2] [f#5@4 e5@2 d5@2] [d5@2 c#5 b4 a4@4] [g#4@4 a4@4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2).vib(5).vibdepth(.1).lpf(3000)\n  .attack(.2).sustain(.7).release(.6).room(.6).gain(.18)\npad: note(\"<[d3,a3,f#4] [d3,b3,g#4] [b2,f#3,d4] [g2,d3,b3]>\").s(\"sawtooth\").unison(4).detune(.25)\n  .attack(.5).release(1.5).lpf(1600).room(.6).gain(.12)\n\n// Timpani on the downbeat, a bass rising with the thermals\ndrums: s(\"lt ~ ~ lt ~ ~ lt ~, ~ ~ ~ ~ rim ~ ~ ~\").room(.4).gain(.38)\nbass: note(\"<d2 d2 b1 g1>\").s(\"sine\").attack(.1).sustain(.7).release(.5).gain(.36)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "raptor-pack",
+      "name": "Raptor Pack",
+      "description": "Clever girls: claws click on stone and hop between your ears at random, one raptor calls from your left, one answers from your right and a third, the one you forgot, chirps from behind you. Only the kick and bass stay in the middle.",
+      "category": "Cretaceous",
+      "tags": ["140 bpm", "A minor", "ild", "earswap", "azimuth"],
+      "source": "setcpm(140/4)\n\n// A raptor call: a short, reedy chirp sliding between notes\nconst raptor = (x) => x.s(\"sine\").timbre(\"reed\").mono(1).glide(.04)\n  .attack(.01).decay(.1).sustain(.5).release(.1).room(.3)\n\n// The kick and bass hold the centre while the pack circles\nkick: s(\"bd*4\").shape(.2).gain(.75)\nbass: note(\"<a1 a1 c2 g1>\").struct(\"x ~ x x ~ x ~ x\").s(\"sawtooth\").lpf(700).lpq(4)\n  .decay(.15).sustain(.3).release(.05).gain(.42)\nhats: s(\"[~ hh]*4\").hpf(7000).gain(.2)\n\n// Claws on stone: ild leans them right, a seeded coin flip throws some to the left\nclaws: s(\"click*16\").hpf(2500).ild(10).earswap(irand(2).segment(16)).seed(\"claws\").gain(.18)\n\n// Three raptors: one on your left, one on your right, and one behind you\nleft: note(\"<[a5 e6 ~ ~] ~ [c6 a5 ~ ~] ~>\").raptor().azimuth(-80).distance(3).gain(.12)\nright: note(\"<~ [e6 a5 ~ ~] ~ [g5 c6 ~ ~]>\").raptor().azimuth(80).distance(3).gain(.12)\nbehind: note(\"<~ ~ ~ [~ ~ a6 e6]>\").raptor().azimuth(170).distance(2).gain(.1)\n\n// Stabbing strings in the middle\nstabs: note(\"<[a3,c4,e4] [a3,c4,e4] [c4,e4,g4] [g3,b3,d4]>\").struct(\"x ~ ~ x ~ ~ x ~\")\n  .s(\"sawtooth\").unison(2).detune(.15).lpf(2400).decay(.15).sustain(0).gain(.18)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "stegosaurus-stomp",
+      "name": "Stegosaurus Stomp",
+      "description": "A heavy, plodding groove where the kit sends its lows to one ear and its highs to the other, the brass stabs send alternate partials to each ear, and the tail spikes swing from side to side on tiny delays. Together, and in mono, the beast is whole.",
+      "category": "Jurassic",
+      "tags": ["88 bpm", "E minor", "earsplit", "itd", "heavy"],
+      "source": "setcpm(88/4)\n\n// earsplit(\"bands\") puts everything below 700 Hz in one ear and above it in the other\ndrums: s(\"bd ~ ~ bd ~ ~ bd ~, ~ ~ sd ~ ~ ~ sd ~, hh*8\").earsplit(\"bands\").splitfreq(700).gain(.6)\n\n// The stomp itself: big low toms, dead centre\nstomp: s(\"lt ~ ~ ~ lt ~ ~ ~\").speed(.4).lpf(300).shape(.3).gain(.5)\n\n// earsplit(\"harmonics\") alternates the brass partials: each ear hears a thinner stab\nbrass: note(\"<[e2,b2,e3,g3] [e2,b2,e3,g3] [c2,g2,c3,e3] [d2,a2,d3,f#3]>\").struct(\"x ~ ~ x ~ ~ ~ ~\")\n  .s(\"sawtooth\").earsplit(\"harmonics\").lpf(1400).lpenv(2).lpattack(.03)\n  .attack(.02).decay(.4).sustain(.3).release(.3).room(.4).gain(.22)\n\n// The tail spikes swing from ear to ear on delays under a millisecond\nspikes: s(\"rim*8\").speed(.7).itd(sine.range(-.6, .6).slow(1)).hpf(1200).gain(.2)\n\n// A plain, centred bass\nbass: note(\"<e1 e1 c1 d1>\").struct(\"x ~ x ~ ~ x ~ ~\").s(\"sawtooth\").lpf(500)\n  .curve(\"tube\").drive(8).decay(.3).sustain(.4).release(.1).gain(.36)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "triceratops-herd",
+      "name": "Triceratops Herd",
+      "description": "A herd crossing the plain: their lowing drone drifts apart between the ears in cents, a bar at a time, from a slow beat to a wide chorus, while hooves fall all around you and a horn calls across the valley.",
+      "category": "Cretaceous",
+      "tags": ["72 bpm", "F major", "earsh", "azimuth", "herd"],
+      "source": "setcpm(72/4)\n\n// earsh raises the right ear and lowers the left by half the value each\n// 2 cents beats slowly; 30 cents widens into a whole herd\nherd: note(\"[f2,c3]\").s(\"sawtooth\").vowel(\"oo\").earsh(\"<2 6 12 30>\")\n  .lpf(700).attack(1).sustain(1).release(1).gain(.18)\n\n// Hooves falling all around you, each step somewhere new\nhooves: s(\"lt*8?0.5\").speed(.5).lpf(400).azimuth(rand.range(-180, 180)).distance(rand.range(2, 8))\n  .seed(\"herd\").gain(.2)\n\n// The dust they kick up: wide and diffuse\ndust: s(\"pink\").slow(8).icorr(.2).hpf(800).lpf(3000).gain(.03)\n\n// A horn calling across the valley, from the left\nhorn: note(\"<[c4@2 f4@6] ~ [a4@3 g4 f4@4] ~>\").s(\"sawtooth\").lpf(900).lpenv(1).lpattack(.12)\n  .attack(.1).sustain(.8).release(.8).azimuth(-60).distance(10).space(\"outdoor\").gain(.18)\n\n// Plains music in the middle: F, Dm, Bb, C\npiano: note(\"<[f3 c4 a4 c4] [d3 a3 f4 a3] [bb2 f3 d4 f3] [c3 g3 e4 g3]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(.8).sustain(.1).release(.8).room(.5).gain(.24)\nbass: note(\"<f2 d2 bb1 c2>\").s(\"sine\").attack(.05).sustain(.7).release(.4).gain(.34)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "volcano-dawn",
+      "name": "Volcano Dawn",
+      "description": "A volcano wakes: lava hisses differently in each ear, the stabs grow wider each bar as their delay rises from 1 to 25 milliseconds, and a string pad steps from the centre of your head out into a haze. On speakers the 180-degree bars of the pad nearly vanish.",
+      "category": "Jurassic",
+      "tags": ["76 bpm", "C minor", "itd", "iphase", "icorr"],
+      "source": "setcpm(76/4)\n\n// Lava hissing: unrelated noise in each ear, wide and all around\nlava: s(\"pink\").slow(8).icorr(.1).hpf(1500).lpf(5000).gain(.03)\n\n// The ground rumbling beneath you, centred\nrumble: s(\"brown\").slow(4).lpf(sine.range(80, 260).slow(8)).gain(.22)\n\n// Fire on the slope to your left\nfire: s(\"fire\").slow(4).intensity(.6).density(14).azimuth(-60).distance(4).gain(.2)\n\n// From about 1 to 30 ms the stabs stay on the leading side but grow wider each bar\nstabs: note(\"[c3,eb3,g3,bb3]\").struct(\"x ~ ~ x ~ ~ x ~\").s(\"sawtooth\").unison(2).detune(.15)\n  .itd(\"<1 8 15 25>\").lpf(2000).decay(.25).sustain(0).room(.4).gain(.2)\n\n// The strings step through the interaural phase: 0 centred, 90 looser, 180 diffuse\npad: note(\"<[c3,eb3,g3] [ab2,c3,eb3] [f2,ab2,c3] [g2,b2,d3]>\").s(\"sawtooth\").unison(2).detune(.1)\n  .iphase(\"<0 90 180 90>\").lpf(1000).attack(1).sustain(1).release(2).gain(.12)\n\n// Eruption drums, and a bass under the mountain\ndrums: s(\"lt ~ [~ lt] ~, ~ ~ mt ~, <~ ~ ~ cr>\").speed(.7).lpf(1200).room(.6).gain(.42)\nbass: note(\"<c2 ab1 f1 g1>\").s(\"sine\").shape(.2).attack(.05).sustain(.7).release(.4).gain(.38)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "mosasaur-deep",
+      "name": "Mosasaur Deep",
+      "description": "Underwater in the Cretaceous sea: the surface is muffled far above you, bubbles drift past, a huge shape calls from the dark and the drone's phase between the ears rolls slowly around inside your head, staying below the rates that trigger a pulse warning.",
+      "category": "Cretaceous",
+      "tags": ["52 bpm", "D minor", "irate", "occlude", "underwater"],
+      "source": "setcpm(52/4)\n\n// irate turns the phase between the ears, in turns per second: all below 3 Hz\ndrone: note(\"[d2,a2]\").s(\"sawtooth\").irate(\"<.25 .5 1 2>\").lpf(500)\n  .attack(2).sustain(1).release(2).gain(.18)\n\n// The surface, far above and muffled by the water\nsurface: s(\"surf\").slow(8).intensity(.4).elevation(70).distance(8).occlude(.7).gain(.2)\n\n// Bubbles drifting past, slowly rising around you\nbubbles: s(\"drip*8?0.4\").speed(rand.range(.3, .7)).azimuth(sine.range(-120, 120).slow(8))\n  .elevation(saw.range(-20, 40)).distance(2).seed(\"bubbles\").space(\"hall\").gain(.12)\n\n// The mosasaur: a long, gliding call from the dark behind you\nmosasaur: note(\"<~ [a1@2 d2@4 c2@2] ~ ~>\").s(\"sawtooth\").mono(1).glide(.5).vowel(\"oo\")\n  .lpf(600).attack(.5).sustain(.8).release(2).azimuth(150).distance(10).space(\"hall\").gain(.22)\n\n// Light filtering down from above\nlight: n(\"<[4 ~ ~ 2] [~ 5 ~ ~] [7 ~ ~ 4] [~ ~ 2 ~]>\").scale(\"D:minor\").transpose(12)\n  .s(\"triangle\").timbre(\"glass\").decay(1).sustain(0).release(2).elevation(50).distance(4)\n  .delay(.4).delaytime(3/8).delayfeedback(.45).gain(.12)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "fossil-voices",
+      "name": "Fossil Voices",
+      "description": "A night in the museum's fossil hall. The wind gusting through the skeletons is white noise, but between the ears it carries a faint theme (Huggins pitch). Each ear alone hears only hiss. A quiet hum plays the first bar every four bars so you know what to listen for. The effect is faint and differs between listeners.",
+      "category": "Museum",
+      "tags": ["60 bpm", "A minor", "dichotic", "Huggins pitch"],
+      "source": "setcpm(60/4)\n\n// The wind through the bones: the same noise in both ears, one ear phase-shifted in a narrow band\n// Neither ear alone hears a tone; together they hear the old theme\nbones: s(\"white*4\").dichotic(\"<[440 523 659 523] [392 494 587 494] [349 440 523 440] [330 415 494 415]>\")\n  .dichoticq(30).attack(.02).sustain(1).release(.05).gain(.14)\n\n// A quiet hint: the first bar hummed, once every four bars\nhint: note(\"<[a4 c5 e5 c5] ~ ~ ~>\").s(\"hum\").attack(.05).release(.3).gain(.08)\n\n// The hall at night: a ticking clock on the right, a guard's footsteps beyond the wall\nclock: s(\"tick ~ tick ~\").azimuth(70).distance(5).space(\"church\").gain(.05)\nguard: s(\"step ~ ~ ~ step ~ ~ ~\").azimuth(-110).distance(6).occlude(.6).gain(.1)\ncreak: s(\"~ ~ ~ creak\").mask(\"<0 0 1 0 0 0 0 1>\").elevation(40).distance(4).gain(.1)\n\n// A low, still drone for the skeletons\ndrone: note(\"[a1,e2]\").slow(8).s(\"sine\").attack(4).sustain(1).release(6).gain(.18)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "the-last-day",
+      "name": "The Last Day",
+      "description": "Listen through once. For four bars a meteor whistles down from high on your left while the noise in your ears spreads from a point into a wash; on bar five it lands. Then ash falls, the rumble fades, insects and tiny mammals come out, and a 2 Hz delta drone opens on a new dawn.",
+      "category": "Extinction",
+      "tags": ["60 bpm", "C minor", "icorr", "enter", "once"],
+      "source": "setcpm(60/4)\n\n// Bars 1-4: the riser. icorr 1 is the same noise in both ears, near 0 is unrelated noise in each\nriser: s(\"pink\").icorr(\"<1 .7 .4 .1>\").hpf(saw.range(200, 4000).slow(4))\n  .gain(\"<.04 .07 .1 .14>\").exit(4)\n\n// The meteor whistles down from high on the left towards the front\nmeteor: freq(isaw.range(300, 3000).slow(4).segment(16)).s(\"sine\").mono(1).glide(.2)\n  .azimuth(isaw.range(-150, 0).slow(4)).elevation(isaw.range(10, 80).slow(4)).posglide(.3)\n  .attack(.01).sustain(1).release(.05).exit(4).gain(.05)\n\n// The last song of the dinosaurs\nchoir: note(\"<[c3,eb3,g3] [ab2,c3,eb3] [f2,ab2,c3] [g2,b2,d3]>\").s(\"choir\").syl(\"<oo ah oo oh>\")\n  .attack(1).release(2).space(\"hall\").exit(4).gain(.24)\n\n// Bar 5: impact, then the rumble fades over four bars\nimpact: s(\"[bd,cr] ~ ~ ~\").speed(.3).lpf(400).room(.9).size(.95).enter(4).exit(5).gain(.8)\nrumble: s(\"brown\").slow(4).lpf(500).icorr(.1).enter(4).gain(.25).fadeout(4, 4)\n\n// Ash falling, then the survivors creep out\nash: s(\"rain\").slow(4).intensity(.3).enter(5).gain(.12)\ninsects: s(\"insect\").slow(4).azimuth(60).distance(4).enter(6).gain(.08)\nmammals: note(\"<[c6 ~ e6 ~] ~ [g6 e6 ~ ~] ~>\").s(\"sine\").decay(.06).sustain(0)\n  .azimuth(\"<-50 40>\").distance(2).enter(6).gain(.08)\n\n// A new dawn: a 2 Hz binaural drone, below the 3-30 Hz warning range, and a glass melody\ndawn: note(\"[c2,g2]\").slow(4).s(\"sine\").binaural(2).attack(4).sustain(1).release(6).enter(7).gain(.2)\nhope: n(\"<[0 ~ 2 4] [5 ~ 4 ~] [2 ~ 0 ~] [4@4]>\").scale(\"C:major\").transpose(12)\n  .s(\"triangle\").timbre(\"glass\").decay(1).sustain(0).release(1.5).room(.6).enter(8).gain(.14)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    }
+  ]
+}

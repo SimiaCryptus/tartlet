@@ -1,0 +1,113 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "binaural-calm-study",
+  "name": "Quiet Mind",
+  "description": "Meditative study music for headphones: slow, soft pieces for long sessions of reading, writing and thinking, each using the space between your ears to settle the mind. An alpha beat under a singing bowl, sparse theta piano with rain beyond the glass, a pad that breathes from the centre of your head to all around it, brightness drifting between the ears, a drone rolling slowly inside your head, two hands that trade ears, strings that drift apart in cents, a harp that widens bar by bar, a phrase hidden in soft noise, a quiet beta lantern for alert focus and a delta music box to put the pens down. Slow tempos, low levels and nothing sudden; each sketch explains its trick in the comments. Headphones on, volume low.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["study", "meditation", "binaural", "headphones", "calm"],
+  "exportedAt": "2026-11-11T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "settling-in",
+      "name": "Settling In",
+      "description": "The start of a session: a soft D major pad that breathes over eight bars, a singing bowl every four bars and wide, quiet air, over a 10 Hz binaural drone in the alpha range. The player asks before playing, as with any steady pulse.",
+      "category": "Beats",
+      "tags": ["50 bpm", "D major", "binaural", "alpha", "bowl"],
+      "source": "setcpm(50/4)\n\n// A 10 Hz binaural beat in the alpha range: each ear is detuned by 5 Hz. Keep it quiet\ndrone: note(\"[d2,a2]\").slow(4).s(\"sine\").binaural(10)\n  .attack(4).sustain(1).release(6).gain(.12)\n\n// A soft pad whose filter breathes over eight bars: Dmaj7, Bm7, Gmaj7, A\npad: note(\"<[d3,a3,c#4,f#4] [b2,f#3,a3,d4] [g2,d3,b3,f#4] [a2,e3,a3,c#4]>\").slow(2)\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(sine.range(500, 1100).slow(8))\n  .attack(3).release(4).room(.7).size(.9).gain(.12)\n\n// A singing bowl marks every four bars\nbowl: note(\"<d4 ~ ~ ~>\").s(\"sine\").fm(1.2).fmh(2.76)\n  .decay(6).sustain(0).release(6).space(\"hall\").gain(.14)\n\n// Soft, wide air: unrelated pink noise in each ear\nair: s(\"pink\").slow(8).icorr(.15).hpf(400).lpf(2500).gain(.025)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "theta-notes",
+      "name": "Theta Notes",
+      "description": "Deep reading: a sparse, seeded piano that never plays the same phrase twice, soft chords in D minor and rain beyond the window, over a quiet 6 Hz binaural beat in the theta range. The player asks before playing, as with any steady pulse.",
+      "category": "Beats",
+      "tags": ["56 bpm", "D minor", "binaural", "theta", "piano"],
+      "source": "setcpm(56/4)\n\n// A 6 Hz binaural beat in the theta range, following the roots: keep the volume low\ndrone: note(\"<d2 bb1 g1 a1>\").slow(2).s(\"sine\").binaural(6)\n  .attack(3).sustain(1).release(4).gain(.14)\n\n// Sparse piano from the minor pentatonic, never quite the same twice\npiano: n(irand(8).segment(4)).scale(\"D:minor pentatonic\").transpose(12)\n  .degradeBy(.55).seed(\"theta\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(1.4).sustain(.08).release(1.6)\n  .room(.6).size(.85).gain(.24)\n\n// Soft chords, two bars each: Dm, Bb, Gm, A\nchords: note(\"<[d3,f3,a3] [bb2,d3,f3] [g2,bb2,d3] [a2,c#3,e3]>\").slow(2)\n  .s(\"triangle\").timbre(\"soft\").attack(2).sustain(.6).release(3)\n  .lpf(900).room(.6).gain(.14)\n\n// Rain beyond the window, heard through the glass\nrain: s(\"rain\").slow(4).intensity(.35).occlude(.6).gain(.16)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "breathing-room",
+      "name": "Breathing Room",
+      "description": "A pad in C steps through the interaural phase: in phase it sits in the centre of your head, at 90 degrees it loosens and at 180 it spreads into a haze around you. A soft rush of air guides one slow breath every ten seconds. On speakers the 180-degree chords nearly vanish.",
+      "category": "Phase",
+      "tags": ["48 bpm", "C major", "iphase", "breathing"],
+      "source": "setcpm(48/4)\n\n// The pad steps through the interaural phase, a chord at a time: C, Am, F, G\n// 0 degrees: centred. 90: looser. 180: diffuse and all around, and nearly gone in mono\npad: note(\"<[c3,g3,e4] [a2,e3,c4] [f2,c3,a3] [g2,d3,b3]>\").slow(2)\n  .s(\"triangle\").iphase(\"<0 0 90 90 180 180 90 90>\")\n  .attack(2).sustain(1).release(3).lpf(1400).gain(.18)\n\n// One breath every two bars, ten seconds: breathe in as the air rises, out as it fades\nbreath: s(\"pink\").slow(2).hpf(200).lpf(700).attack(4).release(5).gain(.04)\n\n// Far-off bells every few breaths\nbell: note(\"<g4 ~ e4 ~ c5 ~ ~ ~>\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(4).sustain(0).release(4).room(.7).gain(.08)\n\n// A low root, the same in both ears\nbass: note(\"<c2 a1 f1 g1>\").slow(2).s(\"sine\").attack(2).sustain(.8).release(3).gain(.2)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "paper-and-ink",
+      "name": "Paper and Ink",
+      "description": "Writing at a desk: nothing is panned, yet the brightness of a soft broken-chord figure drifts slowly from ear to ear, as each ear has its own low-pass sweeping the other way every eight bars. A fire crackles on your left and a clock ticks on your right.",
+      "category": "Filtering",
+      "tags": ["64 bpm", "F major", "lcutoff", "rcutoff", "azimuth"],
+      "source": "setcpm(64/4)\n\n// A low-pass on each ear alone, sweeping in opposite directions every eight bars\n// The level stays put; only the brightness drifts: Fmaj7, Dm7, Bbmaj7, C\nfigure: n(\"0 2 4 6 4 2 0 2\").add(\"<0 -2 -4 -3>\").scale(\"F:major\")\n  .s(\"triangle\").timbre(\"soft\")\n  .lcutoff(saw.range(500, 3000).slow(8)).rcutoff(isaw.range(500, 3000).slow(8))\n  .attack(.005).decay(.8).sustain(.05).release(1).room(.5).gain(.2)\n\n// A low root, the same in both ears\nbass: note(\"<f2 d2 bb1 c2>\").s(\"sine\").attack(.3).sustain(.6).release(1).gain(.26)\n\n// A fire on your left, a clock on your right, and a warm floor of brown noise\nfire: s(\"fire\").slow(4).intensity(.25).density(5).azimuth(-60).distance(3).gain(.12)\nclock: s(\"tick ~ tick ~\").azimuth(70).distance(4).gain(.04)\nfloor: s(\"brown\").slow(8).lpf(500).gain(.06)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "slow-orbit",
+      "name": "Slow Orbit",
+      "description": "A drone whose phase turns slowly between the ears, from once every five seconds to just under once a second, so it rolls gently inside your head, under a hushed choir. Glass notes circle you once every sixteen bars. All rates stay well below 3 Hz.",
+      "category": "Phase",
+      "tags": ["44 bpm", "E minor", "irate", "azimuth", "choir"],
+      "source": "setcpm(44/4)\n\n// irate turns the drone's phase between the ears, in turns per second\n// All rates stay below 3 Hz, so no pulse warning is needed\ndrone: note(\"[e2,b2]\").s(\"sine\").irate(\"<.2 .4 .8 .4>\")\n  .attack(2).sustain(1).release(2).gain(.2)\n\n// A hushed choir on slow chords: Em, C, Am, B\nchoir: note(\"<[e3,g3,b3] [c3,e3,g3] [a2,c3,e3] [b2,d#3,f#3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo ah oo oh>\").attack(3).release(4).space(\"hall\").gain(.18)\n\n// Glass notes circling your head once every sixteen bars, a little above\nglass: n(irand(6).segment(4)).scale(\"E:minor pentatonic\").transpose(24)\n  .degradeBy(.6).seed(\"orbit\")\n  .s(\"triangle\").timbre(\"glass\").decay(1).sustain(0).release(2)\n  .azimuth(saw.range(-180, 180).slow(16)).elevation(20).distance(3).posglide(.5)\n  .room(.6).gain(.08)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "two-hands-two-ears",
+      "name": "Two Hands, Two Ears",
+      "description": "Generative piano in A minor pentatonic: two hands share one seeded melody, one leaning into each ear through a level difference, and every four bars they trade places. A held fifth and a distant stream keep the room still. Change the seed for a new take.",
+      "category": "Level",
+      "tags": ["66 bpm", "A minor pentatonic", "ild", "earswap", "generative"],
+      "source": "setcpm(66/4)\n\n// One seeded melody, and a soft felt touch, named once\nconst melody = n(irand(8).segment(8)).scale(\"A:minor pentatonic\")\nconst felt = (x) => x.s(\"triangle\").timbre(\"soft\")\n  .attack(.005).decay(1).sustain(.05).release(1.2).room(.6)\n\n// ild makes the right ear louder; earswap flips it, so the hands trade ears every four bars\nright: melody.transpose(12).degradeBy(.6).felt()\n  .ild(6).earswap(\"<0 0 0 0 1 1 1 1>\").seed(\"hands\").gain(.22)\nleft: melody.transpose(-12).undegradeBy(.3).felt()\n  .ild(6).earswap(\"<1 1 1 1 0 0 0 0>\").seed(\"hands\").gain(.2)\n\n// A held fifth, the same in both ears, and a stream far off\ndrone: note(\"[a1,e2]\").slow(8).s(\"sine\").attack(3).sustain(1).release(4).gain(.14)\nstream: s(\"stream\").slow(4).distance(5).gain(.12)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "cents-of-calm",
+      "name": "Cents of Calm",
+      "description": "A kalimba plays a slow figure in G, the same in both ears, over strings whose ears drift a few cents apart and back again: 2 cents beats slowly, 4 shimmers and 8 widens softly around you.",
+      "category": "Pitch",
+      "tags": ["60 bpm", "G major", "earsh", "kalimba"],
+      "source": "setcpm(60/4)\n\n// earsh raises the right ear and lowers the left by half the value each\n// The strings breathe out and back: 2, 4, 8, then 4 cents, two bars each: G, Em, C, D\npad: note(\"<[g2,d3,b3] [e2,b2,g3] [c3,g3,e4] [d3,a3,f#4]>\").slow(2)\n  .s(\"sawtooth\").unison(2).detune(.1).earsh(\"<2 2 4 4 8 8 4 4>\")\n  .lpf(1000).attack(2).sustain(1).release(3).room(.7).size(.9).gain(.12)\n\n// A plucked tine over a small wooden box\nconst kalimba = (x) => x.s(\"sine\").fm(.8).fmh(5.4)\n  .attack(.001).decay(1).sustain(0).release(.9).body(\"box\").bodymix(.35).room(.4)\n\n// The kalimba, the same in both ears\ntines: note(\"<[g4 b4 d4 d5] [e4 g4 b3 b4] [c4 e4 g4 c5] [d4 f#4 a3 a4]>\").slow(2)\n  .kalimba().gain(.22)\n\n// A light breeze\nbreeze: s(\"wind\").slow(8).intensity(.15).gain(.06)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "widening-harp",
+      "name": "Widening Harp",
+      "description": "A harp rolls slow broken chords in C while a delay between the ears, rising from 1 to 20 milliseconds, keeps it on one side but widens it bar by bar. A flute sings in the centre with no delay at all, and rain falls outside.",
+      "category": "Time",
+      "tags": ["58 bpm", "C major", "itd", "harp", "flute"],
+      "source": "setcpm(58/4)\n\n// From about 1 to 30 ms a delay between the ears keeps the harp on the leading side but widens it\n// C, Am, F, G\nharp: note(\"<[c3 g3 e4 g3 c4 g3 e4 g3] [a2 e3 c4 e3 a3 e3 c4 e3] [f2 c3 a3 c3 f3 c3 a3 c3] [g2 d3 b3 d3 g3 d3 b3 d3]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(.002).decay(1.2).sustain(0).release(1.2)\n  .itd(\"<1 6 12 20>\").room(.5).gain(.22)\n\n// The flute sings in the centre, with no delay at all\nflute: note(\"<[e5@3 d5 c5@4] [c5@2 e5@2 a4@4] [a4@3 c5 f5@4] [d5@6 ~@2]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(4.5).vibdepth(.1)\n  .attack(.2).sustain(.6).release(1).room(.6).gain(.2)\n\n// A soft root, and rain heard through the glass\nbass: note(\"<c2 a1 f1 g1>\").s(\"sine\").attack(.2).sustain(.6).release(1).gain(.26)\nrain: s(\"rain\").slow(4).intensity(.3).occlude(.6).gain(.14)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "quiet-signal",
+      "name": "Quiet Signal",
+      "description": "Soft breaths of white noise that, between the ears, carry a slow phrase (Huggins pitch); each ear alone hears only hiss. A quiet sine plays the first phrase every four bars so you know what to listen for, over a soft pad and a singing bowl. The effect is faint and differs between listeners.",
+      "category": "Dichotic",
+      "tags": ["52 bpm", "G major", "dichotic", "Huggins pitch"],
+      "source": "setcpm(52/4)\n\n// Soft breaths of noise: the same in both ears, but one ear is phase-shifted in a narrow band\n// Neither ear alone hears a tone; together they carry a slow phrase\ntune: s(\"white*4\").dichotic(\"<[392 440 494 440] [330 392 440 392] [294 330 392 330] [392 392 392 392]>\")\n  .dichoticq(30).attack(.15).sustain(1).release(.3).gain(.1)\n\n// A quiet hint: the first phrase on a sine, once every four bars\nhint: note(\"<[g4 a4 b4 a4] ~ ~ ~>\").s(\"sine\")\n  .decay(.4).sustain(.2).release(.4).gain(.06)\n\n// A soft pad holding the key: G, Em, D, G\npad: note(\"<[g2,d3,b3] [e2,b2,g3] [d2,a2,f#3] [g2,d3,b3]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(1.5).sustain(.6).release(3)\n  .lpf(900).room(.6).gain(.12)\n\n// A singing bowl at the start of each phrase\nbowl: note(\"<g3 ~ ~ ~>\").s(\"sine\").fm(1.2).fmh(2.76)\n  .decay(6).sustain(0).release(6).space(\"hall\").gain(.12)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "beta-lantern",
+      "name": "Beta Lantern",
+      "description": "For alert, steady focus: a gentle marimba figure in A minor and a soft kick over a pad that sends alternate partials to each ear, complete only when both ears hear it, with a very quiet 14 Hz binaural drone in the beta range. The player asks before playing, as with any steady pulse.",
+      "category": "Beats",
+      "tags": ["72 bpm", "A minor", "binaural", "beta", "earsplit"],
+      "source": "setcpm(72/4)\n\n// A 14 Hz binaural beat in the beta range: each ear is detuned by 7 Hz. Keep it very quiet\ndrone: note(\"[a2,e3]\").slow(4).s(\"sine\").binaural(14)\n  .attack(3).sustain(1).release(4).gain(.07)\n\n// earsplit(\"harmonics\") alternates the pad's partials between the ears: Am, F, C, G\npad: note(\"<[a2,e3,c4] [f2,c3,a3] [c3,g3,e4] [g2,d3,b3]>\")\n  .s(\"sawtooth\").earsplit(\"harmonics\").lpf(1400)\n  .attack(1).sustain(.8).release(2).room(.5).gain(.1)\n\n// A gentle marimba figure, the same in both ears\nmarimba: n(\"0 2 4 2 5 4 2 4\").add(\"<0 -2 2 -1>\").scale(\"A:minor\").transpose(12)\n  .s(\"sine\").fm(.6).fmh(4).decay(.35).sustain(0).room(.3).gain(.18)\n\n// A soft kick on the downbeat and a centred root\nkick: s(\"bd ~ ~ ~\").lpf(200).gain(.3)\nbass: note(\"<a1 f1 c2 g1>\").s(\"sine\").attack(.1).sustain(.6).release(.8).gain(.26)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    },
+    {
+      "id": "pens-down",
+      "name": "Pens Down",
+      "description": "The end of the session: a music box in 3/4 floating a little above your head, over a 2 Hz binaural drone in the delta range, below the rates that trigger a pulse warning, with warm brown noise and crickets far away.",
+      "category": "Beats",
+      "tags": ["54 bpm", "3/4", "D major", "binaural", "delta"],
+      "source": "setcpm(54/3)\n\n// One cycle is a bar of 3/4\n// A 2 Hz binaural drone: each ear is detuned by 1 Hz, below the 3-30 Hz warning range\ndrone: note(\"[d2,a2]\").slow(8).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.22)\n\n// A music box floating a little above your head: D, A, Bm, G, D, G, A, D\nmusicbox: note(\"<[f#5 e5 d5] [e5@2 c#5] [d5 b4 f#4] [g4@3] [a4 d5 f#5] [g5@2 b4] [a4 c#5 e5] [d5@3]>\")\n  .s(\"sine\").fm(2).fmh(4).attack(.002).decay(1).sustain(0).release(1.5)\n  .elevation(30).distance(2).room(.6).size(.85).gain(.16)\n\n// A soft root on each downbeat\nbass: note(\"<d2 a1 b1 g1 d2 g1 a1 d2>\").s(\"triangle\").timbre(\"soft\")\n  .attack(.01).decay(1).sustain(0).release(1).gain(.18)\n\n// Warm brown noise and crickets far away\nbed: s(\"brown\").slow(8).lpf(400).gain(.07)\ncrickets: s(\"insect\").slow(4).distance(8).gain(.05)\n",
+      "savedAt": "2026-11-11T12:00:00.000Z"
+    }
+  ]
+}

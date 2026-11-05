@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "unthought",
+  "name": "Unthought Of",
+  "description": "Ideas nobody asked for and nobody had: a modem that falls in love mid-handshake, a lift whose music climbs with every floor, a lawnmower playing a concerto, a committee that only agrees every eight bars, a choir that sneezes, a tune with the memory of a goldfish, a melody that falls upwards, saucepans ringing changes like a bell tower, an office in seven against eleven, and the heat death of the universe, played once. Every sketch explains its trick in the comments.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Experimental",
+  "tags": ["experimental", "absurd", "weird", "concept", "showcase"],
+  "exportedAt": "2026-11-12T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "dial-up-romance",
+      "name": "Dial-Up Romance",
+      "description": "Two bars of a modem handshake (a sweeping carrier ring-modulated into a screech, and hiss crushed to three bits) then the line connects and a tenor sings a love song to it. It happens again every four bars.",
+      "category": "Absurd",
+      "tags": ["90 bpm", "G major", "ringmod", "crush", "voice"],
+      "source": "setcpm(90/4)\n\n// Bars 1 and 2 of every four: the handshake. The number is dialled...\ndialling: s(\"<[click*7] ~ ~ ~>\").hpf(1000).gain(.15)\n\n// ...then a carrier sweeps and warbles, ring-modulated into a screech\ncarrier: freq(saw.range(1200, 2400).fast(2).segment(16)).s(\"square\").pw(.3)\n  .ringmod(\"<300 1100 0 0>\").ringmix(.5).mask(\"<1 1 0 0>\")\n  .decay(.08).sustain(.6).release(.02).gain(.05)\n\n// Hiss crushed to three bits: the line negotiating\nhiss: s(\"white*16?0.5\").crush(3).hpf(2000).mask(\"<0 1 0 0>\").seed(\"modem\").gain(.06)\n\n// Connected: a chime, then a tenor sings a love song to the modem\nchime: note(\"<~ ~ [b5 g5 ~ ~] ~>\").s(\"sine\").fm(2).fmh(3.5).decay(.6).sustain(0).gain(.12)\nlover: note(\"<~ ~ [g4@3 a4 b4@4] [d5@3 c5 b4@4]>\")\n  .s(\"voice\").syl(\"<~ ~ [i@3 la vu@4] [mo@3 de ma@4]>\").voicetype(\"tenor\")\n  .mono(1).vglide(.1).attack(.08).release(.8).space(\"hall\").gain(.3)\n\n// Soft chords that only come in once the line is up: G, Em\nkeys: note(\"<~ ~ [g3,b3,d4] [e3,g3,b3,d4]>\").s(\"sine\").fm(1.1).fmh(2)\n  .attack(.2).decay(1).sustain(.4).release(1).room(.5).gain(.2)\nbass: note(\"<~ ~ g2 e2>\").s(\"sine\").attack(.05).sustain(.7).release(.5).gain(.3)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "express-to-the-penthouse",
+      "name": "Express to the Penthouse",
+      "description": "Lift music that climbs one scale degree per floor, with a floor ding that climbs along with it. On the top floor the band panics and plays twice as fast, then the lift drops back to the lobby.",
+      "category": "Processes",
+      "tags": ["84 bpm", "C major", "sequence", "bossa"],
+      "source": "setcpm(84/4)\n\n// sequence(1, 8) raises everything one degree more each bar, for eight floors, then back to the lobby\nmuzak: n(\"<[0 ~ 2 4] [5 4 2 ~]>\").sequence(1, 8).scale(\"C:major\").transpose(12)\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.1).attack(.05).sustain(.6).release(.3)\n  .room(.4).gain(.22)\n\n// The floor ding climbs with it\nding: n(\"[2 0] ~ ~ ~\").sequence(1, 8).scale(\"C:major\").transpose(24)\n  .s(\"sine\").fm(2).fmh(2.76).decay(1).sustain(0).release(1).gain(.12)\n\n// Polite bossa comping, also climbing\nkeys: n(\"[0,2,4,6]\").struct(\"~ ~ x ~ x ~ ~ x\").sequence(1, 8).scale(\"C:major\")\n  .s(\"triangle\").timbre(\"soft\").decay(.3).sustain(0).release(.3).pan(.4).gain(.18)\n\n// The band panics on the top floor: the last bar of every eight plays twice as fast\ndrums: s(\"rim ~ ~ rim ~ ~ rim ~, hh*8\").lastOf(8, x => x.hurry(2)).gain(.3)\n\n// The machinery: a hum in the shaft and the cable creaking now and then\nshaft: s(\"engine\").slow(8).lpf(300).gain(.1)\ncable: s(\"~ ~ ~ creak\").mask(\"<0 0 1 0 0 1 0 0>\").elevation(60).distance(3).gain(.12)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "lawnmower-concerto",
+      "name": "Lawnmower Concerto",
+      "description": "A concerto for two-stroke engine and orchestra: the mower takes the solo, pitched by note like any machine, over strings, horns and timpani. Grass clippings fly around you and the neighbour's dog objects from behind.",
+      "category": "Absurd",
+      "tags": ["100 bpm", "C major", "engine", "orchestral"],
+      "source": "setcpm(100/4)\n\n// The soloist: a lawnmower, pitched by note like any machine, right in front of you\nmower: note(\"<[c3@3 d3 e3@2 g3@2] [a3@4 g3@4] [f3@2 e3 d3 e3@2 c3@2] [d3@6 ~@2]>\")\n  .s(\"engine\").lpf(2400).distance(1.5).gain(.26)\n\n// The orchestra: C, Am, F, G\nstrings: note(\"<[c3,g3,e4] [a2,e3,c4] [f2,c3,a3] [g2,d3,b3]>\").s(\"sawtooth\").unison(5).detune(18)\n  .attack(.4).sustain(1).release(1.2).lpf(2200).room(.6).gain(.12)\nhorns: note(\"<~ [e4@2 g4@2] ~ [d4@2 b3@2]>\").s(\"sawtooth\").lpf(900).lpenv(1).lpattack(.1)\n  .attack(.1).sustain(.8).release(.6).space(\"hall\").gain(.18)\ntimpani: note(\"<[c2 ~ g1 ~] [a1 ~ e2 ~] [f1 ~ c2 ~] [g1 g1 g1 g1]>\").s(\"sine\").fm(1.2).fmh(1.5)\n  .penv(2).pdecay(.06).decay(1).sustain(0).release(1).space(\"hall\").gain(.4)\n\n// Grass clippings flying all around you\nclippings: s(\"click*16?0.4\").hpf(4000).azimuth(rand.range(-180, 180)).distance(2)\n  .seed(\"clippings\").gain(.08)\n\n// The neighbour's dog objects, from behind the fence\ndog: note(\"<~ ~ ~ [~ ~ a2 a2]>\").s(\"voice\").syl(\"wuf\").voicetype(\"bass\").fry(.8)\n  .attack(.01).release(.2).azimuth(150).distance(5).gain(.24)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "committee-meeting",
+      "name": "Committee Meeting",
+      "description": "Everyone reads the same sentence at once, each at their own speed, so it is babble, except every eight bars, when converge brings them all to the start together, a choir agrees and the gavel comes down.",
+      "category": "Voices",
+      "tags": ["96 bpm", "D dorian", "converge", "voices"],
+      "source": "setcpm(96/4)\n\n// One sentence, read aloud by the whole committee at four speeds at once\n// converge shifts the copies so they all start the sentence together every eight bars\ncommittee: n(\"0 2 1 3 2 4 3 1\").scale(\"D:dorian\").transpose(12)\n  .s(\"voice\").syl(\"<[wa ra ba la ma da na po] [mo re ko re ti me nu to]>\").voicetype(\"tenor\")\n  .converge(8, 1, 9/8, 5/4, 4/3).attack(.02).release(.2).room(.4).gain(.12)\n\n// The rare moment of consensus\nconsensus: note(\"<[d3,f3,a3,c4] ~ ~ ~ ~ ~ ~ ~>\").s(\"choir\").syl(\"ah\")\n  .attack(.2).release(2).space(\"hall\").gain(.3)\n\n// The chair brings the gavel down just before it\ngavel: s(\"<~ ~ ~ ~ ~ ~ ~ [~ ~ lt lt]>\").speed(1.8).lpf(2000).room(.4).gain(.5)\n\n// Someone takes the minutes on your left; the projector hums behind you\nminutes: s(\"click*16?0.6\").hpf(2500).azimuth(-70).distance(2).seed(\"minutes\").gain(.1)\nprojector: s(\"engine\").slow(8).lpf(500).azimuth(170).distance(4).gain(.08)\n\n// Quiet hold music under it all\nbass: note(\"<d2 c2 bb1 c2>\").s(\"sine\").attack(.05).sustain(.6).release(.5).gain(.28)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "sneeze-cantata",
+      "name": "Sneeze Cantata",
+      "description": "A choir swells on three rising chords, ah, ah, ah, then the sneeze: a burst of noise and a whispered shoo. A bass voice says bless you, the organ carries on as if nothing happened.",
+      "category": "Voices",
+      "tags": ["72 bpm", "C major", "choir", "syllables"],
+      "source": "setcpm(72/4)\n\n// Ah... ah... ah...: three chords, each swelling higher and slower to arrive\nchoir: note(\"<[c4,e4,g4] [d4,f#4,a4] [e4,g#4,b4] ~>\").s(\"choir\").syl(\"ah\")\n  .attack(\"<1 1.5 2.5 0>\").release(.2).space(\"church\").gain(.3)\n\n// The sneeze: a burst of noise and a whispered shoo\nburst: s(\"<~ ~ ~ [white ~ ~ ~]>\").hpf(1500).decay(.25).sustain(0).room(.5).gain(.3)\nshoo: s(\"<~ ~ ~ [whisper ~ ~ ~]>\").syl(\"shoo\").gain(.4)\n\n// Bless you, from the back row\nbless: note(\"<~ ~ ~ [~ ~ ~ ~ ~ ~ c3 g2]>\").s(\"voice\").syl(\"<~ ~ ~ [~ ~ ~ ~ ~ ~ ble su]>\")\n  .voicetype(\"bass\").mono(1).vglide(.05).release(.4).azimuth(150).distance(4).gain(.26)\n\n// The organ pretends nothing happened\norgan: note(\"<c2 d2 e2 c2>\").s(\"sawtooth\").timbre(\"organ\").lpf(500)\n  .attack(.3).sustain(.8).release(1).space(\"church\").gain(.2)\n\n// A tissue, pulled from the box\ntissue: s(\"<~ ~ ~ [~ ~ ~ ~ pink ~ ~ ~]>\").hpf(3000).decay(.15).sustain(0).gain(.05)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "goldfish-memory",
+      "name": "Goldfish Memory",
+      "description": "A tune that forgets itself: subtractive drops one more note every bar, a random forgetting grows over sixteen bars, and a second fish only remembers the first quarter of each bar and keeps repeating it. Bubbles rise and the filter hums.",
+      "category": "Processes",
+      "tags": ["72 bpm", "E major", "subtractive", "env", "linger"],
+      "source": "setcpm(72/4)\n\nconst tune = n(\"0 2 4 5 7 5 4 2\").scale(\"E:major\").transpose(12)\n\n// subtractive plays one note fewer every bar; degradeBy forgets at random, more and more over sixteen bars\nmemory: tune.subtractive(8).degradeBy(env(\"0 .9\", 16)).seed(\"goldfish\")\n  .s(\"triangle\").timbre(\"glass\").decay(.3).sustain(0).release(.5).room(.5).gain(.22)\n\n// The other fish only remembers the first quarter of every bar, and keeps repeating it\nfriend: tune.octave(-1).linger(.25)\n  .s(\"sine\").fm(.6).fmh(4).decay(.3).sustain(0).pan(.7).gain(.16)\n\n// The tank: bubbles rising, the filter humming, a little plastic castle\nbubbles: s(\"drip*8?0.5\").speed(rand.range(1.5, 3)).elevation(saw.range(-30, 50))\n  .distance(2).seed(\"bubbles\").gain(.1)\nfilter: s(\"brown\").slow(8).lpf(300).gain(.1)\ncastle: note(\"<e2 ~ b1 ~>\").s(\"sine\").attack(.5).sustain(.8).release(2).gain(.24)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "gravity-fails",
+      "name": "Gravity Fails",
+      "description": "A melody stated, then inverted so it falls upwards, then played backwards, then both. Raindrops fall up past your ears on rising pitch envelopes, and the drums run in reverse.",
+      "category": "Motifs",
+      "tags": ["80 bpm", "F major", "invert", "retro", "elevation"],
+      "source": "setcpm(80/4)\n\nconst subject = n(\"<[0 2 4 7] [5 4 2 0]>\")\n\n// A: as written. B: upside down. C: backwards. D: upside down and backwards\nlead: form(\"A@4 B@4 C@4 D@4\", subject, subject.invert(4), subject.retro(2), subject.invert(4).retro(2))\n  .scale(\"F:major\").transpose(12)\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.1).attack(.04).sustain(.6).release(.3)\n  .room(.5).gain(.22)\n\n// Raindrops falling up: a pitch envelope that rises, and an elevation that climbs past your ears\ndrops: note(\"c5*8?0.5\").s(\"sine\").penv(-24).pdecay(.15).decay(.15).sustain(0)\n  .elevation(saw.range(-60, 80)).azimuth(rand.range(-90, 90)).distance(2)\n  .seed(\"updraft\").gain(.12)\n\n// The drums, in reverse\ndrums: s(\"bd ~ [~ bd] ~, ~ sd ~ [sd sd], hh*8\").rev().gain(.4)\n\n// A pad floating up out of reach\npad: note(\"<[f3,a3,c4] [bb2,d3,f3] [c3,e3,g3] [f3,a3,c4]>\").s(\"sawtooth\").unison(3).detune(.2)\n  .elevation(40).distance(3).attack(1).release(2).lpf(1400).room(.6).gain(.12)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "kitchen-bell-tower",
+      "name": "Kitchen Bell Tower",
+      "description": "Six saucepans hung from a rack ring plain hunt, a new order every bar, coming back to rounds after twelve. Wooden spoons run through every ordering of four pots, the fridge hums and the blender joins in every fourth bar.",
+      "category": "Generators",
+      "tags": ["96 bpm", "C major", "ring", "permute", "body"],
+      "source": "setcpm(96/4)\n\n// Six saucepans, highest first: metallic FM inside a can body, ringing plain hunt\npans: note(\"g5 e5 d5 c5 a4 g4\").ring(\"plainhunt\", 6)\n  .s(\"sine\").fm(5).fmh(1.41).decay(.8).sustain(0).release(.8)\n  .body(\"can\").bodymix(.5).room(.4).gain(.2)\n\n// Wooden spoons on four pots, in a different ordering each bar\nspoons: s(\"rim lt mt ht\").permute(4, \"<0 7 13 22>\").speed(1.4).lpf(3000).gain(.3)\n\n// The fridge hums with a whistling overtone\nfridge: note(\"b1\").slow(8).s(\"hum\").overtone(5).gain(.12)\n\n// The blender joins in every fourth bar\nblender: s(\"engine\").slow(2).lpf(2500).mask(\"<0 0 0 1>\").gain(.1)\n\n// A low pot for a bass, and the oven clock\nbass: note(\"<c2 g1 a1 f1>\").s(\"sine\").fm(1.2).fmh(1.5).decay(.6).sustain(.2).gain(.3)\nclock: s(\"tick*4\").gain(.06)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "please-take-a-number",
+      "name": "Please Take a Number",
+      "description": "An office in seven against eleven: rubber stamps in seven, typewriters in eleven, a phone that rings and rings, hold music through the wall, a clerk calling next and a buzzer that rejects your form every eight bars.",
+      "category": "Absurd",
+      "tags": ["112 bpm", "A minor", "polymeter", "voices"],
+      "source": "setcpm(112/4)\n\n// Rubber stamps in a cycle of seven, typewriters in a cycle of eleven, sharing one step size\nstamps: s(\"{lt ~ lt lt ~ lt ~}%8\").speed(1.5).lpf(1500).azimuth(-40).distance(2).gain(.4)\ntypewriter: s(\"{click click click click click click click click click click tick}%16\")\n  .hpf(2000).azimuth(50).distance(2).gain(.14)\n\n// The carriage-return bell\nreturn: note(\"<~ ~ ~ [~ ~ ~ c6]>\").s(\"sine\").fm(3).fmh(3.5).decay(.8).sustain(0).azimuth(50).gain(.12)\n\n// The phone rings and rings, and nobody answers\nphone: note(\"<[e5,g5] ~ [e5,g5] ~>\").s(\"sine\").trem(20).tremdepth(1)\n  .sustain(1).release(.05).azimuth(110).distance(4).gain(.06)\n\n// Hold music, crushed and heard through the wall\nhold: n(\"<[0 2 4 2] [3 2 1 ~]>\").scale(\"A:minor\").transpose(12).s(\"square\").pw(.3)\n  .crush(6).occlude(.6).decay(.2).sustain(.4).gain(.14)\n\n// The clerk calls next, and the buzzer rejects your form every eight bars\nclerk: note(\"<~ [a3 e3] ~ ~>\").s(\"voice\").syl(\"<~ [nek sto] ~ ~>\").voicetype(\"alto\")\n  .release(.3).distance(3).gain(.24)\nbuzzer: note(\"c2\").s(\"square\").mask(\"<0 0 0 0 0 0 0 1>\").lpf(900).sustain(1).gain(.12)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "heat-death",
+      "name": "Heat Death of the Universe",
+      "description": "Listen through once. Eight bars of stars, eight of dust, eight of almost nothing: the melody slows and thins, the pad cools and closes, the background noise spreads from a point in your head to everywhere and the last protons decay. Then a 2 Hz binaural drone hums in the void, below the rates that trigger a pulse warning, and fades too.",
+      "category": "Form",
+      "tags": ["60 bpm", "C major pentatonic", "once", "env", "binaural"],
+      "source": "setcpm(60/4)\n\n// The universe, played once: eight bars of stars, eight of dust, eight of almost nothing\nconst stars = n(\"0 2 4 7 9 7 4 2\").scale(\"C:major pentatonic\").transpose(12)\nlight: form(\"A@8 B@8 C@8\", stars, stars.slow(2).degradeBy(.4), stars.slow(8).degradeBy(.8)).once()\n  .s(\"triangle\").timbre(\"glass\").decay(.4).sustain(0).release(1.5)\n  .room(.8).size(.95).seed(\"entropy\").gain(.18)\n\n// The pad cools over twenty-four bars: its filter closes as it fades\npad: note(\"<[c3,g3,e4] [a2,e3,c4] [f2,c3,a3] [g2,d3,b3]>\").s(\"sawtooth\").unison(3).detune(.2)\n  .lpf(env(\"2400 200\", 24)).attack(1).release(2).room(.7).gain(.12).fadeout(8, 16).exit(24)\n\n// Background radiation: the noise spreads from one point in your head to everywhere\nradiation: s(\"pink\").icorr(env(\"1 0\", 24)).hpf(1000).lpf(4000).gain(.03).exit(28)\n\n// The last protons decaying, fewer and fewer\nprotons: s(\"click*16\").degradeBy(env(\".5 1\", 24)).hpf(3000)\n  .azimuth(rand.range(-180, 180)).distance(4).seed(\"protons\").gain(.1).exit(24)\n\n// The void hums: a 2 Hz binaural drone, below the 3-30 Hz warning range, then nothing at all\nnothing: note(\"[c1,g1]\").s(\"sine\").binaural(2).attack(4).sustain(1).release(6)\n  .enter(8).gain(.2).fadeout(8, 24).exit(32)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    }
+  ]
+}

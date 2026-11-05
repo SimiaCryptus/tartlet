@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "binaural-nature",
+  "name": "Binaural Nature",
+  "description": "Nature music for headphones: places built from ambiences, creatures and weather, each using the two ears as part of the scene. Rain falling around your head, a brook that runs past you, crickets hopping from ear to ear, a sea cave whose hum opens from a point into the rock, a storm that crosses overhead, a campfire under turning stars, a dawn chorus placed all around, wind wandering through the pines, a whale circling beneath you and a tune hidden in a spring. Each sketch explains its trick in the comments. Headphones on, volume low.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Headphones",
+  "tags": ["nature", "binaural", "headphones", "spatial", "ambience"],
+  "exportedAt": "2026-11-10T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "rain-canopy",
+      "name": "Rain Canopy",
+      "description": "Headphones on: rain on the leaves above you, drops falling at random points around your head, a fine mist that differs in each ear and a 2 Hz delta drone under a soft D minor pad.",
+      "category": "Rain",
+      "tags": ["60 bpm", "D minor", "azimuth", "icorr", "binaural"],
+      "source": "setcpm(60/4)\n\n// Rain on the leaves above you\nrain: s(\"rain\").slow(4).intensity(.5).elevation(40).distance(3).gain(.26)\n\n// A fine mist: unrelated pink noise in each ear, wide and all around\nmist: s(\"pink\").slow(8).icorr(.1).hpf(3000).lpf(8000).gain(.025)\n\n// Drops falling from the canopy at random points around your head\ndrips: s(\"drip*8?0.5\").azimuth(rand.range(-180, 180)).elevation(rand.range(0, 60))\n  .distance(rand.range(1, 4)).seed(\"canopy\").gain(.18)\n\n// A 2 Hz binaural drone: each ear is detuned by 1 Hz, below the 3-30 Hz warning range\ndrone: note(\"<d2 d2 bb1 c2>\").slow(2).s(\"sine\").binaural(2)\n  .attack(3).sustain(1).release(4).gain(.24)\n\n// A soft pad: Dm, Bb, Gm, A\npad: note(\"<[d3,a3,f4] [bb2,f3,d4] [g2,d3,bb3] [a2,e3,c#4]>\").slow(2)\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(900)\n  .attack(2).release(3).room(.7).gain(.12)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "brook-crossing",
+      "name": "Brook Crossing",
+      "description": "A brook runs past you from left to right, a wren sings on the far bank and a thrush behind you, while a pluck sways between your ears on delays under a millisecond, like stepping from stone to stone.",
+      "category": "Water",
+      "tags": ["72 bpm", "G major", "azimuth", "itd"],
+      "source": "setcpm(72/4)\n\n// A brook running past you from left to right every eight bars\nbrook: s(\"stream\").slow(4).azimuth(saw.range(-120, 120).slow(8)).distance(2).posglide(.5).gain(.24)\nbreeze: s(\"wind\").slow(8).intensity(.2).gain(.07)\n\n// A wren on the far bank, a thrush behind you\nwren: s(\"bird\").slow(3).azimuth(70).distance(5).gain(.24)\nthrush: s(\"bird\").slow(5).azimuth(-150).elevation(20).distance(6).gain(.18)\n\n// Stepping stones: under about 0.7 ms, a delay between the ears moves the pluck sideways\nstones: n(\"0 2 4 7 4 2 0 ~\").scale(\"G:major pentatonic\").transpose(12)\n  .s(\"triangle\").timbre(\"bright\").itd(sine.range(-.6, .6).slow(4))\n  .decay(.3).sustain(0).release(.4).room(.4).gain(.2)\n\n// A soft centred bass, with no delay at all: G, Em, C, D\nbass: note(\"<g2 e2 c2 d2>\").s(\"sine\").attack(.2).sustain(.7).release(.8).gain(.28)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "night-meadow",
+      "name": "Night Meadow",
+      "description": "Headphones on: crickets all around, close chirps hopping between your ears, frogs at a pond behind you and an owl far off, under slow choir chords and a 4 Hz binaural beat in the theta range. The player asks before playing, as with any steady pulse.",
+      "category": "Night",
+      "tags": ["56 bpm", "A minor", "ild", "earswap", "binaural"],
+      "source": "setcpm(56/4)\n\n// Crickets in the grass on both sides\ngrass: s(\"insect\").slow(4).azimuth(-100).distance(4).gain(.08)\nfield: s(\"insect\").slow(4).azimuth(110).distance(6).gain(.07)\n\n// Close chirps: ild makes the right ear louder; earswap flips the steps marked 1 to the left\nchirps: s(\"click*8?0.5\").hpf(4000).ild(9).earswap(\"0 1 1 0 1 0 0 1\").seed(\"meadow\").gain(.08)\n\n// Frogs at the pond behind you, and an owl far off to the left\nfrogs: s(\"click*4?0.4\").lpf(1200).azimuth(170).distance(5).seed(\"pond\").gain(.1)\nowl: note(\"<~ [~ ~ a3 [a3 e3]] ~ ~>\").s(\"hum\").azimuth(-70).distance(8)\n  .attack(.05).release(.5).gain(.12)\n\n// A 4 Hz binaural beat in the theta range: keep the volume low\ndrone: note(\"<a1 a1 f1 g1>\").slow(2).s(\"sine\").binaural(4)\n  .attack(3).sustain(1).release(4).gain(.22)\n\n// Slow choir chords under the stars: Am, F, Dm, E\nchoir: note(\"<[a2,e3,c4] [f2,c3,a3] [d3,f3,a3] [e2,b2,g#3]>\").slow(2)\n  .s(\"choir\").syl(\"<oo ah oo oh>\").attack(3).release(4).space(\"hall\").gain(.18)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "sea-cave",
+      "name": "Sea Cave",
+      "description": "Inside a sea cave: waves heard through the rock, water dripping from the roof at points around you, a hum that steps from the centre of your head out into the stone, and bells of light from the entrance drifting apart in cents. On speakers the 180-degree bars of the hum nearly vanish.",
+      "category": "Sea",
+      "tags": ["48 bpm", "A minor", "iphase", "earsh", "occlude"],
+      "source": "setcpm(48/4)\n\n// The sea outside, heard through the rock\nsurf: s(\"surf\").slow(8).intensity(.5).occlude(.5).gain(.3)\n\n// Water dripping from the roof at points around you, in a stone space\ndrips: s(\"drip*8?0.6\").azimuth(rand.range(-180, 180)).elevation(rand.range(20, 70))\n  .distance(rand.range(1, 3)).seed(\"cave\").space(\"church\").room(.5).gain(.16)\n\n// The cave hum: 0 degrees centred, 90 looser, 180 diffuse and nearly gone in mono\nhum: note(\"[a1,e2]\").s(\"triangle\").iphase(\"<0 90 180 90>\")\n  .attack(2).sustain(1).release(2).gain(.22)\n\n// Bells of light from the entrance: earsh raises the right ear and lowers the left by 6 cents each\nlight: note(\"<e5 ~ b4 ~ c5 ~ a4 ~>\").s(\"sine\").fm(2).fmh(2.76).earsh(12)\n  .decay(3).sustain(0).release(3).space(\"church\").gain(.1)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "storm-overhead",
+      "name": "Storm Overhead",
+      "description": "Headphones on: eight bars of a storm that comes in from your left, passes right over your head and rolls away behind you. The rain swells and fades, and the gusts are wide and enveloping.",
+      "category": "Weather",
+      "tags": ["80 bpm", "E minor", "azimuth", "elevation", "icorr"],
+      "source": "setcpm(80/4)\n\n// Eight bars: the storm comes in from your left, passes overhead and rolls away behind you\nrain: s(\"rain\").intensity(\"<.25 .35 .55 .8 .8 .6 .4 .25>\").gain(.28)\n\n// Thunder moves bar by bar: around you, up overhead and closer, then away\nthunder: s(\"<[~ lt] ~ [lt ~ ~ lt] lt [lt lt ~ lt] lt ~ [~ lt]>\").speed(.5).lpf(300)\n  .azimuth(\"<-120 -90 -45 0 30 90 140 170>\").elevation(\"<10 20 45 70 70 45 20 10>\")\n  .distance(\"<9 7 4 2 2 4 7 9>\").room(.9).size(.95).gain(.5)\n\n// Gusts: unrelated noise in each ear, wide and enveloping, rising and falling with the storm\nwind: s(\"pink\").icorr(.15).hpf(200).lpf(sine.range(400, 2000).slow(8))\n  .gain(\"<.03 .05 .08 .12 .12 .08 .05 .03>\")\n\n// A dark pad and a slow bass underneath: Em, C, Am, B\npad: note(\"<[e3,b3,d4] [e3,b3,d4] [c3,g3,b3] [c3,g3,b3] [a2,e3,c4] [a2,e3,c4] [b2,f#3,a3] [e3,b3,d4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2).lpf(sine.range(500, 1600).slow(8))\n  .attack(.6).release(1.5).room(.6).gain(.14)\nbass: note(\"<e2 e2 c2 c2 a1 a1 b1 e2>\").s(\"sine\").attack(.3).sustain(.8).release(1).gain(.3)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "campfire-stars",
+      "name": "Campfire Stars",
+      "description": "A fire in front of you, crickets in the dark, an owl behind and stars twinkling high above, while a drone's phase turns slowly between your ears and a guitar widens bar by bar. All rates stay below 3 Hz.",
+      "category": "Night",
+      "tags": ["52 bpm", "D minor", "irate", "itd", "elevation"],
+      "source": "setcpm(52/4)\n\n// The fire in front of you, the woods all around\nfire: s(\"fire\").slow(4).intensity(.35).density(6).distance(1.5).gain(.24)\ncrickets: s(\"insect\").slow(4).azimuth(-100).distance(6).gain(.06)\nowl: note(\"<[~ ~ d4 [d4 a3]] ~ ~ ~>\").s(\"hum\").azimuth(150).distance(7)\n  .attack(.05).release(.5).gain(.14)\n\n// irate turns the phase between the ears, in turns per second\n// All rates stay below 3 Hz, so no pulse warning is needed\ndrone: note(\"[d2,a2]\").s(\"sine\").irate(\"<.25 .5 1 .5>\")\n  .attack(1).sustain(1).release(1).gain(.24)\n\n// From about 1 to 30 ms the guitar stays on the leading side but grows wider each bar\nguitar: note(\"<[d3 a3 d4 f4 a4 f4 d4 a3] [bb2 f3 bb3 d4 f4 d4 bb3 f3] [c3 g3 c4 e4 g4 e4 c4 g3] [a2 e3 a3 c#4 e4 c#4 a3 e3]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(.005).decay(.8).sustain(0).release(1)\n  .itd(\"<1 6 12 6>\").lpf(2200).room(.4).gain(.2)\n\n// Stars twinkling high above, each in its own place\nstars: n(irand(8).segment(8)).scale(\"D:minor pentatonic\").transpose(24)\n  .degradeBy(.8).seed(\"embers\")\n  .s(\"sine\").decay(.2).sustain(0).release(.5)\n  .azimuth(rand.range(-180, 180)).elevation(60).distance(4).room(.6).gain(.08)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "dawn-chorus",
+      "name": "Dawn Chorus",
+      "description": "Headphones on: the dawn chorus placed all around you, with a lark rising and crossing high overhead, a morning flute and harp straight ahead, and a quiet 10 Hz binaural beat in the alpha range for waking gently. The player asks before playing, as with any steady pulse.",
+      "category": "Birdsong",
+      "tags": ["84 bpm", "G major", "azimuth", "posglide", "binaural"],
+      "source": "setcpm(84/4)\n\n// The dawn chorus all around you: each bird has its own place\nrobin: s(\"bird\").slow(2).azimuth(-40).distance(3).gain(.26)\nwren: s(\"bird\").slow(3).azimuth(60).elevation(25).distance(4).gain(.22)\nblackbird: s(\"bird\").slow(5).azimuth(150).distance(6).gain(.18)\n\n// A lark crossing high overhead, gliding between positions\nlark: s(\"bird\").slow(4).azimuth(saw.range(-90, 90).slow(16)).elevation(50).distance(8).posglide(.5).gain(.16)\n\n// A dove cooing behind you on the left\ndove: note(\"<[~ e4 [e4 c4] ~] ~>\").s(\"hum\").azimuth(-120).distance(5)\n  .attack(.05).release(.4).gain(.12)\n\n// A 10 Hz binaural beat in the alpha range: keep it quiet\ndrone: note(\"<g2 g2 e2 c2>\").slow(2).s(\"sine\").binaural(10)\n  .attack(3).sustain(1).release(4).gain(.16)\n\n// A morning flute and a harp, straight ahead: G, Em, C, D\nflute: note(\"<[g4@2 a4 b4 d5@3 b4] [e5@2 d5 b4 g4@4] [e4 g4 a4 b4 a4@2 g4 e4] [d4@6 ~@2]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.12)\n  .attack(.06).sustain(.6).release(.5).delay(.25).delaytime(3/8).room(.5).gain(.24)\nharp: note(\"<[g3 b3 d4 b3] [e3 g3 b3 g3] [c4 e4 g4 e4] [d3 f#3 a3 f#3]>\")\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(0).release(.5).room(.5).gain(.2)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "pine-wind",
+      "name": "Pine Wind",
+      "description": "Wind through a pine forest: nothing is panned, yet the gusts wander between your ears, as each ear has its own low-pass sweeping the other way. Trunks creak around you, a woodpecker drums far off and a pad sends alternate partials to each ear, complete only when both ears hear it.",
+      "category": "Forest",
+      "tags": ["60 bpm", "E minor", "lcutoff", "rcutoff", "earsplit"],
+      "source": "setcpm(60/4)\n\n// Wind through the pines: each ear has its own low-pass, sweeping in opposite directions\n// The level stays put; only the brightness of the gusts wanders between the ears\nwind: s(\"pink*4\").hpf(200).attack(.2).release(.4)\n  .lcutoff(saw.range(500, 3000).slow(8)).rcutoff(isaw.range(500, 3000).slow(8)).gain(.06)\n\n// Trunks creaking around you, a woodpecker far to the right, a jay behind\ntrunks: s(\"~ ~ creak ~\").mask(\"<1 0 0 1 0 1 0 0>\")\n  .azimuth(\"<-60 80 -120 30 150 -30 90 -150>\").distance(4).gain(.14)\nwoodpecker: s(\"rim*8 ~ ~ ~\").mask(\"<0 1 0 0 0 0 1 0>\").speed(2).lpf(3000)\n  .azimuth(80).distance(7).gain(.16)\njay: s(\"bird\").slow(6).azimuth(-140).elevation(30).distance(6).gain(.14)\n\n// earsplit(\"harmonics\") alternates the partials between the ears: each ear hears a thinner chord\npad: note(\"<[e3,b3,e4,g4] [c3,g3,c4,e4] [d3,a3,d4,f#4] [b2,f#3,b3,d4]>\").slow(2)\n  .s(\"sawtooth\").earsplit(\"harmonics\").lpf(1600)\n  .attack(2).sustain(1).release(3).room(.6).gain(.12)\n\n// A wooden flute, the same in both ears\nflute: note(\"<[b4@3 a4] [g4@2 e4@2] [a4@3 f#4] [e4@4]>\")\n  .s(\"sine\").timbre(\"hollow\").vib(4.5).vibdepth(.12)\n  .attack(.3).sustain(.6).release(1).room(.6).gain(.2)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "whale-song",
+      "name": "Whale Song",
+      "description": "Headphones on: beneath the waves, a whale circles slowly below you, gliding from note to note, while a calf answers from the other side, bubbles rise past your ears and a 2 Hz binaural drone hums in the deep.",
+      "category": "Sea",
+      "tags": ["44 bpm", "D minor", "azimuth", "elevation", "binaural"],
+      "source": "setcpm(44/4)\n\n// The open sea far above you\nsurf: s(\"surf\").slow(8).intensity(.3).elevation(50).distance(4).gain(.22)\n\n// The deep: a 2 Hz binaural drone, below the 3-30 Hz warning range\ndeep: note(\"<d1 d1 bb0 c1>\").slow(4).s(\"sine\").binaural(2)\n  .attack(4).sustain(1).release(6).gain(.28)\n\n// A whale circling slowly beneath you once every sixteen bars, gliding from note to note\nwhale: note(\"<[d3@2 a3@4 g3@2] ~ [f3@3 c4@3 a3@2] ~>\").s(\"sine\").timbre(\"hollow\")\n  .mono(1).glide(.4).vib(3).vibdepth(.2).attack(.6).sustain(.8).release(2)\n  .azimuth(saw.range(-180, 180).slow(16)).elevation(-30).distance(8).posglide(1)\n  .room(.8).gain(.2)\n\n// A calf answers from the other side\ncalf: note(\"<~ [a4@3 d5@5] ~ [g4@4 c5@4]>\").s(\"sine\").timbre(\"hollow\")\n  .mono(2).glide(.3).vib(4).vibdepth(.2).attack(.4).sustain(.6).release(1.5)\n  .azimuth(120).elevation(-20).distance(10).room(.8).gain(.12)\n\n// Bubbles rising past your ears\nbubbles: s(\"drip*8?0.3\").azimuth(rand.range(-180, 180)).elevation(rand.range(-40, 40))\n  .distance(1.5).seed(\"bubbles\").gain(.1)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    },
+    {
+      "id": "hidden-spring",
+      "name": "Hidden Spring",
+      "description": "A spring bubbling up in a clearing. The splashes are white noise, but between the ears they carry a faint tune (Huggins pitch); each ear alone hears only water. A quiet sine plays the first phrase every four bars so you know what to listen for. The effect is faint and differs between listeners.",
+      "category": "Water",
+      "tags": ["60 bpm", "G major", "dichotic", "Huggins pitch"],
+      "source": "setcpm(60/4)\n\n// The spring bubbling up nearby, a breeze and a bird in the trees\nspring: s(\"stream\").slow(4).azimuth(-30).distance(2).gain(.2)\nbreeze: s(\"wind\").slow(8).intensity(.15).gain(.06)\nbird: s(\"bird\").slow(4).azimuth(60).elevation(20).distance(6).gain(.16)\n\n// Splashes: the same noise in both ears, but one ear is phase-shifted in a narrow band\n// Neither ear alone hears a tone; together they hear a faint tune in the water\ntune: s(\"[~ white]*4\").dichotic(\"<[392 440 494 587] [523 494 440 392] [330 392 440 494] [440 392 330 294]>\")\n  .dichoticq(30).attack(.01).sustain(1).release(.08).gain(.12)\n\n// A quiet hint: the first phrase on a sine, once every four bars\nhint: note(\"<[~ g4 ~ a4 ~ b4 ~ d5] ~ ~ ~>\").s(\"sine\")\n  .decay(.3).sustain(.2).release(.2).gain(.08)\n\n// A soft pad holding the key: G, C, Em, D\npad: note(\"<[g2,d3,b3] [c3,g3,e4] [e2,b2,g3] [d3,a3,f#4]>\")\n  .s(\"triangle\").timbre(\"soft\").attack(1).sustain(.6).release(2)\n  .lpf(1000).room(.6).gain(.14)\n",
+      "savedAt": "2026-11-10T12:00:00.000Z"
+    }
+  ]
+}
