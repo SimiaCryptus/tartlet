@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tartlet sound effects demo</title>
+  </head>
+  <body>
+    <header class="hero">
+      <h1>Sound effects with Tartlet</h1>
+      <p>Every sound on this page is a few lines of Tartlet source, compiled once and played on page events.</p>
+      <p id="audio-status" class="status" role="status" aria-live="polite">Click anywhere to turn sound on.</p>
+      <label class="mute"><input id="mute" type="checkbox" /> Mute</label>
+    </header>
+
+    <main class="grid">
+      <section class="card" data-sfx-hover="hover">
+        <h2>Buttons</h2>
+        <p>Each button has a <code>data-sfx</code> attribute naming its sound.</p>
+        <div class="row">
+          <button type="button" data-sfx="like">Like</button>
+          <button type="button" data-sfx="save">Save</button>
+          <button type="button" data-sfx="success">Success</button>
+          <button type="button" data-sfx="error">Error</button>
+          <button type="button" data-sfx="delete">Delete</button>
+          <button type="button" data-sfx="notify">Notify</button>
+        </div>
+      </section>
+
+      <section class="card" data-sfx-hover="hover">
+        <h2>Mouse clicks</h2>
+        <p>Higher clicks play higher notes; left and right set the stereo position.</p>
+        <div id="pad" class="pad">Click or tap anywhere in here</div>
+      </section>
+
+      <section class="card" data-sfx-hover="hover">
+        <h2>Form controls</h2>
+        <label class="switch"><input id="toggle" type="checkbox" /> Notifications</label>
+        <p>Type to hear ticks, then press Enter to send.</p>
+        <input id="typing" type="text" placeholder="Type a message" autocomplete="off" />
+      </section>
+
+      <section class="card" data-sfx-hover="hover">
+        <h2>Try your own</h2>
+        <p>Edit the source and press Play (or Ctrl+Enter).</p>
+        <textarea id="custom" spellcheck="false" aria-label="Tartlet source">
+setcps(2)
+$: note("c5 e5 g5 c6").s("sine").decay(.1).sustain(0).room(.3)</textarea
+        >
+        <button id="custom-play" type="button" class="primary">Play</button>
+        <ul id="custom-diags" class="diags"></ul>
+      </section>
+
+      <section class="card wide">
+        <h2>Last sound: <span id="last-name">none yet</span></h2>
+        <pre><code id="last-code">Trigger something above to see its source.</code></pre>
+      </section>
+
+      <section class="card wide">
+        <h2>How it works</h2>
+        <p>
+          <code>src/sfx.ts</code> checks and compiles a source once, reads the notes of its first cycle and plays
+          them through Tartlet's audio engine. Wiring a sound to an event takes one line:
+        </p>
+        <pre><code>import { TartletSfx } from './sfx';
+
+const sfx = new TartletSfx();
+button.addEventListener('click', () => {
+  void sfx.play('setcps(3)\n$: note("e5 b5").s("triangle").decay(.12).sustain(0)');
+});</code></pre>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

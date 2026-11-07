@@ -1,0 +1,22 @@
+{
+  "name": "sfx-demo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4174"
+  },
+  "dependencies": {
+    "@tartlet/check": "workspace:*",
+    "@tartlet/core": "workspace:*",
+    "@tartlet/ir": "workspace:*",
+    "@tartlet/time": "workspace:*",
+    "@tartlet/webaudio": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

@@ -120,6 +120,8 @@ To use it in a page:
 - `apps/playground/`: the Vite demo app, deployed to S3 and CloudFront by `deploy.sh`.
   `albums/` holds the bundled album catalog
 - `collection/`: the optional shared sample collection, served as `/samples/` next to the
+- `apps/sfx-demo/`: a compact page that adds Tartlet sound effects to button presses, mouse
+  clicks and typing (`pnpm --filter sfx-demo dev`)
   playground (see [docs/samples.md](docs/samples.md))
 - `corpus/`: prompt generation and model-output collection for coverage measurement
 - `oracle/`: neutral behavioural specifications written by the oracle analyst (empty so far)
