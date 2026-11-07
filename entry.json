@@ -1,7 +1,7 @@
 {
     "id": "tartlet",
     "title": "Tartlet",
-    "description": "A deterministic, sandbox-safe music runtime for documents. Plays Strudel-style mini-notation compositions by parsing them into a closed expression language, never evaluating them as JavaScript.",
+    "pitch": "A deterministic, sandbox-safe music runtime for documents. Plays Strudel-style mini-notation compositions by parsing them into a closed expression language, never evaluating them as JavaScript.",
     "tags": [
         "music",
         "audio",
