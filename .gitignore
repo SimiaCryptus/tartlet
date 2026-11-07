@@ -4,7 +4,14 @@ corpus/adapters.local.mjs
 test-results
 playwright-report
 coverage/
-albums
-#*.md
 pnpm*
 .github/
+
+albums
+*.md
+docs/
+terraform/
+
+
+
+
