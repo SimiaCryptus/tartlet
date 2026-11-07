@@ -352,8 +352,6 @@ gives `I-EXT-MONO`.
 
 ### Space and textures (Tartlet extensions, TS-69 to TS-76)
 
-- `space`: `room`, `hall`, `plate`, `church` or `outdoor`. It picks the reverb character for
-  the `orbit`; `room` and `size` still set the amount and length.
 - `occlude` (0–1): muffles and softens a sound behind a wall.
 - `distance` above 1 also darkens the sound and sends more of it to the reverb.
 - `posglide` (0–2 s): a placed sound glides from the previous note's position.
@@ -393,6 +391,41 @@ gives `I-EXT-MONO`.
   or `none`. It suits sounds driven by `shape` or `curve`.
 - `spacepre` (0–200 ms) and `spacedamp` (0–1) reshape the tail of a `space` preset.
 
+### Acoustic rendering (Tartlet extensions)
+
+See [acoustic_rendering.md](acoustic_rendering.md). The impulse response is computed from a
+description of a simple space: a named shape, a size, a material and positions. It is
+rendered ahead of playback and then used as a fixed filter. No file is captured or fetched.
+
+- `cavity`: a small resonant cavity on each voice, `box`, `cylinder`, `sphere`, `tube` (an
+   open cylinder) or `none`. It sits where `body` sits. When a track sets both, `cavity` wins
+   and `body` gives `W-ARG-UNSUPPORTED`.
+   - `cavsize` (0.05–2 m): the largest inside dimension.
+   - `cavratio` (0.1–1, default 0.5): the ratio of the smaller dimensions to the largest.
+   - `material`: `spruce`, `maple`, `wood`, `metal`, `glass`, `plastic`, `skin` or `felt`.
+   - `cavhole` (0–1): the opening as a share of one face. 0 is closed. An opening adds the
+     air (Helmholtz) resonance, like the air mode of a guitar body.
+   - `cavsrc` (default 0.3) and `cavmic` (default 0.7): the source and listener positions
+     along the main axis, 0–1.
+   - `cavmix` (0–1, default 1): the wet share.
+- `space("model")`: renders the `orbit`'s reverb from a modelled space instead of a preset.
+   `room`, `size`, `spacepre` and `spacedamp` still apply. Air absorption is included, and
+   `distance` still shifts the dry/wet balance.
+   - `spaceshape`: `box`, `cylinder`, `dome` (a half sphere) or `corridor` (a long box).
+   - `spacesize` (2–100 m): the largest inside dimension.
+   - `spaceratio` (0.1–1, default 0.6): the ratio of the smaller dimensions to the largest.
+   - `spacemat`: `concrete`, `stone`, `brick`, `plaster`, `wood`, `glass`, `carpet`,
+     `curtain` or `snow`.
+   - `spacesrc` (0–1): the source distance from the listener, as a share of the size.
+   - An `orbit` has one modelled space at a time; the latest onset wins, and `I-DSP-ORBIT`
+     notes when tracks disagree.
+- **Positions are constants.** `cavsrc`, `cavmic` and `spacesrc` take constants only. A
+   patterned value gives `W-ARG-UNSUPPORTED`, and the default is used.
+- **Rendering never delays playback.** Until a response is ready, the voice uses the nearest
+   `body` preset, or the `orbit` uses the matching `space` preset (`I-DSP-RENDER`). Responses
+   are cached, and only a few renders start per second. A patterned `cavsize`, `material` or
+   similar control may therefore play the nearest cached response.
+
 ### Response curves and dynamics (Tartlet extensions, TS-86 to TS-89)
 
 - `curve`: a transfer curve, `soft`, `hard`, `tanh`, `tube`, `fold`, `rect`, `half`, `cheby2`
@@ -412,11 +445,14 @@ gives `I-EXT-MONO`.
 ### Soft checks on controls
 
 - Unknown constant values of enum controls (`earsplit`, `space`, `spectral`, `fir`, `firlen`,
-  `body`, `cab`, `curve`, `envcurve`) give `W-ARG-MODE`, and the default is used.
 - Controls that the track's sounds or modes ignore give `W-ARG-UNSUPPORTED`: for example
+   `body`, `cab`, `curve`, `envcurve`, `cavity`, `material`, `spaceshape`, `spacemat`) give
+   `W-ARG-MODE`, and the default is used (for the last four: `none`, `wood`, `box`, `plaster`).
   `iphase` on noise, `icorr` on an oscillator, `scomb` without `spectral("comb")`,
   `firwidth` without a band `fir`, `drive` without a `curve`, `bodysize` without a `body`,
-  `spacepre` without a `space`.
+   `spacepre` without a `space`, cavity controls without a `cavity`, `body` on a track that
+   also sets `cavity`, space model controls without `space("model")`, and patterned values
+   for `cavsrc`, `cavmic` or `spacesrc`.
 
 ## Core transforms
 
@@ -752,7 +788,10 @@ diagnostic.
 | Resources          | `E-RES-PATH`, `I-RES-DECLARED`, `I-RES-OVERRIDE`, `I-RES-FALLBACK`, `W-RES-MISSING`; from hosts: `W-RES-FORMAT`, `W-RES-HASH`, `I-RES-LICENSE`                                                                              |
 | Limits             | `E-LIMIT-SOURCE`, `E-LIMIT-DEPTH`, `E-LIMIT-MULTIPLIER`, `E-LIMIT-EXPAND`, `E-LIMIT-GROWTH`, `E-LIMIT-DENSITY`                                                                                                              |
 | Program            | `E-PROGRAM-EMPTY`, `I-TEMPO-OVERRIDE`                                                                                                                                                                                       |
-| Advisories         | `I-EXT-HEADPHONES`, `I-EXT-PULSE`, `I-EXT-MONO`, `I-DSP-LATENCY`, `I-DSP-ORBIT`                                                                                                                                             |
+| Advisories         | `I-EXT-HEADPHONES`, `I-EXT-PULSE`, `I-EXT-MONO`, `I-DSP-LATENCY`, `I-DSP-ORBIT`, `I-DSP-RENDER`                                                                                                                             |
 
 Advisories are also summarised per output in the program (`advisories`: headphones and
 pulse range), so hosts can warn before playback.
+- `space`: `room`, `hall`, `plate`, `church`, `outdoor` or `model`. It picks the reverb
+   character for the `orbit`; `room` and `size` still set the amount and length. `model`
+   renders the response from a described space ([below](#acoustic-rendering-tartlet-extensions)).

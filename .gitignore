@@ -4,6 +4,6 @@ corpus/adapters.local.mjs
 test-results
 playwright-report
 coverage/
-albums
-*.md
+#albums
+#*.md
 pnpm*

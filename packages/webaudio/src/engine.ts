@@ -59,6 +59,15 @@ import { SAFETY_WORKLET_SOURCE } from './safety-worklet';
 import { SPECTRAL_WORKLET_SOURCE } from './spectral-worklet';
 import { curveName, curveTable, shapeEnvelope, type CurveTable } from './dsp';
 import { GATE_WORKLET_SOURCE } from './gate-worklet';
+import {
+  cavityFallback,
+  cavityParams,
+  shapeTail,
+  spaceFallback,
+  spaceModelParams,
+  type AcousticParams,
+} from './acoustics';
+import { AcousticRenders, type RenderKind, type RenderedResponse } from './renders';
 import { planImpulse, planNote, type DecodedTake, type SampleEntry, type SampleLibrary } from '@tartlet/samples';
 
 type ControlMap = Readonly<Record<string, unknown>>;
@@ -287,13 +296,18 @@ export class AudioEngine {
   private library: SampleLibrary | undefined;
   private pendingSkips = 0;
   private readonly sampleBuffers = new WeakMap<DecodedTake, AudioBuffer>();
+  /** Rendered acoustic responses (docs/acoustic_rendering.md). */
+  private readonly renders: AcousticRenders;
+  private readonly acousticBuffers = new WeakMap<Float32Array, AudioBuffer>();
 
   private constructor(
     readonly ctx: AudioContext,
     private readonly input: AudioNode,
     private readonly spectralReady: boolean,
     private readonly gateReady: boolean,
-  ) {}
+  ) {
+    this.renders = new AcousticRenders(ctx.sampleRate);
+  }
 
   /** Must be called from a user gesture. */
   static async create(ctx: AudioContext = new AudioContext({ latencyHint: 'interactive' })): Promise<AudioEngine> {
@@ -354,6 +368,14 @@ export class AudioEngine {
   /** Events skipped because their sample was still loading. */
   get skippedSamples(): number {
     return this.pendingSkips;
+  }
+  /** Notes that used a nearby or generated response while their acoustic render was not ready. */
+  get renderSubstitutions(): number {
+    return this.renders.substitutions;
+  }
+  /** Acoustic renders that failed or produced non-finite samples. */
+  get failedRenders(): number {
+    return this.renders.failures;
   }
 
   play(c: ControlMap, time: number, duration: number): void {
@@ -704,6 +726,8 @@ export class AudioEngine {
   private sends(c: ControlMap, post: AudioNode, t: number): void {
     const orbit = clamp(Math.round(fin(c.orbit, 0)), 0, 15);
     const space = typeof c.space === 'string' && SPACES.has(c.space) ? c.space : undefined;
+    // A modelled space renders the orbit's response (docs/acoustic_rendering.md, Tier A2).
+    const model = spaceModelParams(c);
     const spatial = typeof c.azimuth === 'number' || typeof c.elevation === 'number' || typeof c.distance === 'number';
     const far = spatial ? distanceWet(clamp(fin(c.distance, 1), 0.5, 50)) : 0;
     const room = clamp(fin(c.room, 0) + far, 0, 1);
@@ -713,12 +737,18 @@ export class AudioEngine {
       s.gain.value = room;
       post.connect(s);
       // spacepre and spacedamp reshape the tail of a space preset (TS-84).
-      const pre = space ? num(c.spacepre) : undefined;
-      const damp = space ? num(c.spacedamp) : undefined;
+      const shaped = space !== undefined || model !== null;
+      const pre = shaped ? num(c.spacepre) : undefined;
+      const damp = shaped ? num(c.spacedamp) : undefined;
       const preStep = pre === undefined ? undefined : Math.round(clamp(pre, 0, 200) / 10);
       const dampStep = damp === undefined ? undefined : Math.round(clamp(damp, 0, 1) * 10);
-      s.connect(this.reverb(orbit, size, space, preStep, dampStep));
-      const er = this.early(orbit, size, space ?? 'room');
+      s.connect(
+        model
+          ? this.modelReverb(orbit, size, model, preStep, dampStep)
+          : this.reverb(orbit, size, space, preStep, dampStep),
+      );
+      // A rendered space already holds its early reflections.
+      const er = model ? undefined : this.early(orbit, size, space ?? 'room');
       if (er) {
         const e = this.ctx.createGain();
         e.gain.value = room * 0.6;
@@ -779,6 +809,53 @@ export class AudioEngine {
     conv.connect(wet).connect(this.input);
     this.reverbs.set(key, conv);
     return conv;
+  }
+  /** The reverb of a modelled space, or the matching preset until its render is ready. */
+  private modelReverb(orbit: number, size: number, p: AcousticParams, preStep?: number, dampStep?: number): AudioNode {
+    const r = this.acousticData('orbit', p);
+    if (!r) return this.reverb(orbit, size, spaceFallback(p), preStep, dampStep);
+    const step = Math.round(size * 10);
+    const key = `${String(orbit)}:${r.key}:${String(step)}:${String(preStep ?? '')}:${String(dampStep ?? '')}`;
+    const hit = this.reverbs.get(key);
+    if (hit) return hit;
+    if (this.reverbs.size >= MAX_REVERBS) {
+      const first = this.reverbs.values().next();
+      if (!first.done) return first.value;
+    }
+    const tail = shapeTail(r.data, this.ctx.sampleRate, {
+      predelay: preStep === undefined ? 0 : preStep / 100,
+      ...(dampStep !== undefined ? { damping: dampStep / 10 } : {}),
+      length: Math.min(1, 0.5 + step / 10),
+    });
+    const conv = this.ctx.createConvolver();
+    conv.buffer = this.monoBuffer(tail);
+    const wet = this.ctx.createGain();
+    wet.gain.value = 0.5;
+    conv.connect(wet).connect(this.input);
+    this.reverbs.set(key, conv);
+    return conv;
+  }
+  /** An exact render, or else a nearby cached one; either miss counts as a substitution. */
+  private acousticData(kind: RenderKind, p: AcousticParams): RenderedResponse | undefined {
+    const exact = this.renders.lookup(kind, p);
+    if (exact) return exact;
+    this.renders.substitutions++;
+    return this.renders.nearest(kind, p);
+  }
+  private acousticBuffer(r: RenderedResponse): AudioBuffer {
+    let b = this.acousticBuffers.get(r.data);
+    if (!b) {
+      b = this.monoBuffer(r.data);
+      this.acousticBuffers.set(r.data, b);
+    }
+    return b;
+  }
+  /** A rendered cavity, or the nearest generated body until it is ready. */
+  private cavityBuffer(p: AcousticParams): AudioBuffer {
+    const r = this.acousticData('voice', p);
+    if (r) return this.acousticBuffer(r);
+    const fb = cavityFallback(p);
+    return this.bodyBuffer(fb.body, fb.size);
   }
   /** A shared early-reflection bus: delayed, filtered, panned taps (TS-70). */
   private early(orbit: number, size: number, space: string): AudioNode | undefined {
@@ -1159,13 +1236,18 @@ export class AudioEngine {
       link(this.spectralNode(spectralSettings(c), false, seedInt(fin(c.dseed, 0))));
       cost += SPECTRAL_COST;
     }
-    // A generated body response between the vowel colour and the spectral stage (TS-82).
-    const body = typeof c.body === 'string' && BODY_SPECS.has(c.body) ? c.body : undefined;
-    const bodyMix = clamp(fin(c.bodymix, 1), 0, 1);
-    if (body && bodyMix > 0) {
+    // A generated body response between the vowel colour and the spectral stage (TS-82). A
+    // rendered cavity takes the same slot and wins over body (docs/acoustic_rendering.md).
+    const cavity = cavityParams(c);
+    const body = !cavity && typeof c.body === 'string' && BODY_SPECS.has(c.body) ? c.body : undefined;
+    const bodyMix = clamp(fin(cavity ? c.cavmix : c.bodymix, 1), 0, 1);
+    let response: AudioBuffer | undefined;
+    if (cavity && bodyMix > 0) response = this.cavityBuffer(cavity);
+    else if (body && bodyMix > 0) response = this.bodyBuffer(body, clamp(fin(c.bodysize, 1), 0.25, 4));
+    if (response) {
       const conv = ctx.createConvolver();
       conv.normalize = false;
-      conv.buffer = this.bodyBuffer(body, clamp(fin(c.bodysize, 1), 0.25, 4));
+      conv.buffer = response;
       const inp = ctx.createGain();
       const wet = ctx.createGain();
       wet.gain.value = bodyMix;

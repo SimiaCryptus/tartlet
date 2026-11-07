@@ -12,6 +12,7 @@
     "@tartlet/ir": "workspace:*",
     "@tartlet/registry": "workspace:*",
     "@tartlet/resources": "workspace:*",
+    "@tartlet/random": "workspace:*",
     "@tartlet/samples": "workspace:*"
   }
 }

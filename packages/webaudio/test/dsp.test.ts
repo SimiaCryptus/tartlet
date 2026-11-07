@@ -199,7 +199,7 @@ describe('dsp helpers', () => {
 });
 describe('space and environment helpers (TS-69 to TS-72)', () => {
   it('every space name has a table', () => {
-    expect(new Set(SPACES.keys())).toEqual(new Set(SPACE_NAMES));
+    expect(new Set([...SPACES.keys(), 'model'])).toEqual(new Set(SPACE_NAMES));
   });
   it('space lengths follow the character of each space and grow with size', () => {
     expect(spaceSeconds('hall', 0.5)).toBeGreaterThan(spaceSeconds('room', 0.5));

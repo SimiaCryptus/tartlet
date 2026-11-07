@@ -12,5 +12,5 @@ export const FOLEY_SOUNDS: readonly string[] = ['drip', 'click', 'tick', 'creak'
 export const CREATURE_SOUNDS: readonly string[] = ['bird', 'insect', 'engine'];
 /** Sounds that receive a texture seed (`tseed`) from core (TS-73). */
 export const TEXTURE_SOUNDS: readonly string[] = [...AMBIENCE_SOUNDS, ...FOLEY_SOUNDS, ...CREATURE_SOUNDS];
-/** Reverb characters for `space` (TS-69). */
-export const SPACE_NAMES: readonly string[] = ['room', 'hall', 'plate', 'church', 'outdoor'];
+/** Reverb characters for `space` (TS-69); `model` renders the space (docs/acoustic_rendering.md). */
+export const SPACE_NAMES: readonly string[] = ['room', 'hall', 'plate', 'church', 'outdoor', 'model'];

@@ -48,3 +48,30 @@ export const CURVE_NAMES: readonly string[] = [
 ];
 /** Envelope segment shapes for `envcurve` (TS-88). */
 export const ENVCURVE_NAMES: readonly string[] = ['lin', 'exp', 'log'];
+/** Rendered cavity shapes for `cavity` (docs/acoustic_rendering.md, Tier A1). */
+export const CAVITY_NAMES: readonly string[] = ['none', 'box', 'cylinder', 'sphere', 'tube'];
+/** Cavity wall materials for `material`. */
+export const MATERIAL_NAMES: readonly string[] = [
+  'spruce',
+  'maple',
+  'wood',
+  'metal',
+  'glass',
+  'plastic',
+  'skin',
+  'felt',
+];
+/** Modelled space shapes for `spaceshape` (Tier A2). */
+export const SPACE_SHAPES: readonly string[] = ['box', 'cylinder', 'dome', 'corridor'];
+/** Modelled space materials for `spacemat`. */
+export const SPACE_MATERIALS: readonly string[] = [
+  'concrete',
+  'stone',
+  'brick',
+  'plaster',
+  'wood',
+  'glass',
+  'carpet',
+  'curtain',
+  'snow',
+];

@@ -1,0 +1,122 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "body-double",
+  "name": "Body Double",
+  "description": "A listening test for Tier A0 of acoustic rendering: should the hand-designed body presets be replaced by rendered cavities? In every sketch, odd bars play the body preset and even bars play the cavity proposed to replace it, on the same source sound. One click marks a preset bar, two clicks a rendered bar. Rate each sketch by how well the rendered version stands in for the preset (5 = at least as good, 1 = clearly worse), and note what differs: brightness, ring, air resonance, loudness. The first rendered bars may use the fallback body while the render finishes, so give each test a few loops. The cavity settings are estimates from the box, tube and air-hole formulas; that is what is being tested.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Testing",
+  "tags": ["testing", "body", "cavity", "acoustic rendering", "A/B"],
+  "exportedAt": "2026-11-12T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "guitar-vs-spruce-box",
+      "name": "Guitar · Spruce Box",
+      "description": "body(\"guitar\") against a 45 cm spruce box with a sound hole, whose air mode should sit near the guitar's 100 Hz.",
+      "category": "Plucked",
+      "tags": ["guitar", "spruce", "box", "cavhole"],
+      "source": "setcpm(90/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity proposed to replace it\n// One click marks a preset bar, two clicks a rendered bar\nconst phrase = note(\"<[e3 g3 b3 e4 b3 g3] [e3 g3 b3 e4 b3 g3] [d3 a3 d4 f#4 d4 a3] [d3 a3 d4 f#4 d4 a3]>\")\nconst pluck = (x) => x.s(\"triangle\").attack(.002).decay(.4).sustain(0).release(.3)\n\npreset: phrase.pluck().body(\"guitar\").mask(\"<1 0>\").gain(.4)\nrendered: phrase.pluck().cavity(\"box\").cavsize(.45).material(\"spruce\").cavhole(.3).mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "violin-vs-maple-box",
+      "name": "Violin · Maple Box",
+      "description": "body(\"violin\") against a small, narrow maple box with f-hole-sized openings, under a bowed saw.",
+      "category": "Bowed",
+      "tags": ["violin", "maple", "box"],
+      "source": "setcpm(72/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity proposed to replace it\nconst phrase = note(\"<[a4@3 c5 e5@4] [a4@3 c5 e5@4] [d5@2 c5 b4 a4@4] [d5@2 c5 b4 a4@4]>\")\nconst bowed = (x) => x.s(\"sawtooth\").vib(5.5).vibdepth(.12).attack(.08).sustain(.75).release(.3).lpf(3600)\n\npreset: phrase.bowed().body(\"violin\").mask(\"<1 0>\").gain(.22)\nrendered: phrase.bowed().cavity(\"box\").cavsize(.35).cavratio(.4).material(\"maple\").cavhole(.1).mask(\"<0 1>\").gain(.22)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "box-vs-wood-box",
+      "name": "Box · Wooden Box",
+      "description": "body(\"box\") against a closed wooden box sized so its first mode lands near 180 Hz, on drums and a pluck.",
+      "category": "Plucked",
+      "tags": ["box", "wood", "drums"],
+      "source": "setcpm(96/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity proposed to replace it\nconst kit = s(\"<[bd rim sd rim] [bd rim sd rim] [bd [rim rim] sd lt] [bd [rim rim] sd lt]>\")\nconst tune = note(\"<[c4 e4 g4 e4] [c4 e4 g4 e4] [a3 c4 e4 c4] [a3 c4 e4 c4]>\").s(\"triangle\").decay(.3).sustain(0)\n\npreset: stack(kit, tune).body(\"box\").mask(\"<1 0>\").gain(.4)\nrendered: stack(kit, tune).cavity(\"box\").cavsize(.95).cavratio(.5).material(\"wood\").mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "tube-vs-open-tube",
+      "name": "Tube · Open Tube",
+      "description": "body(\"tube\"), with modes at 220, 440, 660 Hz, against a 78 cm open tube, whose half-wave series should start near 220 Hz.",
+      "category": "Pipes",
+      "tags": ["tube", "harmonic series"],
+      "source": "setcpm(80/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity proposed to replace it\nconst phrase = note(\"<[a2 e3 a3 e3] [a2 e3 a3 e3] [g2 d3 g3 d3] [g2 d3 g3 d3]>\")\nconst blow = (x) => x.s(\"sawtooth\").attack(.02).decay(.3).sustain(.3).release(.2).lpf(2400)\n\npreset: phrase.blow().body(\"tube\").mask(\"<1 0>\").gain(.25)\nrendered: phrase.blow().cavity(\"tube\").cavsize(.78).cavratio(.15).material(\"plastic\").mask(\"<0 1>\").gain(.25)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "can-vs-metal-cylinder",
+      "name": "Can · Metal Cylinder",
+      "description": "body(\"can\") against a small open-topped metal cylinder, on claps, rims and hats where the metallic ring is easy to hear.",
+      "category": "Percussion",
+      "tags": ["can", "metal", "cylinder"],
+      "source": "setcpm(100/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity proposed to replace it\nconst kit = s(\"<[cp rim hh rim] [cp rim hh rim] [rim cp [rim rim] hh] [rim cp [rim rim] hh]>\")\n\npreset: kit.body(\"can\").mask(\"<1 0>\").gain(.4)\nrendered: kit.cavity(\"cylinder\").cavsize(.32).cavratio(.6).material(\"metal\").cavhole(.5).mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "phone-vs-plastic-box",
+      "name": "Phone · Plastic Box",
+      "description": "body(\"phone\") against a tiny plastic box, on a sung line, the case where speech intelligibility matters most.",
+      "category": "Voices",
+      "tags": ["phone", "plastic", "voice"],
+      "source": "setcpm(84/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity proposed to replace it\nconst phrase = note(\"<[c4 d4 e4 g4] [c4 d4 e4 g4] [a4 g4 e4 d4] [a4 g4 e4 d4]>\")\nconst sing = (x) => x.s(\"voice\").syl(\"la li lo la\").voicetype(\"alto\").mono(1).vglide(.06).release(.3)\n\npreset: phrase.sing().body(\"phone\").mask(\"<1 0>\").gain(.3)\nrendered: phrase.sing().cavity(\"box\").cavsize(.12).cavratio(.5).material(\"plastic\").cavhole(.2).mask(\"<0 1>\").gain(.3)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "radio-vs-speaker-box",
+      "name": "Radio · Speaker Box",
+      "description": "body(\"radio\") against a 30 cm wooden box with a large opening, like an old cabinet radio, on saw chords.",
+      "category": "Appliances",
+      "tags": ["radio", "wood", "chords"],
+      "source": "setcpm(88/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity proposed to replace it\nconst chords = note(\"<[c3,e3,g3] [c3,e3,g3] [a2,c3,e3] [a2,c3,e3]>\").struct(\"x ~ x x\")\nconst keys = (x) => x.s(\"sawtooth\").decay(.3).sustain(.2).release(.2).lpf(3000)\n\npreset: chords.keys().body(\"radio\").mask(\"<1 0>\").gain(.22)\nrendered: chords.keys().cavity(\"box\").cavsize(.3).cavratio(.6).material(\"wood\").cavhole(.5).mask(\"<0 1>\").gain(.22)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "megaphone-vs-metal-tube",
+      "name": "Megaphone · Metal Tube",
+      "description": "body(\"megaphone\") against a short metal tube, on a shouted line. There is no cone shape yet, so this tests how far a tube gets.",
+      "category": "Voices",
+      "tags": ["megaphone", "metal", "tube", "voice"],
+      "source": "setcpm(96/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity proposed to replace it\nconst phrase = note(\"<[g3 g3 c4 g3] [g3 g3 c4 g3] [a3 g3 e3 ~] [a3 g3 e3 ~]>\")\nconst shout = (x) => x.s(\"voice\").syl(\"hey ho let go\").voicetype(\"tenor\").effort(1).release(.2)\n\npreset: phrase.shout().body(\"megaphone\").mask(\"<1 0>\").gain(.3)\nrendered: phrase.shout().cavity(\"tube\").cavsize(.4).cavratio(.4).material(\"metal\").mask(\"<0 1>\").gain(.3)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "size-ladder",
+      "name": "Size Ladder",
+      "description": "Does cavsize scale like bodysize? Guitar at bodysize 0.5, 1 and 2 against the spruce box at 22, 45 and 90 cm, two bars per size. Each new size may play the fallback until its render is ready.",
+      "category": "Scaling",
+      "tags": ["bodysize", "cavsize", "guitar"],
+      "source": "setcpm(90/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity, each two bars at a matching size\nconst phrase = note(\"e3 g3 b3 e4 b3 g3\")\nconst pluck = (x) => x.s(\"triangle\").attack(.002).decay(.4).sustain(0).release(.3)\n\npreset: phrase.pluck().body(\"guitar\").bodysize(\"<.5 .5 1 1 2 2>\").mask(\"<1 0>\").gain(.4)\nrendered: phrase.pluck().cavity(\"box\").cavsize(\"<.225 .225 .45 .45 .9 .9>\").material(\"spruce\").cavhole(.3)\n  .mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "material-ladder",
+      "name": "Material Ladder",
+      "description": "The guitar preset held fixed against the same box in spruce, maple, wood and plastic, two bars each. Note which material comes closest.",
+      "category": "Scaling",
+      "tags": ["material", "guitar", "comparison"],
+      "source": "setcpm(90/4)\n\n// Odd bars: the guitar preset. Even bars: the box in spruce, maple, wood, then plastic\nconst phrase = note(\"e3 g3 b3 e4 b3 g3\")\nconst pluck = (x) => x.s(\"triangle\").attack(.002).decay(.4).sustain(0).release(.3)\n\npreset: phrase.pluck().body(\"guitar\").mask(\"<1 0>\").gain(.4)\nrendered: phrase.pluck().cavity(\"box\").cavsize(.45).cavhole(.3)\n  .material(\"<spruce spruce maple maple wood wood plastic plastic>\").mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "half-wet",
+      "name": "Half Wet",
+      "description": "bodymix(.5) against cavmix(.5): with half the dry sound mixed back in, the two should sit at the same level and keep the attack equally sharp.",
+      "category": "Mix",
+      "tags": ["bodymix", "cavmix", "level"],
+      "source": "setcpm(90/4)\n\n// Odd bars: the body preset at half mix. Even bars: the rendered cavity at half mix\nconst phrase = note(\"<[e3 g3 b3 e4 b3 g3] [e3 g3 b3 e4 b3 g3] [c3 g3 c4 e4 c4 g3] [c3 g3 c4 e4 c4 g3]>\")\nconst pluck = (x) => x.s(\"triangle\").attack(.002).decay(.4).sustain(0).release(.3)\n\npreset: phrase.pluck().body(\"guitar\").bodymix(.5).mask(\"<1 0>\").gain(.4)\nrendered: phrase.pluck().cavity(\"box\").cavsize(.45).material(\"spruce\").cavhole(.3).cavmix(.5).mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    },
+    {
+      "id": "cavity-wins",
+      "name": "Cavity Wins",
+      "description": "A precedence check: one track sets both body and cavity, which should warn (W-ARG-UNSUPPORTED on body) and sound like the cavity. A reference track plays the body alone on even bars.",
+      "category": "Precedence",
+      "tags": ["precedence", "warning expected"],
+      "source": "setcpm(90/4)\n\n// Odd bars: body and cavity on one track. The checker warns, and only the cavity should sound\n// Even bars: the body preset alone, for reference. Odd and even bars should sound different\nconst phrase = note(\"e3 g3 b3 e4 b3 g3\")\nconst pluck = (x) => x.s(\"triangle\").attack(.002).decay(.4).sustain(0).release(.3)\n\nboth: phrase.pluck().body(\"can\").cavity(\"box\").cavsize(.45).material(\"spruce\").cavhole(.3).mask(\"<1 0>\").gain(.4)\nbodyonly: phrase.pluck().body(\"can\").mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+      "savedAt": "2026-11-12T12:00:00.000Z"
+    }
+  ]
+}

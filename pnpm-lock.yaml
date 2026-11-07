@@ -232,6 +232,9 @@ importers:
       '@tartlet/ir':
         specifier: workspace:*
         version: link:../ir
+      '@tartlet/random':
+        specifier: workspace:*
+        version: link:../random
       '@tartlet/registry':
         specifier: workspace:*
         version: link:../registry

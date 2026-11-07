@@ -38,6 +38,7 @@ import { DEFAULT_LIMITS, isBankPath, isSoundName, isWavPath } from '@tartlet/ir'
 import {
   BODY_NAMES,
   CAB_NAMES,
+  CAVITY_NAMES,
   CURVE_NAMES,
   DRUM_SOUNDS,
   ENVCURVE_NAMES,
@@ -46,10 +47,13 @@ import {
   INT_SEQUENCES,
   MAX_LSYS_GENERATIONS,
   MAX_LSYS_LENGTH,
+  MATERIAL_NAMES,
   NOISE_SOUNDS,
   OSCILLATOR_SOUNDS,
   RING_METHODS,
   SPACE_NAMES,
+  SPACE_MATERIALS,
+  SPACE_SHAPES,
   SPECTRAL_MODES,
   TEXTURE_SOUNDS,
   VOCAL_SOUNDS,
@@ -125,6 +129,10 @@ const VOCAL_STRINGS: ReadonlySet<string> = new Set([
   'cab',
   'curve',
   'envcurve',
+  'cavity',
+  'material',
+  'spaceshape',
+  'spacemat',
 ]);
 const EARSPLIT_MODES: ReadonlySet<string> = new Set(['none', 'harmonics', 'bands']);
 const SPACE_SET: ReadonlySet<string> = new Set(SPACE_NAMES);
@@ -144,11 +152,16 @@ const MODE_LISTS: ReadonlyMap<string, { readonly names: readonly string[]; reado
   ['cab', { names: CAB_NAMES, fallback: 'none' }],
   ['curve', { names: CURVE_NAMES, fallback: 'none' }],
   ['envcurve', { names: ENVCURVE_NAMES, fallback: 'lin' }],
+  ['cavity', { names: CAVITY_NAMES, fallback: 'none' }],
+  ['material', { names: MATERIAL_NAMES, fallback: 'wood' }],
+  ['spaceshape', { names: SPACE_SHAPES, fallback: 'box' }],
+  ['spacemat', { names: SPACE_MATERIALS, fallback: 'plaster' }],
 ]);
 interface Need {
   readonly owner: string;
   readonly modes?: ReadonlySet<string>;
 }
+const MODEL_ONLY: ReadonlySet<string> = new Set(['model']);
 /** Controls that only matter when another control selects something (TS-84). */
 const MODE_NEEDS: ReadonlyMap<string, Need> = new Map<string, Need>([
   ['firwidth', { owner: 'fir', modes: new Set(['bandpass', 'bandstop']) }],
@@ -159,6 +172,19 @@ const MODE_NEEDS: ReadonlyMap<string, Need> = new Map<string, Need>([
   ['drive', { owner: 'curve' }],
   ['bias', { owner: 'curve' }],
   ['curvemix', { owner: 'curve' }],
+  // Acoustic rendering (docs/acoustic_rendering.md).
+  ['cavsize', { owner: 'cavity' }],
+  ['cavratio', { owner: 'cavity' }],
+  ['cavhole', { owner: 'cavity' }],
+  ['cavsrc', { owner: 'cavity' }],
+  ['cavmic', { owner: 'cavity' }],
+  ['cavmix', { owner: 'cavity' }],
+  ['material', { owner: 'cavity' }],
+  ['spaceshape', { owner: 'space', modes: MODEL_ONLY }],
+  ['spacesize', { owner: 'space', modes: MODEL_ONLY }],
+  ['spaceratio', { owner: 'space', modes: MODEL_ONLY }],
+  ['spacemat', { owner: 'space', modes: MODEL_ONLY }],
+  ['spacesrc', { owner: 'space', modes: MODEL_ONLY }],
 ]);
 /** Known values of the controls that MODE_NEEDS depend on. */
 const OWNER_SETS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
@@ -166,6 +192,17 @@ const OWNER_SETS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   ['body', new Set(BODY_NAMES)],
   ['space', SPACE_SET],
   ['curve', new Set(CURVE_NAMES)],
+  ['cavity', new Set(CAVITY_NAMES)],
+]);
+/** Positions take constants only: every new position would be a new render. */
+const CONST_ONLY: ReadonlySet<string> = new Set(['cavsrc', 'cavmic', 'spacesrc']);
+/** Controls that describe a modelled space, compared between tracks on an orbit. */
+const SPACE_MODEL_CONTROLS: ReadonlySet<string> = new Set([
+  'spaceshape',
+  'spacesize',
+  'spaceratio',
+  'spacemat',
+  'spacesrc',
 ]);
 const VOICE_TYPE_SET: ReadonlySet<string> = new Set(VOICE_TYPES);
 /** Stands in for a parameter in a constant position while a definition is checked (TS-50). */
@@ -1069,7 +1106,7 @@ class Lowerer {
             this.diag(
               'W-ARG-MODE',
               'warning',
-              `Unknown space \`${a.text}\`; use room, hall, plate, church or outdoor. The plain reverb is used.`,
+              `Unknown space \`${a.text}\`; use ${SPACE_NAMES.join(', ')}. The plain reverb is used.`,
               range,
               'none',
             );
@@ -1137,6 +1174,8 @@ class Lowerer {
   checkAdvisories(): void {
     /** Constant compressor settings per orbit, to spot clashes between tracks (TS-87). */
     const orbitComp = new Map<number, string>();
+    /** Constant space models per orbit (docs/acoustic_rendering.md). */
+    const orbitModel = new Map<number, string>();
     for (const o of this.outputs) {
       if (o.status !== 'ok') continue;
       const phones: PatternNode[] = [];
@@ -1157,6 +1196,9 @@ class Lowerer {
       const compVals = new Map<string, string>();
       const compState: { open: boolean; node?: ControlNode } = { open: false };
       const orbits: number[] = [];
+      const firstOf = new Map<string, ControlNode>();
+      const modelVals = new Map<string, string>();
+      const modelState = { open: false };
       const walkArg = (a: Arg): void => {
         if (a.kind === 'pattern') walk(a.node);
         else if (a.kind === 'function') {
@@ -1207,6 +1249,12 @@ class Lowerer {
               if (n.control === 'comp') compState.node ??= n;
             }
             if (n.control === 'orbit') orbits.push(...constRates(n.value).map((x) => Math.round(x)));
+            if (!firstOf.has(n.control)) firstOf.set(n.control, n);
+            if (SPACE_MODEL_CONTROLS.has(n.control)) {
+              if (isConstArg(n.value))
+                modelVals.set(n.control, `${constRates(n.value).join('|')}/${constStrings(n.value).join('|')}`);
+              else modelState.open = true;
+            }
             if (n.target) walk(n.target);
             walkArg(n.value);
             return;
@@ -1290,6 +1338,31 @@ class Lowerer {
           output,
         );
       }
+      // A rendered cavity replaces body; rendered responses are noted (docs/acoustic_rendering.md).
+      const known = (owner: string): boolean =>
+        [...(owned.get(owner) ?? [])].some((v) => v !== 'none' && OWNER_SETS.get(owner)?.has(v) === true);
+      const cavityNode = firstOf.get('cavity');
+      const bodyNode = firstOf.get('body');
+      const spaceNode = firstOf.get('space');
+      const cavityOn = known('cavity');
+      if (cavityOn && bodyNode && known('body'))
+        this.unsupported(bodyNode, 'is replaced by `cavity` on this track; it has no effect.', output);
+      if (cavityOn && cavityNode)
+        this.advise(
+          'I-DSP-RENDER',
+          'This track plays through a rendered cavity; the first notes may use a generated body while it renders.',
+          cavityNode,
+          output,
+        );
+      const spaces = owned.get('space') ?? new Set<string>();
+      const modelOn = spaces.has('model');
+      if (modelOn && spaceNode)
+        this.advise(
+          'I-DSP-RENDER',
+          'This track uses a modelled space; the first notes may use a generated space while it renders.',
+          spaceNode,
+          output,
+        );
       // Compressor settings are per orbit; tell hosts when tracks disagree (TS-87).
       const cn = compState.node;
       const cv = compVals.get('comp');
@@ -1307,6 +1380,27 @@ class Lowerer {
               'I-DSP-ORBIT',
               `Another track on orbit ${String(orbit)} sets different compressor settings; the latest onset wins.`,
               cn,
+              output,
+            );
+            break;
+          }
+        }
+      }
+      // One modelled space per orbit; tell hosts when tracks disagree.
+      if (modelOn && spaceNode && spaces.size === 1 && !modelState.open && !ownerOpen.has('space')) {
+        const sig = [...modelVals]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => `${k}=${v}`)
+          .join(',');
+        for (const orbit of orbits.length > 0 ? orbits : [0]) {
+          const prev = orbitModel.get(orbit);
+          if (prev === undefined) {
+            orbitModel.set(orbit, sig);
+          } else if (prev !== sig) {
+            this.advise(
+              'I-DSP-ORBIT',
+              `Another track on orbit ${String(orbit)} sets a different space model; the latest onset wins.`,
+              spaceNode,
               output,
             );
             break;
@@ -2175,6 +2269,16 @@ class Lowerer {
       }
       const value = this.arg(a0, p, hash64(base, entry.id, '0'), entry);
       if (!value) return this.errorNode('E-ARG-TYPE', range, recv);
+      if (CONST_ONLY.has(entry.id) && value.kind !== 'const') {
+        this.diag(
+          'W-ARG-UNSUPPORTED',
+          'warning',
+          `\`.${m.name}\` takes a constant only, because each position needs its own render. The default is used.`,
+          { start: m.nameRange.start, end: range.end },
+          'none',
+        );
+        return recv;
+      }
       return {
         kind: 'control',
         id,

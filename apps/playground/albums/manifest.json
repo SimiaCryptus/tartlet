@@ -11,6 +11,10 @@
        "file": "instruments.json"
      },
     {
+      "id": "body-double",
+      "file": "body-double.json"
+    },
+    {
       "id": "bundled",
       "file": "bundled.json"
     },
@@ -42,6 +46,34 @@
       "id": "binaural-jazz",
       "file": "binaural-jazz.json"
     },
+     {
+       "id": "binaural-nature",
+       "file": "binaural-nature.json"
+     },
+    {
+      "id": "binaural-games",
+      "file": "binaural-games.json"
+    },
+     {
+       "id": "binaural-study",
+       "file": "binaural-study.json"
+     },
+    {
+      "id": "binaural-calm-study",
+      "file": "binaural-calm-study.json"
+    },
+    {
+      "id": "deprogramming",
+      "file": "deprogramming.json"
+    },
+    {
+      "id": "dinosaurs",
+      "file": "dinosaurs.json"
+    },
+     {
+       "id": "cthulhu",
+       "file": "cthulhu.json"
+     },
     {
       "id": "workout",
       "file": "workout.json"
@@ -49,6 +81,10 @@
     {
       "id": "biomes",
       "file": "biomes.json"
+    },
+    {
+      "id": "nature-sounds",
+      "file": "nature-sounds.json"
     },
     {
       "id": "pantheon",
@@ -62,9 +98,33 @@
       "id": "alchemy",
       "file": "alchemy.json"
     },
+   {
+     "id": "crazy",
+     "file": "crazy.json"
+   },
+   {
+     "id": "shrinkwrapped",
+     "file": "shrinkwrapped.json"
+   },
+   {
+     "id": "unthought",
+     "file": "unthought.json"
+   },
     {
       "id": "symphonic",
       "file": "symphonic.json"
+    },
+    {
+      "id": "showtunes",
+      "file": "showtunes.json"
+     },
+     {
+       "id": "mockery",
+       "file": "mockery.json"
+    },
+    {
+      "id": "sound-effects",
+      "file": "sound-effects.json"
     }
   ]
 }

@@ -1,0 +1,104 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "sound-effects",
+  "name": "Sound Effects",
+  "description": "A library of sound effects built from the synthesized kit, with no samples at all: interface clicks and chimes, arcade coins and lasers, a starship bridge, a haunted house, cartoon gags, a thunderstorm, an open-plan office, footsteps walking around you, alarms and sirens, and a trailer-style riser and impact. Each sketch loops a small set of effects, one per bar or layered as a scene, and the comments explain how each sound is made, so you can lift any line into your own sketch.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Sound Design",
+  "tags": ["sound effects", "foley", "sfx", "sound design", "reference"],
+  "exportedAt": "2026-11-13T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "interface-kit",
+      "name": "Interface Kit",
+      "description": "Five interface sounds, one per bar: a soft click, a toggle, a notification chime, a success arpeggio and an error buzz.",
+      "category": "Interface",
+      "tags": ["90 bpm", "UI", "click", "chime"],
+      "source": "setcpm(90/4)\n\n// One interface sound per bar, five bars in a loop\n// Bar 1: two soft clicks, short and high\nclick: s(\"<[click ~ click ~] ~ ~ ~ ~>\").hpf(2500).decay(.03).sustain(0).gain(.35)\n\n// Bar 2: a toggle, a short square blip up a fifth\ntoggle: note(\"<~ [c6 ~ g6 ~] ~ ~ ~>\").s(\"square\").pw(.3).decay(.04).sustain(0).gain(.12)\n\n// Bar 3: a notification, two bell-like FM notes\nnotify: note(\"<~ ~ [e5 b5 ~ ~] ~ ~>\").s(\"sine\").fm(2).fmh(3.5)\n  .decay(.6).sustain(0).release(.6).room(.3).gain(.2)\n\n// Bar 4: success, a quick major arpeggio on glass\nsuccess: note(\"<~ ~ ~ [c5 e5 g5 c6] ~>\").s(\"triangle\").timbre(\"glass\")\n  .decay(.3).sustain(0).release(.4).gain(.2)\n\n// Bar 5: an error, a low semitone cluster buzzing twice\nerror: note(\"<~ ~ ~ ~ [[a2,bb2] ~ [a2,bb2] ~]>\").s(\"square\").pw(.5).lpf(1200)\n  .decay(.15).sustain(.3).release(.05).gain(.14)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "arcade-cabinet",
+      "name": "Arcade Cabinet",
+      "description": "Six classic game sounds, one per bar: a coin, a jump, a laser burst, a power-up run, an explosion and the game-over tune.",
+      "category": "Games",
+      "tags": ["120 bpm", "chiptune", "8-bit", "penv"],
+      "source": "setcpm(120/4)\n\n// Bar 1: a coin, two square notes a fourth apart\ncoin: note(\"<[b5 e6@3] ~ ~ ~ ~ ~>\").s(\"square\").pw(.5).decay(.3).sustain(0).gain(.14)\n\n// Bar 2: a jump; penv starts the note an octave low and slides it up into place\njump: note(\"<~ [c5 ~ ~ ~] ~ ~ ~ ~>\").s(\"square\").pw(.25).penv(-12).pdecay(.15)\n  .decay(.2).sustain(0).gain(.14)\n\n// Bar 3: three laser shots; penv starts two octaves high and falls fast\nlaser: note(\"<~ ~ [c6 c6 c6 ~] ~ ~ ~>\").s(\"square\").pw(.2).penv(24).pdecay(.08)\n  .decay(.1).sustain(0).gain(.1)\n\n// Bar 4: a power-up, a fast run up the scale\npowerup: n(\"<~ ~ ~ [0 2 4 7 9 11 14 16] ~ ~>\").scale(\"C:major\").transpose(12)\n  .s(\"square\").pw(.3).decay(.06).sustain(0).gain(.12)\n\n// Bar 5: an explosion, noise crushed to four bits, over a falling sub thump\nboom: s(\"<~ ~ ~ ~ [white ~ ~ ~] ~>\").crush(4).lpf(1500).decay(.8).sustain(0).release(.4).gain(.4)\nthump: note(\"<~ ~ ~ ~ [c1 ~ ~ ~] ~>\").s(\"sine\").penv(24).pdecay(.2).decay(.8).sustain(0).gain(.5)\n\n// Bar 6: game over, a sad chromatic slide down\ngameover: note(\"<~ ~ ~ ~ ~ [g4 f#4 f4 e4@4]>\").s(\"square\").pw(.5)\n  .decay(.2).sustain(.5).release(.1).gain(.12)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "starship-bridge",
+      "name": "Starship Bridge",
+      "description": "A sci-fi bridge: engines humming below and a computer thinking aloud, while a door hisses open, the teleporter charges, a confirmation chirps and red alert sounds, one bar each.",
+      "category": "Sci-Fi",
+      "tags": ["80 bpm", "sci-fi", "ringmod", "teleporter"],
+      "source": "setcpm(80/4)\n\n// The bridge: engines humming somewhere below, and the computer thinking aloud\nhum: s(\"engine\").slow(8).lpf(300).elevation(-30).distance(3).gain(.12)\ncomputer: n(irand(8).segment(8)).scale(\"C:major pentatonic\").transpose(24)\n  .degradeBy(.5).seed(\"bridge\").s(\"sine\").decay(.05).sustain(0).pan(rand).gain(.08)\n\n// Bar 1 of every four: the door hisses open on your left, filtered pink noise with a fast decay\ndoor: s(\"<pink ~ ~ ~>\").hpf(1500).lpf(6000).attack(.05).decay(.5).sustain(0)\n  .azimuth(-50).distance(1.5).gain(.14)\n\n// Bar 2: the teleporter charges, a rising sine sweep ring-modulated into a shimmer\nteleport: freq(saw.range(300, 3000).segment(32)).s(\"sine\").mono(1).glide(.03)\n  .ringmod(80).ringmix(.4).mask(\"<0 1 0 0>\").sustain(1).release(.02).gain(.06)\nsparks: s(\"white*16?0.6\").hpf(6000).decay(.03).sustain(0).mask(\"<0 1 0 0>\")\n  .azimuth(rand.range(-90, 90)).seed(\"sparks\").gain(.06)\n\n// Bar 3: a confirmation chirp\nconfirm: note(\"<~ ~ [c6 g6 ~ ~] ~>\").s(\"sine\").fm(1.5).fmh(2).decay(.15).sustain(0).gain(.1)\n\n// Bar 4: red alert, two notes alternating like a klaxon\nalert: note(\"<~ ~ ~ [a4 e5]*4>\").s(\"square\").pw(.5).lpf(1800)\n  .decay(.1).sustain(.6).release(.05).gain(.07)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "haunted-house",
+      "name": "Haunted House",
+      "description": "Headphones on: wind outside, a door creaking open on your left, footsteps in the room above, thunder, a heartbeat in the middle of your head and whispers circling you.",
+      "category": "Horror",
+      "tags": ["60 bpm", "horror", "spatial", "occlude"],
+      "source": "setcpm(60/4)\n\n// Wind outside the old house, and a clock ticking on the right\nwind: s(\"wind\").slow(8).intensity(.4).gain(.12)\nclock: s(\"tick ~ tick ~\").azimuth(80).distance(4).gain(.05)\n\n// A door creaks open slowly on your left: the creak played at a lower speed, in a stone space\ndoor: s(\"<[creak ~ ~ ~] ~ ~ ~>\").speed(.6).azimuth(-60).distance(3).space(\"church\").gain(.3)\n\n// Footsteps in the room above, muffled by the floorboards\nupstairs: s(\"<~ [step ~ step ~] [step ~ step ~] ~>\").elevation(60).distance(4).occlude(.5).gain(.2)\n\n// Thunder on the fourth bar\nthunder: s(\"<~ ~ ~ [lt ~ ~ ~]>\").speed(.4).lpf(300).room(.9).size(.95).gain(.5)\n\n// Your heartbeat, in the middle of your head\nheart: s(\"bd ~ bd ~ ~ ~ ~ ~\").lpf(150).gain(.35)\n\n// Whispers circling your head once every four bars\nwhispers: s(\"whisper*2?0.5\").syl(\"<sha ho>\").azimuth(saw.range(-180, 180).slow(4))\n  .distance(1.5).posglide(.3).seed(\"ghost\").gain(.08)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "cartoon-toolbox",
+      "name": "Cartoon Toolbox",
+      "description": "Five cartoon gags, one per bar: a slide whistle, a spring boing, a bonk on the head with birdies, a run of zips and a clown horn.",
+      "category": "Cartoon",
+      "tags": ["90 bpm", "cartoon", "glide", "vibrato"],
+      "source": "setcpm(90/4)\n\n// Bar 1: a slide whistle, a hollow sine gliding up an octave and back down\nslide: note(\"<[c5 c6 c5@2] ~ ~ ~ ~>\").s(\"sine\").timbre(\"hollow\").mono(1).glide(.35)\n  .attack(.02).sustain(1).release(.1).gain(.2)\n\n// Bar 2: a boing, a fast, deep vibrato on a note that springs up from below\nboing: note(\"<~ c3 ~ ~ ~>\").s(\"sine\").vib(14).vibdepth(4).penv(-12).pdecay(.3)\n  .decay(.8).sustain(0).gain(.3)\n\n// Bar 3: a bonk on the head, then little birdies\nbonk: s(\"<~ ~ [lt ~ ~ ~] ~ ~>\").speed(2.5).lpf(3000).gain(.5)\nbirdies: note(\"<~ ~ [~ [c7 e7] [g7 e7] c7] ~ ~>\").s(\"sine\").decay(.1).sustain(0).gain(.06)\n\n// Bar 4: four zips, a pulse sweeping up fast\nzip: freq(saw.range(300, 3000).fast(4).segment(32)).s(\"square\").pw(.3).mono(1).glide(.01)\n  .mask(\"<0 0 0 1 0>\").sustain(1).release(.02).gain(.06)\n\n// Bar 5: a clown horn, a reedy saw through an a vowel\nhonk: note(\"<~ ~ ~ ~ [f3 ~ f3@2]>\").s(\"sawtooth\").timbre(\"reed\").vowel(\"a\").lpf(1800)\n  .attack(.01).sustain(.8).release(.05).gain(.2)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "storm-kit",
+      "name": "Storm Kit",
+      "description": "A thunderstorm in four bars: rain that swells and eases, wind, a sharp lightning crack followed by a rolling rumble, and drips from the gutter all around you.",
+      "category": "Weather",
+      "tags": ["60 bpm", "rain", "thunder", "ambience"],
+      "source": "setcpm(60/4)\n\n// Rain that swells and eases over four bars, and the wind behind it\nrain: s(\"rain\").intensity(\"<.2 .4 .7 .4>\").gain(.3)\nwind: s(\"wind\").slow(8).intensity(.4).gain(.12)\n\n// The lightning crack: a short burst of crushed white noise, high and dry\ncrack: s(\"<~ ~ [white ~ ~ ~] ~>\").hpf(2000).crush(6).decay(.15).sustain(0).gain(.3)\n\n// The thunder rolls in just after: brown noise, a slow decay and a big reverb\nrumble: s(\"<~ ~ [~ brown] ~>\").lpf(300).attack(.05).decay(3).sustain(0).release(2)\n  .room(.8).size(.95).gain(.4)\n\n// Drips from the gutter, each in a new place around you\ndrips: s(\"drip*8?0.4\").azimuth(rand.range(-150, 150)).distance(2).seed(\"gutter\").gain(.1)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "open-plan-office",
+      "name": "Open-Plan Office",
+      "description": "An office around you: your own keyboard and mouse, a phone ringing across the room, a printer behind you, an elevator ding, air conditioning and muffled chatter.",
+      "category": "Foley",
+      "tags": ["90 bpm", "office", "typing", "spatial"],
+      "source": "setcpm(90/4)\n\n// Your keyboard: seeded clicks at slightly different speeds, like keys of different sizes\ntyping: s(\"click*16?0.6\").hpf(2500).speed(rand.range(.8, 1.3))\n  .azimuth(-20).distance(1).seed(\"typing\").gain(.15)\nmouse: s(\"<[~ ~ ~ click] ~ [~ click ~ ~] ~>\").speed(.7).azimuth(30).distance(.8).gain(.2)\n\n// A phone ringing across the room: two notes trembling twenty times a second\nphone: note(\"<~ [[e5,g5] ~ [e5,g5] ~] ~ ~>\").s(\"sine\").trem(20).tremdepth(1)\n  .sustain(1).release(.05).azimuth(100).distance(4).gain(.06)\n\n// The printer behind you on the left\nprinter: s(\"<~ ~ engine*8 ~>\").hpf(400).lpf(2000).azimuth(-120).distance(5).gain(.1)\n\n// The elevator arrives\nding: note(\"<~ ~ ~ [~ ~ e5 c5]>\").s(\"sine\").fm(2).fmh(3.5).decay(1).sustain(0)\n  .azimuth(160).distance(6).gain(.1)\n\n// Air conditioning and chatter from the next room\naircon: s(\"pink\").slow(8).lpf(800).icorr(.3).gain(.03)\nchatter: s(\"crowd\").slow(8).intensity(.2).occlude(.5).gain(.06)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "footsteps-around-you",
+      "name": "Footsteps Around You",
+      "description": "Headphones on: someone walks a slow circle around your head, two bars each on wood, gravel and through puddles, then up a flight of stairs.",
+      "category": "Foley",
+      "tags": ["110 bpm", "footsteps", "azimuth", "surfaces"],
+      "source": "setcpm(110/4)\n\n// One path for everything: a full circle around your head every eight bars\nconst path = saw.range(-180, 180).slow(8)\n\n// Bars 1-2 wood, 3-4 gravel, 5-6 puddles, 7-8 up the stairs\n// The surfaces change the speed and brightness of the step, and the stairs climb\nsteps: s(\"step*4\").speed(\"<1 1 1.2 1.2 .9 .9 1 1>\").lpf(\"<2000 2000 5000 5000 3000 3000 2500 2500>\")\n  .azimuth(path).elevation(\"<0 0 0 0 0 0 10 30>\").distance(2).posglide(.3).gain(.3)\n\n// Gravel: a crunch of filtered noise on each step\ngravel: s(\"pink*4\").hpf(2500).decay(.08).sustain(0).mask(\"<0 0 1 1 0 0 0 0>\")\n  .azimuth(path).distance(2).posglide(.3).gain(.05)\n\n// Puddles: a low splash on each step\nsplash: s(\"drip*4\").speed(.6).mask(\"<0 0 0 0 1 1 0 0>\")\n  .azimuth(path).distance(2).posglide(.3).gain(.2)\n\n// The room itself, wide and quiet\nroom: s(\"brown\").slow(8).lpf(400).icorr(.3).gain(.04)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "alarms-and-sirens",
+      "name": "Alarms and Sirens",
+      "description": "Two bars each: a siren passing from left to right, a smoke detector, an alarm clock, then a foghorn far out at sea and a car alarm whooping.",
+      "category": "Alarms",
+      "tags": ["60 bpm", "siren", "alarm", "glide"],
+      "source": "setcpm(60/4)\n\n// Bars 1-2: a siren, a sine gliding up and down, passing from your left to your right\nsiren: freq(sine.range(600, 1200).slow(2).segment(16)).s(\"sine\").mono(1).glide(.12)\n  .azimuth(saw.range(-90, 90).slow(2)).distance(4).posglide(.3)\n  .mask(\"<1 1 0 0 0 0 0 0>\").sustain(1).release(.05).gain(.06)\n\n// Bars 3-4: a smoke detector, three piercing beeps\nsmoke: note(\"[f7 f7 f7 ~]\").s(\"square\").pw(.5).decay(.15).sustain(.6).release(.02)\n  .mask(\"<0 0 1 1 0 0 0 0>\").gain(.03)\n\n// Bars 5-6: an alarm clock, beeping in bursts of four\nclock: note(\"[a5 a5 a5 a5 ~ ~ ~ ~]*2\").s(\"square\").pw(.5).decay(.05).sustain(.5).release(.02)\n  .mask(\"<0 0 0 0 1 1 0 0>\").gain(.05)\n\n// Bar 7: a foghorn far out at sea\nfoghorn: note(\"<~ ~ ~ ~ ~ ~ a1 ~>\").s(\"sawtooth\").vowel(\"o\").lpf(500)\n  .attack(.3).sustain(1).release(1).distance(10).space(\"outdoor\").gain(.3)\n\n// Bar 8: a car alarm, a fast rising whoop\ncaralarm: freq(saw.range(800, 1600).fast(4).segment(32)).s(\"square\").pw(.4).mono(1).glide(.02)\n  .lpf(3000).mask(\"<0 0 0 0 0 0 0 1>\").sustain(1).release(.02).azimuth(40).distance(5).gain(.05)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "trailer-hit",
+      "name": "Trailer Hit",
+      "description": "The movie trailer move: three bars of a rising noise sweep and an accelerating clock, a reverse whoosh into the downbeat, then a huge impact with a sub drop and a brass tail.",
+      "category": "Cinematic",
+      "tags": ["80 bpm", "riser", "impact", "trailer"],
+      "source": "setcpm(80/4)\n\n// Three bars of rise, one bar of impact\n// The riser: pink noise whose filter and level climb across the build\nriser: s(\"pink\").mask(\"<1 1 1 0>\").hpf(saw.range(200, 8000).slow(4)).gain(saw.range(.02, .12).slow(4))\n\n// A clock ticking faster and faster, then silent for the hit\nticks: s(\"<tick*4 tick*8 tick*16 ~>\").hpf(2000).gain(.12)\n\n// A whoosh into the downbeat: a slow attack on bright noise, cut off sharply\nwhoosh: s(\"<~ ~ [~ ~ ~ white] ~>\").hpf(1000).attack(.25).sustain(1).release(.02).gain(.08)\n\n// The impact: a slowed kick and crash, driven hard into a big hall\nimpact: s(\"<~ ~ ~ [bd,cr]>\").speed(.4).lpf(800).shape(.4).room(.8).size(.95).gain(.7)\n\n// A sub that drops two octaves into place\nsub: note(\"<~ ~ ~ c1>\").s(\"sine\").penv(24).pdecay(.15).decay(2).sustain(0).release(1).gain(.5)\n\n// And a brass tail ringing out\ntail: note(\"<~ ~ ~ [c3,g3,c4]>\").s(\"sawtooth\").unison(4).detune(25).lpf(1200)\n  .attack(.01).decay(3).sustain(0).release(2).space(\"hall\").gain(.12)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    }
+  ]
+}

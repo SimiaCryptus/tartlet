@@ -49,6 +49,7 @@ const SINCE_T11 = '0.11.0';
 const SINCE_T12 = '0.12.0';
 const SINCE_T13 = '0.13.0';
 const SINCE_T14 = '0.14.0';
+const SINCE_T15 = '0.15.0';
 
 function control(
   id: string,
@@ -177,6 +178,13 @@ function irControl(id: string, kind: ValueKind, description: string, range?: rea
 function cvControl(id: string, kind: ValueKind, description: string, range?: readonly [number, number]): RegistryEntry {
   return {
     ...control(id, [id], kind, description, { since: SINCE_T12, ...(range ? { range } : undefined) }),
+    level: 'L3',
+  };
+}
+/** Acoustic rendering extensions from docs/acoustic_rendering.md. L3. */
+function acControl(id: string, kind: ValueKind, description: string, range?: readonly [number, number]): RegistryEntry {
+  return {
+    ...control(id, [id], kind, description, { since: SINCE_T15, ...(range ? { range } : undefined) }),
     level: 'L3',
   };
 }
@@ -578,7 +586,7 @@ export const ENTRIES: readonly RegistryEntry[] = [
   envControl(
     'space',
     'string',
-    'The kind of space the reverb on this orbit imitates: room, hall, plate, church or outdoor. room and size still set how much and how long.',
+    'The kind of space the reverb on this orbit imitates: room, hall, plate, church or outdoor, or model to render it from spaceshape, spacesize and spacemat. room and size still set how much and how long.',
   ),
   envControl(
     'occlude',
@@ -754,6 +762,46 @@ export const ENTRIES: readonly RegistryEntry[] = [
     'number',
     'Bends how velocity maps to loudness: above one, soft notes get softer; below one, they get louder.',
     [0.25, 4],
+  ),
+  // Acoustic rendering (docs/acoustic_rendering.md).
+  acControl(
+    'cavity',
+    'string',
+    'Plays the sound through a rendered resonant cavity: box, cylinder, sphere or tube. none turns it off. It replaces body.',
+  ),
+  acControl('cavsize', 'number', 'Largest inside dimension of the cavity, in metres.', [0.05, 2]),
+  acControl('cavratio', 'number', 'Ratio of the smaller dimensions of the cavity to the largest.', [0.1, 1]),
+  acControl(
+    'material',
+    'string',
+    'What the cavity walls are made of: spruce, maple, wood, metal, glass, plastic, skin or felt.',
+  ),
+  acControl(
+    'cavhole',
+    'number',
+    'Size of an opening in the cavity, as a share of one face. Zero is closed; an opening adds an air resonance.',
+    [0, 1],
+  ),
+  acControl('cavsrc', 'number', 'Where the sound starts along the cavity, from zero to one. Constant only.', [0, 1]),
+  acControl('cavmic', 'number', 'Where the cavity is heard from, from zero to one. Constant only.', [0, 1]),
+  acControl('cavmix', 'number', 'How much of the cavity response is heard, from zero to one.', [0, 1]),
+  acControl(
+    'spaceshape',
+    'string',
+    'Shape of a modelled space: box, cylinder, dome or corridor. Needs space("model").',
+  ),
+  acControl('spacesize', 'number', 'Largest inside dimension of a modelled space, in metres.', [2, 100]),
+  acControl('spaceratio', 'number', 'Ratio of the smaller dimensions of a modelled space to the largest.', [0.1, 1]),
+  acControl(
+    'spacemat',
+    'string',
+    'What a modelled space is made of: concrete, stone, brick, plaster, wood, glass, carpet, curtain or snow.',
+  ),
+  acControl(
+    'spacesrc',
+    'number',
+    'Distance of the sound from the listener in a modelled space, as a share of its size. Constant only.',
+    [0, 1],
   ),
   {
     id: 'stack',

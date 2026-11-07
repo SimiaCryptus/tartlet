@@ -1,0 +1,122 @@
+{
+  "format": "tartlet-album",
+  "version": 2,
+  "id": "nature-sounds",
+  "name": "Nature Sounds",
+  "description": "Pure field recordings, synthesized: no melodies, no beats, just places. Spring rain on new leaves, a thunderstorm that crosses the sky, a mountain stream, the sea on a shingle shore, a summer night, a campfire, the dawn chorus, wind on a high ridge, rain under a forest canopy, a sea cave, a meadow at noon and a frozen lake. Every sound is placed around you, so headphones help, and every random choice is seeded: change the Seed box for a different day in the same place.",
+  "author": "Claude, for Tartlet",
+  "license": "Apache-2.0",
+  "category": "Nature",
+  "tags": ["nature", "ambience", "field recording", "spatial", "relax"],
+  "exportedAt": "2026-11-13T12:00:00.000Z",
+  "sketches": [
+    {
+      "id": "spring-rain",
+      "name": "Spring Rain",
+      "description": "Soft rain on new leaves, drops falling from the branches at random points around you, a blackbird singing through the shower and thunder far away.",
+      "category": "Rain",
+      "tags": ["rain", "drips", "birdsong", "spatial"],
+      "source": "setcpm(60/4)\n\n// Steady rain on the new leaves\nrain: s(\"rain\").slow(4).intensity(.4).gain(.28)\n\n// Drops falling from the branches at random points around you, some close, some far\ndrips: s(\"drip*8?0.5\").azimuth(rand.range(-180, 180)).elevation(rand.range(0, 50))\n  .distance(rand.range(1, 4)).seed(\"spring\").gain(.14)\n\n// A blackbird singing through the shower, off to the left\nblackbird: s(\"bird\").slow(3).azimuth(-50).distance(5).gain(.18)\n\n// Thunder far away, now and then\nthunder: s(\"<~ ~ ~ [~ lt] ~ ~ ~ ~>\").speed(.4).lpf(250).distance(12).room(.8).size(.95).gain(.4)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "thunderstorm",
+      "name": "Thunderstorm",
+      "description": "Eight bars of a storm: it builds on your left, breaks right over your head and rolls away behind you. The rain swells and fades, the gusts are wide and the gutter starts overflowing.",
+      "category": "Rain",
+      "tags": ["storm", "thunder", "azimuth", "elevation"],
+      "source": "setcpm(60/4)\n\n// Eight bars: the storm builds, breaks overhead and moves away\nrain: s(\"rain\").intensity(\"<.2 .35 .55 .8 .8 .6 .4 .25>\").gain(.3)\n\n// Thunder moves bar by bar: from the left, up overhead and close, then away behind you\nthunder: s(\"<[~ lt] ~ [lt ~ ~ lt] lt [lt lt ~ lt] lt ~ [~ lt]>\").speed(.4).lpf(300)\n  .azimuth(\"<-120 -90 -45 0 30 90 140 170>\").elevation(\"<10 20 45 70 70 45 20 10>\")\n  .distance(\"<12 9 5 2 2 5 9 12>\").room(.9).size(.95).gain(.5)\n\n// Gusts: unrelated noise in each ear, wide and enveloping, rising and falling with the storm\ngusts: s(\"pink\").icorr(.15).hpf(200).lpf(sine.range(400, 2000).slow(8))\n  .gain(\"<.03 .05 .08 .12 .12 .08 .05 .03>\")\n\n// The gutter overflows on your right while the rain is heavy\ngutter: s(\"drip*16?0.4\").azimuth(70).distance(2).mask(\"<0 0 1 1 1 1 1 0>\").seed(\"gutter\").gain(.12)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "mountain-stream",
+      "name": "Mountain Stream",
+      "description": "A clear stream runs past you from left to right, pebbles knock in the current, a dipper calls from a rock and a waterfall roars somewhere behind the trees.",
+      "category": "Water",
+      "tags": ["stream", "waterfall", "posglide"],
+      "source": "setcpm(60/4)\n\n// The stream runs slowly past you, from left to right, over sixteen bars\nstream: s(\"stream\").slow(4).intensity(.6).azimuth(saw.range(-90, 90).slow(16))\n  .distance(2).posglide(.5).gain(.26)\n\n// Pebbles knocking in the current\npebbles: s(\"click*8?0.3\").lpf(1500).speed(rand.range(.5, 1)).azimuth(rand.range(-60, 60))\n  .distance(2).seed(\"pebbles\").gain(.08)\n\n// A dipper calling from a rock, and a breeze in the pines above\ndipper: s(\"bird\").slow(3).azimuth(40).distance(3).gain(.2)\nbreeze: s(\"wind\").slow(8).intensity(.25).elevation(30).gain(.08)\n\n// A waterfall, far off behind the trees\nfalls: s(\"brown\").slow(8).lpf(600).azimuth(-130).distance(8).gain(.08)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "ocean-shore",
+      "name": "Ocean Shore",
+      "description": "Waves on a shingle beach: the surf rolls in, the stones rattle as each wave draws back, sea spray hisses in both ears and gulls wheel slowly overhead.",
+      "category": "Water",
+      "tags": ["surf", "gulls", "icorr", "elevation"],
+      "source": "setcpm(50/4)\n\n// The waves rolling in\nsurf: s(\"surf\").slow(8).intensity(.45).gain(.32)\n\n// The shingle rattling as every other wave draws back\nshingle: s(\"click*16?0.3\").hpf(2000).distance(3).mask(\"<0 1 0 1>\").seed(\"shingle\").gain(.06)\n\n// Sea spray: unrelated hiss in each ear, wide and all around\nspray: s(\"pink\").slow(8).icorr(.15).hpf(2500).lpf(7000).gain(.02)\n\n// Gulls wheeling high overhead, and the wind off the sea\ngulls: s(\"bird\").slow(4).azimuth(saw.range(-120, 120).slow(16)).elevation(40)\n  .distance(9).posglide(.5).gain(.14)\nwind: s(\"wind\").slow(8).intensity(.3).gain(.08)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "summer-night",
+      "name": "Summer Night",
+      "description": "A warm night in the open: crickets in the grass on both sides, close chirps scattered around you, frogs at a pond behind you and an owl calling far off to the left.",
+      "category": "Night",
+      "tags": ["crickets", "frogs", "owl", "spatial"],
+      "source": "setcpm(56/4)\n\n// Crickets in the grass on either side\ngrass: s(\"insect\").slow(4).azimuth(-100).distance(4).gain(.1)\nfield: s(\"insect\").slow(4).azimuth(110).distance(6).gain(.08)\n\n// Close chirps, each from a new place around you\nchirps: s(\"click*8?0.5\").hpf(4000).azimuth(rand.range(-180, 180)).distance(rand.range(1, 3))\n  .seed(\"chirps\").gain(.06)\n\n// Frogs at the pond behind you\nfrogs: s(\"click*4?0.4\").lpf(1200).azimuth(170).distance(5).seed(\"pond\").gain(.1)\n\n// An owl, far off to the left\nowl: note(\"<~ [~ ~ d4 [d4 a3]] ~ ~>\").s(\"hum\").azimuth(-70).distance(8)\n  .attack(.05).release(.5).gain(.12)\n\n// The night air, barely moving\nair: s(\"wind\").slow(8).intensity(.1).gain(.04)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "campfire",
+      "name": "Campfire",
+      "description": "A fire crackling right in front of you, logs settling now and then, crickets in the dark and a light wind moving through the trees around the clearing.",
+      "category": "Night",
+      "tags": ["fire", "crickets", "creak"],
+      "source": "setcpm(52/4)\n\n// The fire, close in front of you\nfire: s(\"fire\").slow(4).intensity(.5).density(10).distance(1.5).gain(.3)\n\n// A log settling in the embers, now and then\nlogs: s(\"~ ~ creak ~\").mask(\"<0 1 0 0 0 0 1 0>\").speed(.6).lpf(1500).distance(1.5).gain(.12)\n\n// Sparks popping, a few at a time\nsparks: s(\"click*8?0.3\").hpf(3000).azimuth(rand.range(-30, 30)).elevation(rand.range(0, 30))\n  .distance(1.5).seed(\"sparks\").gain(.06)\n\n// Crickets in the dark, and wind in the trees around the clearing\ncrickets: s(\"insect\").slow(4).azimuth(-100).distance(6).gain(.06)\ntrees: s(\"wind\").slow(8).intensity(.2).elevation(20).distance(5).gain(.07)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "dawn-chorus",
+      "name": "Dawn Chorus",
+      "description": "The first light in a woodland: birds singing from all around you, each in its own place, a lark crossing high overhead, a dove cooing behind you and a stream far off.",
+      "category": "Birdsong",
+      "tags": ["birds", "azimuth", "posglide", "morning"],
+      "source": "setcpm(72/4)\n\n// The dawn chorus: each bird has its own place around you\nrobin: s(\"bird\").slow(2).azimuth(-40).distance(3).gain(.24)\nwren: s(\"bird\").slow(3).azimuth(60).elevation(25).distance(4).gain(.2)\nthrush: s(\"bird\").slow(5).azimuth(150).distance(6).gain(.16)\nblackbird: s(\"bird\").slow(7).azimuth(-120).elevation(10).distance(7).gain(.14)\n\n// A lark crossing high overhead, gliding between positions\nlark: s(\"bird\").slow(4).azimuth(saw.range(-90, 90).slow(16)).elevation(50).distance(8)\n  .posglide(.5).gain(.14)\n\n// A dove cooing behind you on the left\ndove: note(\"<[~ e4 [e4 c4] ~] ~>\").s(\"hum\").azimuth(-150).distance(5)\n  .attack(.05).release(.4).gain(.1)\n\n// A stream far off, and the first breeze\nstream: s(\"stream\").slow(4).azimuth(80).distance(8).gain(.1)\nbreeze: s(\"wind\").slow(8).intensity(.15).gain(.05)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "windswept-ridge",
+      "name": "Windswept Ridge",
+      "description": "High on a bare ridge: a strong wind, gusts whose brightness wanders from ear to ear, a lone pine creaking, grass hissing at your feet and a raven calling far below.",
+      "category": "Wind",
+      "tags": ["wind", "lcutoff", "rcutoff", "creak"],
+      "source": "setcpm(50/4)\n\n// The wind over the ridge\nwind: s(\"wind\").slow(8).intensity(.6).gain(.18)\n\n// Gusts: each ear has its own low-pass, sweeping in opposite directions,\n// so the brightness wanders between the ears while the level stays put\ngusts: s(\"pink*4\").hpf(200).attack(.3).release(.6)\n  .lcutoff(saw.range(500, 3000).slow(8)).rcutoff(isaw.range(500, 3000).slow(8)).gain(.05)\n\n// A lone pine creaking in the wind, off to the right\npine: s(\"~ creak ~ ~\").mask(\"<1 0 1 0 0 1 0 0>\").speed(.7).azimuth(60).distance(4).gain(.12)\n\n// Grass hissing at your feet\ngrass: s(\"white\").slow(8).hpf(4000).lpf(8000).elevation(-40).distance(1).gain(.015)\n\n// A raven calling far below\nraven: s(\"bird\").slow(8).azimuth(-60).elevation(-30).distance(12).gain(.1)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "rain-under-the-canopy",
+      "name": "Rain Under the Canopy",
+      "description": "Sheltering under thick trees: the rain is muffled by the leaves above, heavy drops fall through at random, a stream swells nearby and a bird sings from somewhere in the wet.",
+      "category": "Rain",
+      "tags": ["rain", "occlude", "elevation", "forest"],
+      "source": "setcpm(56/4)\n\n// The rain above the canopy, muffled by the leaves\nrain: s(\"rain\").slow(4).intensity(.6).elevation(40).distance(3).occlude(.4).gain(.28)\n\n// Heavy drops falling through the leaves around you\ndrops: s(\"drip*8?0.4\").speed(rand.range(.6, 1)).azimuth(rand.range(-180, 180))\n  .elevation(rand.range(10, 60)).distance(rand.range(1, 3)).seed(\"canopy\").gain(.16)\n\n// A stream swelling with the rain, nearby on your right\nstream: s(\"stream\").slow(4).intensity(.5).azimuth(70).distance(3).gain(.16)\n\n// A bird singing from somewhere in the wet\nbird: s(\"bird\").slow(5).azimuth(-110).elevation(20).distance(6).occlude(.3).gain(.12)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "sea-cave",
+      "name": "Sea Cave",
+      "description": "Inside a sea cave: the waves boom through the rock, water drips from the roof at points around you, a trickle runs down the wall and the whole space rings like a church.",
+      "category": "Water",
+      "tags": ["surf", "drips", "occlude", "space"],
+      "source": "setcpm(48/4)\n\n// The sea outside, heard through the rock\nsurf: s(\"surf\").slow(8).intensity(.55).occlude(.5).space(\"church\").room(.5).gain(.3)\n\n// Water dripping from the roof at points around you, ringing in the stone\ndrips: s(\"drip*8?0.6\").azimuth(rand.range(-180, 180)).elevation(rand.range(20, 70))\n  .distance(rand.range(1, 4)).seed(\"cave\").space(\"church\").room(.5).gain(.16)\n\n// A trickle running down the wall to your left\ntrickle: s(\"stream\").slow(4).intensity(.15).azimuth(-80).distance(2).space(\"church\").gain(.1)\n\n// The low boom of the cave itself\nboom: s(\"brown\").slow(8).lpf(200).gain(.12)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "summer-meadow",
+      "name": "Summer Meadow",
+      "description": "Noon in a hay meadow: grasshoppers all around, bees circling your head, warm wind in the long grass, a skylark high above and a brook at the bottom of the field.",
+      "category": "Meadow",
+      "tags": ["insects", "bees", "skylark", "azimuth"],
+      "source": "setcpm(64/4)\n\n// Grasshoppers all around you in the long grass\nleft: s(\"insect\").slow(4).azimuth(-90).elevation(-20).distance(3).gain(.1)\nright: s(\"insect\").slow(4).azimuth(90).elevation(-20).distance(4).gain(.09)\n\n// A bee circling your head every two bars, another the other way, slower and further out\nbee1: s(\"insect*8\").azimuth(saw.range(-180, 180).slow(2)).distance(1.2).posglide(.1).gain(.08)\nbee2: s(\"insect*8\").azimuth(isaw.range(-180, 180).slow(4)).elevation(10).distance(2.5).posglide(.1).gain(.06)\n\n// Warm wind in the grass, and a skylark singing high above\nwind: s(\"wind\").slow(8).intensity(.25).gain(.08)\nskylark: s(\"bird\").slow(2).elevation(70).distance(10).gain(.14)\n\n// A brook at the bottom of the field\nbrook: s(\"stream\").slow(4).azimuth(160).distance(9).gain(.1)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    },
+    {
+      "id": "frozen-lake",
+      "name": "Frozen Lake",
+      "description": "A still winter afternoon on the ice: a cold wind, snow hissing across the surface, your footsteps crunching, and the ice booming and cracking far out across the lake.",
+      "category": "Winter",
+      "tags": ["wind", "ice", "snow", "distance"],
+      "source": "setcpm(48/4)\n\n// A cold wind across the open ice\nwind: s(\"wind\").slow(8).intensity(.4).gain(.14)\n\n// Snow blowing across the surface: wide and different in each ear\nsnow: s(\"pink\").slow(8).icorr(.15).hpf(3000).lpf(7000).gain(.02)\n\n// Your own footsteps, crunching in the snow\nsteps: s(\"step ~ step ~\").lpf(1800).elevation(-30).distance(1).gain(.12)\n\n// The ice booming and cracking far out across the lake, from a new place each time\nice: s(\"~ ~ ~ creak\").mask(\"<0 0 1 0 0 0 0 1>\").speed(.4)\n  .azimuth(\"<-60 40 -120 90>\").distance(10).room(.6).gain(.16)\nboom: s(\"<~ ~ ~ ~ ~ [~ lt] ~ ~>\").speed(.3).lpf(200).azimuth(120).distance(12).room(.8).gain(.3)\n",
+      "savedAt": "2026-11-13T12:00:00.000Z"
+    }
+  ]
+}
