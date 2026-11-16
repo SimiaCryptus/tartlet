@@ -8,7 +8,7 @@
   "license": "Apache-2.0",
   "category": "Testing",
   "tags": ["testing", "body", "cavity", "acoustic rendering", "A/B"],
-  "exportedAt": "2026-11-12T12:00:00.000Z",
+   "exportedAt": "2026-11-19T12:00:00.000Z",
   "sketches": [
     {
       "id": "guitar-vs-spruce-box",
@@ -85,20 +85,20 @@
     {
       "id": "size-ladder",
       "name": "Size Ladder",
-      "description": "Does cavsize scale like bodysize? Guitar at bodysize 0.5, 1 and 2 against the spruce box at 22, 45 and 90 cm, two bars per size. Each new size may play the fallback until its render is ready.",
+       "description": "Does cavsize scale like bodysize? Guitar at bodysize 0.5, 1 and 2 against the spruce box at 22, 45 and 90 cm. A song gives each size its own two-bar section, and bysec sets both sizes per section. Each new size may play the fallback until its render is ready.",
       "category": "Scaling",
-      "tags": ["bodysize", "cavsize", "guitar"],
-      "source": "setcpm(90/4)\n\n// Odd bars: the body preset. Even bars: the rendered cavity, each two bars at a matching size\nconst phrase = note(\"e3 g3 b3 e4 b3 g3\")\nconst pluck = (x) => x.s(\"triangle\").attack(.002).decay(.4).sustain(0).release(.3)\n\npreset: phrase.pluck().body(\"guitar\").bodysize(\"<.5 .5 1 1 2 2>\").mask(\"<1 0>\").gain(.4)\nrendered: phrase.pluck().cavity(\"box\").cavsize(\"<.225 .225 .45 .45 .9 .9>\").material(\"spruce\").cavhole(.3)\n  .mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
-      "savedAt": "2026-11-12T12:00:00.000Z"
+       "tags": ["bodysize", "cavsize", "guitar", "song", "bysec"],
+       "source": "setcpm(90/4)\nsong(\"small@2 medium@2 large@2\")\n\n// One two-bar section per size. Odd bars: the body preset. Even bars: the rendered cavity at a matching size\nconst phrase = note(\"e3 g3 b3 e4 b3 g3\")\nconst pluck = (x) => x.s(\"triangle\").attack(.002).decay(.4).sustain(0).release(.3)\n\npreset: phrase.pluck().body(\"guitar\").bodysize(bysec(\"small:.5 medium:1 large:2\")).mask(\"<1 0>\").gain(.4)\nrendered: phrase.pluck().cavity(\"box\").cavsize(bysec(\"small:.225 medium:.45 large:.9\")).material(\"spruce\").cavhole(.3)\n  .mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+       "savedAt": "2026-11-19T12:00:00.000Z"
     },
     {
       "id": "material-ladder",
       "name": "Material Ladder",
-      "description": "The guitar preset held fixed against the same box in spruce, maple, wood and plastic, two bars each. Note which material comes closest.",
+       "description": "The guitar preset held fixed against the same box in spruce, maple, wood and plastic. A song gives each material its own two-bar section, and bysec picks the material. Note which material comes closest.",
       "category": "Scaling",
-      "tags": ["material", "guitar", "comparison"],
-      "source": "setcpm(90/4)\n\n// Odd bars: the guitar preset. Even bars: the box in spruce, maple, wood, then plastic\nconst phrase = note(\"e3 g3 b3 e4 b3 g3\")\nconst pluck = (x) => x.s(\"triangle\").attack(.002).decay(.4).sustain(0).release(.3)\n\npreset: phrase.pluck().body(\"guitar\").mask(\"<1 0>\").gain(.4)\nrendered: phrase.pluck().cavity(\"box\").cavsize(.45).cavhole(.3)\n  .material(\"<spruce spruce maple maple wood wood plastic plastic>\").mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
-      "savedAt": "2026-11-12T12:00:00.000Z"
+       "tags": ["material", "guitar", "comparison", "song", "bysec"],
+       "source": "setcpm(90/4)\nsong(\"spruce@2 maple@2 wood@2 plastic@2\")\n\n// One two-bar section per material. Odd bars: the guitar preset. Even bars: the box in that section's material\nconst phrase = note(\"e3 g3 b3 e4 b3 g3\")\nconst pluck = (x) => x.s(\"triangle\").attack(.002).decay(.4).sustain(0).release(.3)\n\npreset: phrase.pluck().body(\"guitar\").mask(\"<1 0>\").gain(.4)\nrendered: phrase.pluck().cavity(\"box\").cavsize(.45).cavhole(.3)\n  .material(bysec(\"spruce:spruce maple:maple wood:wood plastic:plastic\")).mask(\"<0 1>\").gain(.4)\nmarker: s(\"<[click ~ ~ ~] [click click ~ ~]>\").hpf(3000).gain(.08)\n",
+       "savedAt": "2026-11-19T12:00:00.000Z"
     },
     {
       "id": "half-wet",

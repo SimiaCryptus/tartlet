@@ -3,7 +3,7 @@
 import type { Diagnostic, Program, ResourceDecl } from '@tartlet/ir';
 import type { ControlMap } from '@tartlet/core';
 import { SampleLibrary, loadSamples, sampleResources, type FetchBytes, type HostDiagnostic } from '@tartlet/samples';
-import { Scheduler } from '@tartlet/schedule';
+import { Scheduler, cycleToTime } from '@tartlet/schedule';
 import { AudioEngine } from '@tartlet/webaudio';
 import { InlineEvaluator, WorkerEvaluator, type CheckRequest, type Checked, type Evaluator } from '@tartlet/worker';
 
@@ -79,6 +79,9 @@ const STYLE = `
   .info { color: var(--tt-info); }
   @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 `;
+
+/** Seconds the transport keeps running after a `song(…, "once")` ends, so releases ring out. */
+const END_GRACE = 2;
 
 function createEvaluator(): Evaluator {
   if (typeof Worker === 'undefined') return new InlineEvaluator();
@@ -203,7 +206,7 @@ export class TartletPlayerElement extends HTMLElement {
     }
     if (gen !== this.#gen) return;
     this.#result = r;
-    this.#scheduler?.setCps(r.program.settings.cps);
+    this.#scheduler?.setTempo(r.program.settings.cps, r.program.settings.tempoMap ?? []);
     if (!this.#scheduler?.running) this.#render();
     else this.#renderList();
     this.dispatchEvent(new CustomEvent('diagnostics', { detail: this.diagnostics }));
@@ -236,6 +239,7 @@ export class TartletPlayerElement extends HTMLElement {
       },
       now: () => engine.ctx.currentTime,
       cps: result.program.settings.cps,
+      tempo: result.program.settings.tempoMap ?? [],
     });
     this.#scheduler.start();
     this.#status.textContent = `Playing${this.#hint()}`;
@@ -264,6 +268,12 @@ export class TartletPlayerElement extends HTMLElement {
   readonly #tick = (): void => {
     const s = this.#scheduler;
     if (!s?.running) return;
+    const song = this.#result?.program.settings.song;
+    const engine = this.#engine;
+    if (song?.once === true && engine && engine.ctx.currentTime > cycleToTime(s.mapping, song.cycles) + END_GRACE) {
+      this.stop();
+      return;
+    }
     const pos = Math.max(0, s.position());
     const whole = Math.floor(pos);
     this.#cycle.textContent = `cycle ${String(whole)}`;

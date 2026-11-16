@@ -2,7 +2,7 @@
 // tartlet check | ir | events | sanity | corpus | prompt (plan.md §1).
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { check, locator, repairPayload } from '@tartlet/check';
+import { check, formatDuration, locator, pieceLength, repairPayload } from '@tartlet/check';
 import { compile, sanity } from '@tartlet/core';
 import { encodeProgram } from '@tartlet/ir';
 import { systemPrompt } from '@tartlet/registry';
@@ -31,12 +31,23 @@ function walk(dir: string): string[] {
 switch (cmd) {
   case 'check': {
     const src = load(file);
-    const r = check(src, opts);
-    console.log(
-      rest.includes('--json')
-        ? JSON.stringify(r.diagnostics, null, 2)
-        : repairPayload(r, { includeBenign: rest.includes('--all') }),
-    );
+    const mi = rest.indexOf('--min-seconds');
+    const min = mi >= 0 ? Number(rest[mi + 1]) : NaN;
+    const target = Number.isFinite(min) && min > 0 ? min : undefined;
+    const r = check(src, { ...opts, ...(target !== undefined ? { minSeconds: target } : {}) });
+    if (rest.includes('--json')) {
+      console.log(JSON.stringify(r.diagnostics, null, 2));
+    } else {
+      console.log(
+        repairPayload(r, {
+          includeBenign: rest.includes('--all'),
+          ...(target !== undefined ? { show: ['W-SONG-SHORT'] } : {}),
+        }),
+      );
+      const len = pieceLength(r.program);
+      if (len)
+        console.log(`piece: ${String(Math.round(len.cycles * 1000) / 1000)} cycles, ${formatDuration(len.seconds)}`);
+    }
     process.exitCode = r.diagnostics.some((d) => d.severity === 'error') ? 1 : 0;
     break;
   }
@@ -64,8 +75,10 @@ switch (cmd) {
     const ci = rest.indexOf('--cycles');
     const asked = ci >= 0 ? Number(rest[ci + 1]) : 4;
     const cycles = Number.isInteger(asked) && asked > 0 ? Math.min(asked, 4096) : 4;
-    const report = sanity(compile(check(src, opts).program, { locate: locator(src), ...opts }), cycles);
-    console.log(JSON.stringify(report, null, 2));
+    const program = check(src, opts).program;
+    const report = sanity(compile(program, { locate: locator(src), ...opts }), cycles);
+    const len = pieceLength(program, report.periods);
+    console.log(JSON.stringify({ ...report, length: len && { ...len, text: formatDuration(len.seconds) } }, null, 2));
     process.exitCode = report.ok ? 0 : 1;
     break;
   }

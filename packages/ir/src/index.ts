@@ -1,5 +1,5 @@
 // Types from idea.md §9 and §10. T0 deviations are noted inline and in spec-issues.md.
-import type { Rational } from '@tartlet/time';
+import type { Rational, TempoPoint } from '@tartlet/time';
 import type { MiniAst } from '@tartlet/mini'; // TS-13
 
 export type NodeId = string;
@@ -104,8 +104,18 @@ export interface SourceRef {
   readonly hash: string;
   readonly length: number;
 }
+/** The shared timeline of a `song` directive (docs/long_compositions.md). */
+export interface SongSettings {
+  /** Total length in cycles. */
+  readonly cycles: Rational;
+  /** The piece ends after the last section. */
+  readonly once: boolean;
+}
 export interface Settings {
   readonly cps: Rational;
+  /** Tempo points from `tempomap`; before the first one the tempo is `cps` (P5). */
+  readonly tempoMap?: readonly TempoPoint[];
+  readonly song?: SongSettings;
   readonly seed?: string;
   readonly meta: Readonly<Record<string, string>>;
 }

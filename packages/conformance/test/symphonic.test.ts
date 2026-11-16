@@ -50,7 +50,8 @@ describe('form', () => {
     expect(ids('$: form("A", s("a"), s("b"))')).toEqual(['W-FORM-UNUSED', 'I-FORM-LENGTH']);
     const d = check('$: form("A@x", s("a"))', opts).diagnostics[0];
     expect(d).toMatchObject({ id: 'E-ARG-GRAMMAR', range: { start: { line: 0, col: 9 } } });
-    expect(ids('$: s("a").once()')).toEqual(['W-ARG-UNSUPPORTED']);
+    expect(ids('$: s("a").once()')).toEqual([]);
+    expect(ids('$: form("A", s("a")).once(2)')).toContain('W-ARG-UNSUPPORTED');
   });
 });
 

@@ -3,7 +3,7 @@
   "version": 2,
   "id": "instruments",
   "name": "Instrument Library",
-  "description": "A compendium of single reference instruments, all built from the synthesized kit: keyboards, mallets and bells, plucked and bowed strings, woodwinds, brass, free reeds and pipes, voices, percussion and classic synthesizers. Every sketch defines its instrument once as a patch function at the top, then plays a short reference phrase chosen to show it off. Copy the const line into any sketch and call it as a method, for example note(\"c4 e4 g4\").grand().",
+   "description": "A compendium of single reference instruments, all built from the synthesized kit: keyboards, mallets and bells, plucked and bowed strings, woodwinds, brass, free reeds and pipes, voices, percussion and classic synthesizers. Every sketch defines its instrument once as a patch function at the top, then plays a short reference phrase chosen to show it off. Copy the const line into any sketch and call it as a method, for example note(\"c4 e4 g4\").grand(). The last sketch puts several patches together in a short song with sections, repeats and a closing ritardando.",
   "author": "Claude, for Tartlet",
   "license": "Apache-2.0",
   "category": "Reference",
@@ -396,6 +396,15 @@
       "tags": ["theremin", "glide", "A minor", "60 bpm"],
       "source": "setcpm(60/4)\n\n// The patch: a pure sine on one line, sliding slowly between notes with a wide vibrato\nconst theremin = (x) => x.s(\"sine\").mono(1).glide(.35).vib(6).vibdepth(.3)\n  .attack(.3).sustain(1).release(.8).room(.6)\n\n// Reference: wide leaps that the glide turns into swoops\nreference: note(\"<[a4@3 e5@5] [d5@2 c5@2 b4@4] [c5@3 a4@5] [e4@8]>\")\n  .theremin().gain(.24)\n",
       "savedAt": "2026-11-09T12:00:00.000Z"
+   },
+   {
+     "id": "ensemble-song",
+     "name": "Ensemble: A Short Song",
+     "description": "Four patches from this album (grand piano, upright bass, string ensemble and vibraphone) copied unchanged into one sketch and arranged as a short song: an intro, a repeated verse with two endings, a chorus and its variation, and an outro that slows down and stops.",
+     "category": "Ensembles",
+     "tags": ["song", "sections", "tempo map", "C major", "96 bpm"],
+     "source": "setcpm(96/4)\n\n// The structure, once for every track; the verse repeats with two different endings\n// Plays: intro verse turn verse cadence chorus chorus' outro, then stops\nsong(\"intro@2 (verse@4 1.turn@1 2.cadence@1)*2 chorus@4 chorus'@4 outro@2\", \"once\")\n\n// Steady, then a ritardando across the two-cycle outro\ntempomap(\"0:24 20:24 22:18\")\n\n// The patches, copied unchanged from their reference sketches\nconst grand = (x) => x.s(\"triangle\").timbre(\"soft\")\n  .attack(.003).decay(1.8).sustain(.06).release(1.5).envcurve(\"exp\")\n  .lpf(3400).room(.4).size(.75)\nconst upright = (x) => x.s(\"sine\").shape(.15)\n  .attack(.004).decay(.4).sustain(.3).release(.15)\n  .body(\"box\").bodymix(.2)\nconst strings = (x) => x.s(\"sawtooth\").unison(5).detune(18)\n  .attack(.6).sustain(1).release(1.5).lpf(2200).room(.7).size(.9)\nconst vibes = (x) => x.s(\"sine\").fm(2).fmh(4).trem(5.5).tremdepth(.35)\n  .attack(.002).decay(2).sustain(0).release(1.6).room(.4)\n\n// Piano chords everywhere, softer in the intro and outro\nkeys: note(\"<[c4,e4,g4] [a3,c4,e4] [f3,a3,c4] [g3,b3,d4]>\").struct(\"x ~ x ~\")\n  .grand().gain(bysec(\"intro:.22 outro:.22 *:.3\"))\n\n// The bass enters with the first verse\nbass: note(\"<c2 a1 f1 g1>\").struct(\"x ~ x x\").upright().gain(.45)\n  .exceptSections(\"intro\")\n\n// Strings frame the piece, with one swell across the whole song\npad: note(\"<[c3,g3,e4] [a2,e3,c4] [f2,c3,a3] [g2,d3,b3]>\").strings()\n  .gain(env(\"0 .14@3 .06\", \"song\")).sections(\"intro chorus outro\")\n\n// Drums in the middle, with a fill in the last cycle of every section\ndrums: s(\"bd ~ sd ~, hh*4\").gain(.4)\n  .exceptSections(\"intro outro\").atEnd(1, x => x.ply(2))\n\n// The vibraphone sings the chorus, an octave higher the second time\nlead: n(\"<[0 2 4 2] [5 4 2 0] [3 2 1 3] [4@3 ~]>\").scale(\"C:major\").transpose(12)\n  .vibes().gain(.22).sections(\"chorus\").variant(x => x.add(12))\n",
+     "savedAt": "2026-11-09T12:00:00.000Z"
     }
   ]
 }

@@ -1,6 +1,7 @@
 // Lowering from the syntax tree to the Music IR, with the closed-language rules (idea.md §7.3, §10).
 import {
   type Rational,
+  ZERO,
   rat,
   add,
   sub,
@@ -8,11 +9,16 @@ import {
   div,
   neg,
   isZero,
+  lt,
   parseDecimal,
   toNumber,
+  toString as ratStr,
   fromFloat,
   max,
   min,
+  eq,
+  tempoCurve,
+  type TempoPoint,
 } from '@tartlet/time';
 import { parseMini, type MiniAst } from '@tartlet/mini';
 import { parse, LineIndex, type Expr, type Range, type Stmt, type SyntaxTree } from '@tartlet/syntax';
@@ -47,6 +53,7 @@ import {
   INT_SEQUENCES,
   MAX_LSYS_GENERATIONS,
   MAX_LSYS_LENGTH,
+  MAX_SECTIONS,
   MATERIAL_NAMES,
   NOISE_SOUNDS,
   OSCILLATOR_SOUNDS,
@@ -69,8 +76,13 @@ import {
   parseLsysRules,
   parseRowForm,
   parseScale,
+  parseSectionMap,
+  parseSectionNames,
   parseSieve,
+  parseSongLayout,
   parseSyllable,
+  parseTempoMap,
+  partName,
   suggestSyllable,
   type GrammarError,
   type ParamSpec,
@@ -93,6 +105,8 @@ export interface CheckOptions {
   readonly registry?: Registry;
   /** Enables resource diagnostics before playback (Q-05, Q-08). */
   readonly catalog?: SoundCatalog;
+  /** A target length in seconds; shorter pieces get W-SONG-SHORT (off by default). */
+  readonly minSeconds?: number;
 }
 
 export interface CheckResult {
@@ -291,6 +305,50 @@ function soundKind(name: string): SoundKind {
   if (DRUM_SET.has(name)) return 'drum';
   return 'other';
 }
+/** Methods that read the song timeline (docs/long_compositions.md). */
+const SONG_METHODS: ReadonlySet<string> = new Set(['sections', 'exceptSections', 'atStart', 'atEnd', 'variant']);
+interface SongPart {
+  readonly name: string;
+  readonly primes: number;
+  /** The name with its primes, as written. */
+  readonly full: string;
+  readonly len: Rational;
+  readonly lenText: string;
+  readonly start: Rational;
+  readonly textRange: Range;
+}
+interface SongInfo {
+  readonly sections: readonly SongPart[];
+  readonly total: Rational;
+  readonly once: boolean;
+  readonly range: Range;
+}
+/** `52 s`, `3 min` or `3 min 52 s`. */
+export function formatDuration(secs: number): string {
+  const t = Math.round(secs);
+  if (t < 60) return `${String(t)} s`;
+  const m = Math.floor(t / 60);
+  const s = t % 60;
+  return s === 0 ? `${String(m)} min` : `${String(m)} min ${String(s)} s`;
+}
+/** Seconds from cycle 0 to `cycles`, through the tempo map when there is one (P5). */
+export function pieceSeconds(settings: Program['settings'], cycles: number): number {
+  const map = settings.tempoMap;
+  return map && map.length > 0 ? tempoCurve(map, settings.cps).seconds(cycles) : cycles / toNumber(settings.cps);
+}
+/**
+ * How long a piece plays (P6): the song length, or else the longest repetition period from a
+ * sanity report. Null when neither is known.
+ */
+export function pieceLength(
+  program: Program,
+  periods?: Readonly<Record<string, number | null>>,
+): { readonly cycles: number; readonly seconds: number } | null {
+  const song = program.settings.song;
+  let cycles = song ? toNumber(song.cycles) : 0;
+  if (!song && periods) for (const p of Object.values(periods)) if (p !== null) cycles = Math.max(cycles, p);
+  return cycles > 0 ? { cycles, seconds: pieceSeconds(program.settings, cycles) } : null;
+}
 
 type Ident = Extract<Expr, { k: 'ident' }>;
 type Lambda = Extract<Expr, { k: 'lambda' }>;
@@ -475,6 +533,7 @@ export function check(source: string, opts: CheckOptions): CheckResult {
   lw.checkVocal();
   if (opts.catalog) lw.checkResources(opts.catalog);
   lw.checkAdvisories();
+  lw.checkLength(opts.minSeconds);
 
   if (!lw.outputs.some((o) => o.status === 'ok') && diagnostics.some((d) => d.severity === 'error')) {
     diagnostics.push({
@@ -491,6 +550,8 @@ export function check(source: string, opts: CheckOptions): CheckResult {
     source: { hash: hash64(source), length: source.length },
     settings: {
       cps: lw.cps,
+      ...(lw.tempoMap ? { tempoMap: lw.tempoMap } : undefined),
+      ...(lw.songSettings ? { song: lw.songSettings } : undefined),
       ...(opts.seed !== undefined ? { seed: opts.seed } : undefined),
       meta: Object.create(null) as Record<string, string>,
     },
@@ -516,6 +577,8 @@ function emptyProgram(diagnostics: Diagnostic[]): Program {
 
 class Lowerer {
   cps: Rational = rat(1, 2);
+  /** Points of the `tempomap` directive, already clamped (P5). */
+  tempoMap: readonly TempoPoint[] | undefined = undefined;
   readonly bindings: Binding[] = [];
   readonly outputs: Output[] = [];
   readonly resources: ResourceDecl[] = [];
@@ -541,8 +604,19 @@ class Lowerer {
   private readonly seenDiags = new Set<string>();
   private readonly sizes = new WeakMap<PatternNode, number>();
   private tempoSeen = false;
+  private mapSeen = false;
   private outputLabel: string | undefined;
   private errored = false;
+  /** The shared timeline from `song(…)` (docs/long_compositions.md). */
+  private song: SongInfo | undefined = undefined;
+  private songBroken = false;
+  /** Full section names that some `.sections` or `.exceptSections` plays in. */
+  private readonly songPlayed = new Set<string>();
+  /** Set when an output statement plays without restricting itself to sections. */
+  private songEverywhere = false;
+  private songUsed = false;
+  /** Length of the longest form in cycles, for W-SONG-SHORT without a song (P6). */
+  private formCycles = 0;
 
   constructor(
     private readonly reg: Registry,
@@ -552,6 +626,14 @@ class Lowerer {
   ) {}
 
   run(tree: SyntaxTree): void {
+    // The song is read first, so tracks may come before it in the document.
+    for (const st of tree.statements) {
+      if (st.k !== 'expr' || !this.isSong(st.expr)) continue;
+      this.resetErrored();
+      this.resetState();
+      this.outputLabel = undefined;
+      this.songDirective(st.expr);
+    }
     let slot = 0;
     for (const st of tree.statements) {
       this.resetErrored();
@@ -581,7 +663,10 @@ class Lowerer {
       }
       const anchor = label ?? `$${String(slot++)}`;
       this.outputLabel = anchor;
-      const expr = this.guarded(st.range, () => this.pattern(st.expr, hash64('output', anchor)));
+      this.resetSongUsed();
+      const lowered = this.guarded(st.range, () => this.pattern(st.expr, hash64('output', anchor)));
+      if (!this.songUsed) this.songEverywhere = true;
+      const expr = this.songOnce(lowered);
       this.outputs.push({
         id: hash64('out', anchor),
         label: anchor,
@@ -590,6 +675,387 @@ class Lowerer {
       });
     }
     this.outputLabel = undefined;
+    this.songReport();
+  }
+  /** The song as carried by the Program settings. */
+  get songSettings(): { readonly cycles: Rational; readonly once: boolean } | undefined {
+    const song = this.song;
+    return song ? { cycles: song.total, once: song.once } : undefined;
+  }
+  private seconds(cycles: number): number {
+    const map = this.tempoMap;
+    return map ? tempoCurve(map, this.cps).seconds(cycles) : cycles / toNumber(this.cps);
+  }
+  /** W-SONG-SHORT when the host set a target length and the piece falls short of it (P6). */
+  checkLength(min: number | undefined): void {
+    if (min === undefined || !(min > 0) || !this.outputs.some((o) => o.status === 'ok')) return;
+    this.resetState();
+    this.outputLabel = undefined;
+    const song = this.song;
+    const cycles = song ? toNumber(song.total) : this.formCycles;
+    const range = song?.range ?? { start: 0, end: 0 };
+    if (cycles <= 0) {
+      this.diag(
+        'W-SONG-SHORT',
+        'warning',
+        `This piece has no song("…") timeline or form, so it is a short loop. Aim for at least ${formatDuration(min)}.`,
+        range,
+        'none',
+      );
+      return;
+    }
+    const secs = this.seconds(cycles);
+    if (secs < min)
+      this.diag(
+        'W-SONG-SHORT',
+        'warning',
+        `This piece lasts ${formatDuration(secs)}, shorter than the target of ${formatDuration(min)}. Add sections or make them longer.`,
+        range,
+        'none',
+      );
+  }
+  private resetSongUsed(): void {
+    this.songUsed = false;
+  }
+  private isSong(e: Expr): e is Extract<Expr, { k: 'call' }> {
+    return e.k === 'call' && e.callee.k === 'ident' && this.reg.lookup(e.callee.name)?.entry.id === 'song';
+  }
+  /** With `song(…, "once")`, every playable track falls silent at the end of the song. */
+  private songOnce(expr: PatternNode): PatternNode {
+    const song = this.song;
+    if (!song?.once || this.errored) return expr;
+    return {
+      kind: 'transform',
+      id: hash64(expr.id, 'song-once'),
+      range: expr.range,
+      type: expr.type,
+      fn: 'exit',
+      target: expr,
+      args: [{ kind: 'const', value: { t: 'num', v: song.total } }],
+    };
+  }
+  private songDirective(e: Extract<Expr, { k: 'call' }>): void {
+    if (this.song || this.songBroken) {
+      this.diag('E-NAME-DUP', 'error', 'A document has at most one `song`.', e.range, 'none');
+      return;
+    }
+    const a = e.args[0];
+    if (a?.k !== 'str') {
+      this.songBroken = true;
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        '`song` needs a constant layout string, as in song("intro@4 verse@16 chorus@16").',
+        e.range,
+        'none',
+      );
+      return;
+    }
+    const parsed = parseSongLayout(a.value);
+    if ('error' in parsed) {
+      this.songBroken = true;
+      this.diag(
+        'E-ARG-GRAMMAR',
+        'error',
+        parsed.error.message,
+        { start: a.contentStart + parsed.error.range[0], end: a.contentStart + parsed.error.range[1] },
+        'none',
+      );
+      return;
+    }
+    let once = false;
+    const m = e.args[1];
+    if (m?.k === 'str' && (m.value === 'once' || m.value === 'loop')) once = m.value === 'once';
+    else if (m)
+      this.diag(
+        'W-ARG-MODE',
+        'warning',
+        'The second argument of `song` is "loop" or "once". The song loops.',
+        m.range,
+        'none',
+      );
+    let at = ZERO;
+    const sections = parsed.sections.map((s): SongPart => {
+      const part: SongPart = {
+        name: s.name,
+        primes: s.primes,
+        full: s.name + "'".repeat(s.primes),
+        len: s.len,
+        lenText: s.lenText,
+        start: at,
+        textRange: { start: a.contentStart + s.range[0], end: a.contentStart + s.range[1] },
+      };
+      at = add(at, s.len);
+      return part;
+    });
+    this.song = { sections, total: parsed.total, once, range: e.range };
+  }
+  /** I-SONG-LENGTH, and W-SONG-UNUSED for sections no track plays in. */
+  private songReport(): void {
+    const song = this.song;
+    if (!song) return;
+    this.resetState();
+    this.outputLabel = undefined;
+    const map = this.tempoMap;
+    const secs = map
+      ? tempoCurve(map, this.cps).seconds(toNumber(song.total))
+      : toNumber(song.total) / toNumber(this.cps);
+    this.diag(
+      'I-SONG-LENGTH',
+      'info',
+      `This song lasts ${String(toNumber(song.total))} cycles (${formatDuration(secs)} ${map ? 'with the tempo map' : 'at the set tempo'}) and then ${song.once ? 'ends' : 'repeats'}.`,
+      song.range,
+      'none',
+    );
+    if (this.songEverywhere || this.outputs.length === 0) return;
+    const seen = new Set<string>();
+    for (const s of song.sections) {
+      if (this.songPlayed.has(s.full) || seen.has(s.full)) continue;
+      seen.add(s.full);
+      this.diag(
+        'W-SONG-UNUSED',
+        'warning',
+        `No track plays in section \`${s.full}\`, so it is silent.`,
+        s.textRange,
+        'none',
+      );
+    }
+  }
+  private songFor(typed: string, at: Range): SongInfo | undefined {
+    if (this.song) return this.song;
+    this.diag(
+      'E-ARG-MISSING',
+      'error',
+      this.songBroken
+        ? `\`${typed}\` uses the song, but the \`song\` directive has errors.`
+        : `\`${typed}\` needs a song("…") directive that names the sections, as in song("verse@8 chorus@8").`,
+      at,
+      'subtree-muted',
+    );
+    return undefined;
+  }
+  /** A generated `form` over `parts`, with numbered parts in its layout. */
+  private songForm(
+    id: NodeId,
+    range: Range,
+    base: NodeId,
+    parts: PatternNode[],
+    layout: string,
+    type: PatternType,
+  ): PatternNode {
+    return {
+      kind: 'transform',
+      id,
+      range: this.sr(range),
+      type,
+      fn: 'form',
+      target: {
+        kind: 'combine',
+        id: hash64(base, 'song', 'parts'),
+        range: this.sr(range),
+        type: CONTROLS,
+        op: 'stack',
+        children: parts,
+      },
+      args: [{ kind: 'const', value: { t: 'str', v: layout } }],
+    };
+  }
+  private windowsNode(
+    target: PatternNode,
+    windows: readonly (readonly [Rational, Rational])[],
+    fn: Arg,
+    id: NodeId,
+    range: Range,
+    song: SongInfo,
+  ): PatternNode {
+    const text = windows.map(([b, e]) => `${ratStr(b)} ${ratStr(e)}`).join(' ');
+    return {
+      kind: 'transform',
+      id,
+      range: this.sr(range),
+      type: target.type,
+      fn: 'inWindows',
+      target,
+      args: [
+        { kind: 'const', value: { t: 'str', v: text } },
+        fn,
+        { kind: 'const', value: { t: 'num', v: song.once ? ZERO : song.total } },
+      ],
+    };
+  }
+  /** `.sections`, `.exceptSections`, `.atStart`, `.atEnd` and `.variant`. */
+  private songMethod(
+    entry: RegistryEntry,
+    recv: PatternNode,
+    args: readonly Expr[],
+    range: Range,
+    nameRange: Range,
+    typed: string,
+  ): PatternNode {
+    const base = this.salted(recv.id);
+    const id = hash64(base, entry.id);
+    const lowered = this.lowerArgs(entry, args, range, base, typed);
+    if (!lowered) return this.errorNode('E-ARG-TYPE', range, recv);
+    if (entry.id !== 'sections' && entry.id !== 'exceptSections')
+      return this.edgeCall(entry.id, recv, lowered, range, nameRange, id, typed);
+    const raw = this.resolve(args[0]);
+    if (raw === 'abstract') return recv;
+    if (raw?.k !== 'str')
+      return this.reject(
+        'E-ARG-TYPE',
+        `\`${typed}\` needs a constant string of section names, as in ${typed}("chorus").`,
+        raw?.range ?? range,
+        range,
+        recv,
+      );
+    const song = this.songFor(typed, nameRange);
+    if (!song) return this.errorNode('E-ARG-MISSING', range, recv);
+    const parsed = parseSectionNames(raw.value);
+    if ('error' in parsed) return this.grammarError(raw, parsed.error, range);
+    const matches = (sel: { readonly name: string; readonly primes: number }, s: SongPart): boolean =>
+      s.name === sel.name && (sel.primes === 0 || s.primes === sel.primes);
+    let missing = false;
+    for (const sel of parsed.names) {
+      if (song.sections.some((s) => matches(sel, s))) continue;
+      missing = true;
+      this.diag(
+        'E-ARG-MISSING',
+        'error',
+        `The song has no section \`${sel.name}${"'".repeat(sel.primes)}\`.`,
+        { start: raw.contentStart + sel.range[0], end: raw.contentStart + sel.range[1] },
+        'subtree-muted',
+      );
+    }
+    if (missing) return this.errorNode('E-ARG-MISSING', range, recv);
+    const invert = entry.id === 'exceptSections';
+    this.songUsed = true;
+    const layout = song.sections
+      .map((s) => {
+        const on = parsed.names.some((sel) => matches(sel, s)) !== invert;
+        if (on) this.songPlayed.add(s.full);
+        return `#${on ? '0' : '1'}${"'".repeat(s.primes)}@${s.lenText}`;
+      })
+      .join(' ');
+    const silence: PatternNode = {
+      kind: 'silence',
+      id: hash64(base, 'song', 'silence'),
+      range: this.sr(range),
+      type: CONTROLS,
+    };
+    return this.songForm(id, range, base, [recv, silence], layout, recv.type);
+  }
+  private edgeCall(
+    fn: string,
+    recv: PatternNode,
+    lowered: readonly Arg[],
+    range: Range,
+    nameRange: Range,
+    id: NodeId,
+    typed: string,
+  ): PatternNode {
+    const song = this.song;
+    if (!song) {
+      this.diag(
+        'W-ARG-UNSUPPORTED',
+        'warning',
+        `\`${typed}\` only works with a song("…") directive; it has no effect here.`,
+        { start: nameRange.start, end: range.end },
+        'none',
+      );
+      return recv;
+    }
+    if (fn === 'variant') {
+      const fns = lowered.filter((x) => x.kind === 'function');
+      let node = recv;
+      fns.forEach((f, i) => {
+        const windows = song.sections
+          .filter((s) => s.primes > 0 && Math.min(s.primes, fns.length) - 1 === i)
+          .map((s) => [s.start, add(s.start, s.len)] as const);
+        if (windows.length > 0) node = this.windowsNode(node, windows, f, hash64(id, String(i)), range, song);
+      });
+      return node;
+    }
+    const k = lowered[0];
+    const f = lowered[1];
+    const cycles = k?.kind === 'const' && k.value.t === 'num' ? k.value.v : null;
+    if (cycles === null || f?.kind !== 'function' || !lt(ZERO, cycles)) return recv;
+    const windows = song.sections.map((s) => {
+      const w = min(cycles, s.len);
+      const end = add(s.start, s.len);
+      return fn === 'atStart' ? ([s.start, add(s.start, w)] as const) : ([sub(end, w), end] as const);
+    });
+    return this.windowsNode(recv, windows, f, id, range, song);
+  }
+  /** `bysec("intro:.4 *:.9")`: a form over constant parts, one per distinct value. */
+  private bysecCall(
+    entry: RegistryEntry,
+    args: readonly Expr[],
+    range: Range,
+    anchor: NodeId,
+    id: NodeId,
+  ): PatternNode {
+    const lowered = this.lowerArgs(entry, args, range, anchor, 'bysec');
+    if (!lowered) return this.errorNode('E-ARG-TYPE', range);
+    const raw = this.resolve(args[0]);
+    if (raw === 'abstract')
+      return { kind: 'silence', id: hash64(anchor, 'silence'), range: this.sr(range), type: CONTROLS };
+    if (raw?.k !== 'str')
+      return this.reject(
+        'E-ARG-TYPE',
+        '`bysec` needs a constant string of section values, as in bysec("verse:.6 *:.9").',
+        raw?.range ?? range,
+        range,
+      );
+    const song = this.songFor('bysec', range);
+    if (!song) return this.errorNode('E-ARG-MISSING', range);
+    const parsed = parseSectionMap(raw.value);
+    if ('error' in parsed) return this.grammarError(raw, parsed.error, range);
+    let missing = false;
+    for (const en of parsed.entries) {
+      if (en.name === '*') continue;
+      if (song.sections.some((s) => s.name === en.name && (en.primes === 0 || s.primes === en.primes))) continue;
+      missing = true;
+      this.diag(
+        'E-ARG-MISSING',
+        'error',
+        `The song has no section \`${en.name}${"'".repeat(en.primes)}\`.`,
+        { start: raw.contentStart + en.range[0], end: raw.contentStart + en.range[1] },
+        'subtree-muted',
+      );
+    }
+    if (missing) return this.errorNode('E-ARG-MISSING', range);
+    const es = parsed.entries;
+    const pick = (s: SongPart): string =>
+      (
+        es.find((e) => e.name === s.name && e.primes === s.primes) ??
+        es.find((e) => e.name === s.name && e.primes === 0) ??
+        es.find((e) => e.name === '*')
+      )?.value ?? '';
+    const values: string[] = [];
+    const layout = song.sections
+      .map((s) => {
+        const v = pick(s);
+        let i = values.indexOf(v);
+        if (i < 0) {
+          i = values.length;
+          values.push(v);
+        }
+        return `#${String(i)}${"'".repeat(s.primes)}@${s.lenText}`;
+      })
+      .join(' ');
+    const numeric = values.every((v) => v === '' || parseDecimal(v) !== null);
+    const type: PatternType = { kind: 'pattern', of: numeric ? 'number' : 'string' };
+    const parts = values.map((v, i): PatternNode => {
+      const n = parseDecimal(v);
+      return {
+        kind: 'pure',
+        id: hash64(anchor, 'bysec', String(i)),
+        range: this.sr(range),
+        type,
+        value: n ? { t: 'num', v: n } : { t: 'str', v },
+      };
+    });
+    return this.songForm(id, range, anchor, parts, layout, type);
   }
   /**
    * Clears the per-statement error flag. A method call keeps TypeScript from narrowing
@@ -1517,6 +1983,12 @@ class Lowerer {
     const hit = this.reg.lookup(e.callee.name);
     if (hit?.entry.category !== 'directive') return false;
     const id = hit.entry.id;
+    // The song was read before the other statements.
+    if (id === 'song') return true;
+    if (id === 'tempomap') {
+      this.tempoDirective(e);
+      return true;
+    }
     if (id === 'samples' || id === 'sample') {
       this.sampleDirective(id, e);
       return true;
@@ -1529,6 +2001,14 @@ class Lowerer {
     }
     if (this.tempoSeen)
       this.diag('I-TEMPO-OVERRIDE', 'info', 'A later tempo directive replaces an earlier one (TS-7).', e.range, 'none');
+    else if (this.mapSeen)
+      this.diag(
+        'I-TEMPO-OVERRIDE',
+        'info',
+        'The tempo map overrides this tempo from its first point.',
+        e.range,
+        'none',
+      );
     this.tempoSeen = true;
     let cps = id === 'setcpm' ? div(v, rat(60)) : v;
     const lo = fromFloat(this.limits.cpsRange[0]);
@@ -1539,6 +2019,59 @@ class Lowerer {
     cps = clamped;
     this.cps = cps;
     return true;
+  }
+  /** `tempomap("0:25 92:25 100:15")`: tempo points carried by the Program (P5). */
+  private tempoDirective(e: Extract<Expr, { k: 'call' }>): void {
+    if (this.mapSeen) {
+      this.diag('E-NAME-DUP', 'error', 'A document has at most one `tempomap`.', e.range, 'none');
+      return;
+    }
+    this.mapSeen = true;
+    const a = e.args[0];
+    if (a?.k !== 'str') {
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        '`tempomap` needs a constant string of cycle:cpm points, as in tempomap("0:120 32:90").',
+        e.range,
+        'none',
+      );
+      return;
+    }
+    const parsed = parseTempoMap(a.value);
+    if ('error' in parsed) {
+      this.diag(
+        'E-ARG-GRAMMAR',
+        'error',
+        parsed.error.message,
+        { start: a.contentStart + parsed.error.range[0], end: a.contentStart + parsed.error.range[1] },
+        'none',
+      );
+      return;
+    }
+    if (this.tempoSeen)
+      this.diag(
+        'I-TEMPO-OVERRIDE',
+        'info',
+        'The tempo map overrides the tempo directive from its first point.',
+        e.range,
+        'none',
+      );
+    const lo = fromFloat(this.limits.cpsRange[0]);
+    const hi = fromFloat(this.limits.cpsRange[1]);
+    this.tempoMap = parsed.points.map((p) => {
+      const cps = div(p.cpm, rat(60));
+      const c = max(lo, min(hi, cps));
+      if (!eq(c, cps))
+        this.diag(
+          'W-RANGE',
+          'warning',
+          `Tempo clamped to ${String(toNumber(c) * 60)} cycles per minute.`,
+          { start: a.contentStart + p.range[0], end: a.contentStart + p.range[1] },
+          'none',
+        );
+      return { cycle: p.cycle, cps: c };
+    });
   }
   /** `sample(name, path)` and `samples(path)` (docs/samples.md §1, TS-90). Nothing is fetched here. */
   private sampleDirective(id: 'sample' | 'samples', e: Extract<Expr, { k: 'call' }>): void {
@@ -1683,6 +2216,23 @@ class Lowerer {
         );
       }
       return this.errorNode(res.diagnostics[0]?.id ?? 'E-MINI', e.range);
+    }
+    if (kind !== 'string') {
+      // `a:b` is a compound name; samples, notes and numbers need a whole-number index.
+      const found: MiniFound = [];
+      miniAtoms(res.ast, found);
+      const bad = found.find((x) => x.text.includes(':'));
+      if (bad) {
+        const at = e.contentStart + bad.range[0] + bad.text.indexOf(':');
+        this.diag(
+          'E-MINI-INDEX',
+          'error',
+          '`:` needs a whole-number index.',
+          { start: at, end: at + 1 },
+          'output-muted',
+        );
+        return this.errorNode('E-MINI-INDEX', e.range);
+      }
     }
     return {
       kind: 'mini',
@@ -1991,6 +2541,13 @@ class Lowerer {
     anchor: NodeId,
     id: NodeId,
   ): PatternNode {
+    if (entry.id === 'bysec') return this.bysecCall(entry, args, range, anchor, id);
+    if (entry.id === 'arrange') return this.arrangeCall(args, range, anchor, id);
+    if (entry.id === 'env') {
+      const mode = this.resolve(args[1]);
+      if (mode !== undefined && mode !== 'abstract' && mode.k === 'str')
+        return this.songEnv(args, mode, range, anchor, id);
+    }
     if (entry.id === 'form') return this.formCall(args, range, anchor, id);
     if (entry.id === 'row') return this.rowCall(entry, args, range, anchor, id);
     const lowered = this.lowerArgs(entry, args, range, anchor, name);
@@ -2071,6 +2628,59 @@ class Lowerer {
     );
     return this.errorNode('E-ARG-GRAMMAR', range);
   }
+  /** `env(points, "section")` and `env(points, "song")` (P2): stretched over sections or the song. */
+  private songEnv(args: readonly Expr[], mode: StrExpr, range: Range, anchor: NodeId, id: NodeId): PatternNode {
+    if (mode.value !== 'section' && mode.value !== 'song')
+      return this.reject(
+        'E-ARG-TYPE',
+        '`env` needs a number of cycles, "section" or "song" after the points.',
+        mode.range,
+        range,
+      );
+    const pts = this.resolve(args[0]);
+    if (pts === undefined || pts === 'abstract' || pts.k !== 'str')
+      return this.reject(
+        'E-ARG-TYPE',
+        '`env` needs a constant string of points, as in env("0 1", "section").',
+        args[0]?.range ?? range,
+        range,
+      );
+    const parsed = parseEnvPoints(pts.value);
+    if ('error' in parsed) return this.grammarError(pts, parsed.error, range);
+    const extra = args[2];
+    if (extra) this.diag('W-ARG-EXTRA', 'warning', 'Extra arguments to `env` are ignored.', extra.range, 'none');
+    const song = this.songFor(`env(…, "${mode.value}")`, mode.range);
+    if (!song) return this.errorNode('E-ARG-MISSING', range);
+    const text = pts.value;
+    const type: PatternType = { kind: 'signal', of: 'number' };
+    const envNode = (cycles: Rational, key: string, nodeId: NodeId): PatternNode => ({
+      kind: 'transform',
+      id: nodeId,
+      range: this.sr(range),
+      type,
+      fn: 'env',
+      target: { kind: 'silence', id: hash64(anchor, 'silence', key), range: this.sr(range), type: CONTROLS },
+      args: [
+        { kind: 'const', value: { t: 'str', v: text } },
+        { kind: 'const', value: { t: 'num', v: cycles } },
+      ],
+    });
+    if (mode.value === 'song') return envNode(song.total, 'song', id);
+    // One envelope per distinct section length, selected through a generated form.
+    const lens: Rational[] = [];
+    const layout = song.sections
+      .map((s) => {
+        let i = lens.findIndex((l) => eq(l, s.len));
+        if (i < 0) {
+          i = lens.length;
+          lens.push(s.len);
+        }
+        return `#${String(i)}@${s.lenText}`;
+      })
+      .join(' ');
+    const parts = lens.map((l, i) => envNode(l, String(i), hash64(anchor, 'env', String(i))));
+    return this.songForm(id, range, anchor, parts, layout, type);
+  }
   /** `form(layout, ...parts)`: the parts are kept as a stack so ids and walks stay ordinary. */
   private formCall(args: readonly Expr[], range: Range, anchor: NodeId, id: NodeId): PatternNode {
     const raw = this.resolve(args[0]);
@@ -2088,7 +2698,7 @@ class Lowerer {
     if ('error' in parsed) return this.grammarError(raw, parsed.error, range);
     const partExprs = args.slice(1);
     const children = partExprs.map((a, i) => this.pattern(a, hash64(anchor, 'form', String(i))));
-    const letter = (i: number): string => String.fromCharCode(65 + i);
+    const letter = partName;
     const used = new Set<number>();
     let missing = false;
     for (const s of parsed.sections) {
@@ -2121,6 +2731,7 @@ class Lowerer {
       range,
       'none',
     );
+    this.formCycles = Math.max(this.formCycles, toNumber(parsed.total));
     return {
       kind: 'transform',
       id,
@@ -2137,6 +2748,64 @@ class Lowerer {
       },
       args: [{ kind: 'const', value: { t: 'str', v: raw.value } }],
     };
+  }
+  /** `arrange(c1, p1, c2, p2, …)`: a form with numbered parts, so parts are not limited to letters (P7). */
+  private arrangeCall(args: readonly Expr[], range: Range, anchor: NodeId, id: NodeId): PatternNode {
+    if (args.length === 0 || args.length % 2 !== 0) {
+      this.diag(
+        'E-ARG-MISSING',
+        'error',
+        '`arrange` needs pairs of a cycle count and a part, as in arrange(8, verse, 4, chorus).',
+        args[args.length - 1]?.range ?? range,
+        'subtree-muted',
+      );
+      return this.errorNode('E-ARG-MISSING', range);
+    }
+    if (args.length / 2 > MAX_SECTIONS) {
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        `\`arrange\` has at most ${String(MAX_SECTIONS)} parts.`,
+        range,
+        'subtree-muted',
+      );
+      return this.errorNode('E-ARG-TYPE', range);
+    }
+    const children: PatternNode[] = [];
+    const words: string[] = [];
+    let total = ZERO;
+    let bad = false;
+    for (let i = 0; i + 1 < args.length; i += 2) {
+      const c = args[i];
+      const p = args[i + 1];
+      if (!c || !p) break;
+      const v = this.fold(c);
+      if (!v || !lt(ZERO, v)) {
+        this.diag(
+          'E-ARG-TYPE',
+          'error',
+          'Each cycle count of `arrange` must be a positive constant.',
+          c.range,
+          'subtree-muted',
+        );
+        bad = true;
+        continue;
+      }
+      const k = children.length;
+      children.push(this.pattern(p, hash64(anchor, 'arrange', String(k))));
+      words.push(`#${String(k)}@${ratStr(v)}`);
+      total = add(total, v);
+    }
+    if (bad) return this.errorNode('E-ARG-TYPE', range);
+    this.diag(
+      'I-FORM-LENGTH',
+      'info',
+      `This arrangement lasts ${String(toNumber(total))} cycles and then repeats.`,
+      range,
+      'none',
+    );
+    this.formCycles = Math.max(this.formCycles, toNumber(total));
+    return this.songForm(id, range, anchor, children, words.join(' '), CONTROLS);
   }
   /** `row(p)` plays like `n(p)`; a constant row that is not a permutation of 0–11 warns. */
   private rowCall(entry: RegistryEntry, args: readonly Expr[], range: Range, anchor: NodeId, id: NodeId): PatternNode {
@@ -2187,11 +2856,11 @@ class Lowerer {
   }
   /** Soft checks on the long-form transforms. */
   private symphonicChecks(id: string, args: readonly Expr[], recv: PatternNode, nameRange: Range): void {
-    if (id === 'once' && !this.isForm(recv, 0))
+    if (id === 'once' && args.length > 0 && this.isForm(recv, 0))
       this.diag(
         'W-ARG-UNSUPPORTED',
         'warning',
-        '`.once()` only affects a form, as in `form(…).once()`; it has no effect here.',
+        '`.once()` on a form plays the whole form once; the cycle count is ignored.',
         nameRange,
         'none',
       );
@@ -2255,6 +2924,10 @@ class Lowerer {
       return this.errorNode('E-REG-UNKNOWN', range, recv);
     }
     if (hit.entry.id === 'apply') return this.applyCall(recv, rawArgs, range);
+    if (SONG_METHODS.has(hit.entry.id)) {
+      this.alias(hit, m.nameRange);
+      return this.songMethod(hit.entry, recv, this.spreads(rawArgs), range, m.nameRange, `.${m.name}`);
+    }
     this.alias(hit, m.nameRange);
     const args = this.spreads(rawArgs);
     const entry = hit.entry;
@@ -2304,22 +2977,17 @@ class Lowerer {
           );
         }
       }
-      if (entry.id === 'scale') {
-        const a0 = this.resolve(args[0]);
-        if (a0 !== 'abstract' && !(a0?.k === 'str' && parseScale(a0.value))) {
-          this.diag(
-            'E-ARG-SCALE',
-            'error',
-            'Unknown scale. Use a form like "D:minor".',
-            a0?.range ?? range,
-            'subtree-muted',
-          );
-          return this.errorNode('E-ARG-SCALE', range, recv);
-        }
+      if (entry.id === 'scale' && args[0] === undefined) {
+        this.diag('E-ARG-SCALE', 'error', 'Unknown scale. Use a form like "D:minor".', range, 'subtree-muted');
+        return this.errorNode('E-ARG-SCALE', range, recv);
       }
       const lowered = this.lowerArgs(entry, args, range, base, `.${m.name}`);
       if (!lowered) return this.errorNode('E-ARG-TYPE', range, recv);
       this.symphonicChecks(entry.id, args, recv, m.nameRange);
+      // `.once()` on a plain pattern plays the whole song once when there is one (P7).
+      const song = this.song;
+      if (entry.id === 'once' && lowered.length === 0 && song && !this.isForm(recv, 0))
+        lowered.push({ kind: 'const', value: { t: 'num', v: song.total } });
       // `.label()` only names the output (see chainLabel), so it adds no node and ids stay stable.
       if (entry.id === 'label') return recv;
       return {
@@ -2402,6 +3070,7 @@ class Lowerer {
         return { kind: 'const', value: { t: 'num', v: PLACEHOLDER } };
       }
     }
+    if (entry.id === 'scale') return this.scaleArg(e, anchor);
     this.resetTaint();
     const v = this.fold(e);
     if (v) {
@@ -2442,6 +3111,68 @@ class Lowerer {
       return null;
     }
     return { kind: 'pattern', node: this.pattern(e, anchor) };
+  }
+  /** The argument of `.scale`: a constant scale, or a pattern of them (P2). */
+  private scaleArg(e: Expr, anchor: NodeId): Arg | null {
+    const bad = (r: Range): null => {
+      this.diag(
+        'E-ARG-SCALE',
+        'error',
+        'Unknown scale. Use a form like "D:minor", or a pattern of them such as "<D:minor F:major>" (write C:whole-tone with a hyphen inside a pattern).',
+        r,
+        'subtree-muted',
+      );
+      return null;
+    };
+    if (e.k === 'str') {
+      if (parseScale(e.value)) return { kind: 'const', value: { t: 'str', v: e.value } };
+      const node = this.mini(e, 'string', hash64(anchor, 'mini'));
+      if (node.kind !== 'mini') return null;
+      const found: MiniFound = [];
+      miniAtoms(node.ast, found);
+      const wrong = found.find((x) => !parseScale(x.text));
+      if (wrong) return bad({ start: e.contentStart + wrong.range[0], end: e.contentStart + wrong.range[1] });
+      if (found.length === 0) return bad(e.range);
+      return { kind: 'pattern', node };
+    }
+    const node = this.pattern(e, anchor);
+    const vals: string[] = [];
+    this.scaleValues(node, vals, 0);
+    if (vals.some((v) => v !== '' && !parseScale(v))) return bad(e.range);
+    return { kind: 'pattern', node };
+  }
+  /** Constant values a scale pattern can take; `#` stands for anything that is not a string. */
+  private scaleValues(n: PatternNode, out: string[], depth: number): void {
+    if (depth > 64) return;
+    switch (n.kind) {
+      case 'pure':
+        out.push(n.value.t === 'str' ? n.value.v : '#');
+        return;
+      case 'mini': {
+        const found: MiniFound = [];
+        miniAtoms(n.ast, found);
+        for (const x of found) out.push(x.text);
+        return;
+      }
+      case 'combine':
+        for (const c of n.children) this.scaleValues(c, out, depth + 1);
+        return;
+      case 'transform':
+        this.scaleValues(n.target, out, depth + 1);
+        return;
+      case 'control':
+      case 'signal':
+        out.push('#');
+        return;
+      case 'ref': {
+        if (n.binding.startsWith('param:')) return;
+        const b = this.bindingExprs.get(n.binding);
+        if (b) this.scaleValues(b, out, depth + 1);
+        return;
+      }
+      default:
+        return;
+    }
   }
 
   /**
@@ -2487,6 +3218,16 @@ class Lowerer {
       const hit = this.reg.lookup(name);
       if (!hit || (hit.entry.category !== 'transform' && hit.entry.category !== 'tonal') || hit.entry.id === 'apply') {
         this.diag('E-ARG-FUNCTION', 'error', `\`${name}\` is not a known transform.`, nameRange, 'subtree-muted');
+        return null;
+      }
+      if (SONG_METHODS.has(hit.entry.id)) {
+        this.diag(
+          'E-ARG-FUNCTION',
+          'error',
+          `\`${name}\` cannot be passed as a function; write it as a lambda, as in \`x => x.${name}(…)\`.`,
+          nameRange,
+          'subtree-muted',
+        );
         return null;
       }
       this.alias(hit, nameRange);

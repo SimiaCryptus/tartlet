@@ -3,7 +3,7 @@
   "version": 2,
   "id": "nature-sounds",
   "name": "Nature Sounds",
-  "description": "Pure field recordings, synthesized: no melodies, no beats, just places. Spring rain on new leaves, a thunderstorm that crosses the sky, a mountain stream, the sea on a shingle shore, a summer night, a campfire, the dawn chorus, wind on a high ridge, rain under a forest canopy, a sea cave, a meadow at noon and a frozen lake. Every sound is placed around you, so headphones help, and every random choice is seeded: change the Seed box for a different day in the same place.",
+   "description": "Pure field recordings, synthesized: no melodies, no beats, just places. Spring rain on new leaves, a thunderstorm that crosses the sky, a mountain stream, the sea on a shingle shore, a summer night, a campfire, the dawn chorus, wind on a high ridge, rain under a forest canopy, a sea cave, a meadow at noon and a frozen lake. Most places loop forever; the storm and the dawn chorus tell a whole story in sections and stop on their own. Every sound is placed around you, so headphones help, and every random choice is seeded: change the Seed box for a different day in the same place.",
   "author": "Claude, for Tartlet",
   "license": "Apache-2.0",
   "category": "Nature",
@@ -22,10 +22,10 @@
     {
       "id": "thunderstorm",
       "name": "Thunderstorm",
-      "description": "Eight bars of a storm: it builds on your left, breaks right over your head and rolls away behind you. The rain swells and fades, the gusts are wide and the gutter starts overflowing.",
+       "description": "A storm that passes in about a minute and a half: it builds on your left, breaks right over your head and rolls away behind you, then stops. The rain swells and fades, the gusts are wide and the gutter overflows while it is heavy.",
       "category": "Rain",
-      "tags": ["storm", "thunder", "azimuth", "elevation"],
-      "source": "setcpm(60/4)\n\n// Eight bars: the storm builds, breaks overhead and moves away\nrain: s(\"rain\").intensity(\"<.2 .35 .55 .8 .8 .6 .4 .25>\").gain(.3)\n\n// Thunder moves bar by bar: from the left, up overhead and close, then away behind you\nthunder: s(\"<[~ lt] ~ [lt ~ ~ lt] lt [lt lt ~ lt] lt ~ [~ lt]>\").speed(.4).lpf(300)\n  .azimuth(\"<-120 -90 -45 0 30 90 140 170>\").elevation(\"<10 20 45 70 70 45 20 10>\")\n  .distance(\"<12 9 5 2 2 5 9 12>\").room(.9).size(.95).gain(.5)\n\n// Gusts: unrelated noise in each ear, wide and enveloping, rising and falling with the storm\ngusts: s(\"pink\").icorr(.15).hpf(200).lpf(sine.range(400, 2000).slow(8))\n  .gain(\"<.03 .05 .08 .12 .12 .08 .05 .03>\")\n\n// The gutter overflows on your right while the rain is heavy\ngutter: s(\"drip*16?0.4\").azimuth(70).distance(2).mask(\"<0 0 1 1 1 1 1 0>\").seed(\"gutter\").gain(.12)\n",
+       "tags": ["storm", "thunder", "azimuth", "elevation", "song", "sections"],
+       "source": "setcpm(60/4)\n\n// The storm in five sections: it approaches, builds, breaks overhead, passes and is gone\nsong(\"approach@4 build@4 overhead@6 passing@4 after@6\", \"once\")\n\n// The rain swells as the storm comes in and eases off as it goes\nrain: s(\"rain\").intensity(env(\".15 .8@2 .5 .15\", \"song\")).gain(.3)\n\n// Thunder moves section by section: from the left, up overhead and close, then away behind you\nthunder: s(\"<[~ lt] ~ [lt ~ ~ lt] lt>\").speed(.4).lpf(300)\n  .azimuth(bysec(\"approach:-120 build:-60 overhead:0 passing:90 after:160\"))\n  .elevation(bysec(\"approach:10 build:30 overhead:70 passing:30 after:10\"))\n  .distance(bysec(\"approach:12 build:7 overhead:2 passing:7 after:12\")).posglide(.5)\n  .room(.9).size(.95).gain(.5)\n\n// Gusts: unrelated noise in each ear, wide and enveloping, rising and falling with the storm\ngusts: s(\"pink\").icorr(.15).hpf(200).lpf(sine.range(400, 2000).slow(8))\n  .gain(bysec(\"approach:.03 build:.06 overhead:.12 passing:.06 after:.03\"))\n\n// The gutter overflows on your right while the rain is heavy\ngutter: s(\"drip*16?0.4\").azimuth(70).distance(2).sections(\"build overhead passing\")\n  .seed(\"gutter\").gain(.12)\n",
       "savedAt": "2026-11-13T12:00:00.000Z"
     },
     {
@@ -67,10 +67,10 @@
     {
       "id": "dawn-chorus",
       "name": "Dawn Chorus",
-      "description": "The first light in a woodland: birds singing from all around you, each in its own place, a lark crossing high overhead, a dove cooing behind you and a stream far off.",
+       "description": "A woodland from the last of the dark to full morning, in about a minute and three quarters: a stream far off, then a robin at first light, then birds singing from all around you, each in its own place, a lark crossing high overhead and a dove cooing behind you as the morning settles.",
       "category": "Birdsong",
-      "tags": ["birds", "azimuth", "posglide", "morning"],
-      "source": "setcpm(72/4)\n\n// The dawn chorus: each bird has its own place around you\nrobin: s(\"bird\").slow(2).azimuth(-40).distance(3).gain(.24)\nwren: s(\"bird\").slow(3).azimuth(60).elevation(25).distance(4).gain(.2)\nthrush: s(\"bird\").slow(5).azimuth(150).distance(6).gain(.16)\nblackbird: s(\"bird\").slow(7).azimuth(-120).elevation(10).distance(7).gain(.14)\n\n// A lark crossing high overhead, gliding between positions\nlark: s(\"bird\").slow(4).azimuth(saw.range(-90, 90).slow(16)).elevation(50).distance(8)\n  .posglide(.5).gain(.14)\n\n// A dove cooing behind you on the left\ndove: note(\"<[~ e4 [e4 c4] ~] ~>\").s(\"hum\").azimuth(-150).distance(5)\n  .attack(.05).release(.4).gain(.1)\n\n// A stream far off, and the first breeze\nstream: s(\"stream\").slow(4).azimuth(80).distance(8).gain(.1)\nbreeze: s(\"wind\").slow(8).intensity(.15).gain(.05)\n",
+       "tags": ["birds", "azimuth", "posglide", "morning", "song", "sections"],
+       "source": "setcpm(72/4)\n\n// From the last of the dark to full morning, then the piece stops\nsong(\"dark@4 first@4 chorus@16 morning@8\", \"once\")\n\n// The dawn chorus: each bird has its own place around you and joins in its turn\nrobin: s(\"bird\").slow(2).azimuth(-40).distance(3).exceptSections(\"dark\").gain(.24)\nwren: s(\"bird\").slow(3).azimuth(60).elevation(25).distance(4).sections(\"chorus morning\").gain(.2)\nthrush: s(\"bird\").slow(5).azimuth(150).distance(6).sections(\"chorus morning\").gain(.16)\nblackbird: s(\"bird\").slow(7).azimuth(-120).elevation(10).distance(7).sections(\"chorus\").gain(.14)\n\n// A lark crossing high overhead during the full chorus, gliding between positions\nlark: s(\"bird\").slow(4).azimuth(saw.range(-90, 90).slow(16)).elevation(50).distance(8)\n  .posglide(.5).sections(\"chorus\").gain(.14)\n\n// A dove cooing behind you on the left as the morning settles\ndove: note(\"<[~ e4 [e4 c4] ~] ~>\").s(\"hum\").azimuth(-150).distance(5)\n  .attack(.05).release(.4).sections(\"morning\").gain(.1)\n\n// A stream far off all along, and a breeze that rises with the light\nstream: s(\"stream\").slow(4).azimuth(80).distance(8).gain(.1)\nbreeze: s(\"wind\").slow(8).intensity(.15).gain(env(\".02 .06\", \"song\"))\n",
       "savedAt": "2026-11-13T12:00:00.000Z"
     },
     {

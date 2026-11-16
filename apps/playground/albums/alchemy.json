@@ -3,11 +3,11 @@
   "version": 2,
   "id": "alchemy",
   "name": "Pattern Alchemy",
-  "description": "A workshop album for the newest parts of the language. Every sketch names its own functions (as methods, as function values, through apply, as pattern builders, with defaults and with functions as arguments) and leans on the standard library: within, chunk, zoom, compress, fastGap, linger, brak, press, swingBy, echo and superimpose; seeded shuffles, scrambles and cycle choices; arithmetic that grows melodies from counting; and the new scales, from hirajoshi and in sen to hungarian minor, whole tone and lydian dominant. Read the comments: each sketch explains the trick it plays.",
+   "description": "A workshop album for the newest parts of the language. Every sketch names its own functions (as methods, as function values, through apply, as pattern builders, with defaults and with functions as arguments) and leans on the standard library: within, chunk, zoom, compress, fastGap, linger, brak, press, swingBy, echo and superimpose; seeded shuffles, scrambles and cycle choices; arithmetic that grows melodies from counting; and the new scales, from hirajoshi and in sen to hungarian minor, whole tone and lydian dominant. The last two sketches are whole pieces with a beginning and an end: a song line, sections, bysec, section and song envelopes, atStart, atEnd, variant, repeats with numbered endings, arrange, once and a tempo map. Read the comments: each sketch explains the trick it plays.",
   "author": "Claude, for Tartlet",
   "license": "Apache-2.0",
   "category": "Showcase",
-  "tags": ["functions", "library", "scales", "generative", "showcase"],
+   "tags": ["functions", "library", "scales", "generative", "form", "song", "showcase"],
   "exportedAt": "2026-11-05T12:00:00.000Z",
   "sketches": [
     {
@@ -99,6 +99,24 @@
       "tags": ["90 bpm", "E in sen", "seeded", "generative"],
       "source": "setcpm(90/4)\n\n// A melody drawn from the in sen scale, one seeded draw per eighth note\nconst melody = n(irand(8).segment(8)).scale(\"E:in sen\").transpose(12)\nconst bloom = (x) => x.s(\"triangle\").timbre(\"soft\").attack(.005).decay(.8).sustain(.1).release(1).room(.6)\n\n// Two hands share the melody: degradeBy drops some notes, undegradeBy keeps only some\nleft: melody.degradeBy(.5).bloom().often(x => x.octave(-1)).seed(\"garden\").pan(.3).gain(.24)\nright: melody.undegradeBy(.4).bloom().rarely(x => x.octave(1)).seed(\"garden\").pan(.7).gain(.2)\n\n// Bells decide once per cycle whether to hurry\nbells: note(\"<b4 ~ e5 ~>\").s(\"sine\").fm(2).fmh(2.76).decay(2).sustain(0).release(2)\n  .someCyclesBy(.3, x => x.fast(2)).seed(\"bells\").space(\"hall\").gain(.12)\n\n// Percussion: almost never a roll, some cycles played backwards\nperc: s(\"rim*8?0.5, ~ lt\").almostNever(x => x.ply(4)).someCycles(x => x.rev())\n  .seed(\"perc\").room(.3).gain(.22)\n\n// A drone breathing through smooth noise, and a stream\ndrone: note(\"[e2,b2]\").slow(4).s(\"sawtooth\").unison(2).detune(.15)\n  .lpf(perlin.range(300, 900).slow(4)).attack(2).sustain(1).release(3).gain(.14)\nstream: s(\"stream\").slow(4).distance(4).gain(.16)\n",
       "savedAt": "2026-11-05T12:00:00.000Z"
-    }
+     },
+     {
+       "id": "long-way-home",
+       "name": "Long Way Home",
+       "description": "A whole song in D dorian from one song line: each track says where it plays, bysec sets the loudness and lifts the last chorus into F major, envelopes open over every section and arc over the whole piece, variant makes the primed sections differ, and a tempo map slows the outro to a real stop.",
+       "category": "Form",
+       "tags": ["96 bpm", "D dorian", "song", "sections", "tempomap"],
+       "source": "setcpm(96/4)\n\n// One line names the whole piece; \"once\" stops it at the end, so no track needs an exit\nsong(\"intro@4 verse@8 chorus@8 verse'@8 chorus@8 bridge@8 chorus'@8 outro@4\", \"once\")\n// Steady at 24 cpm, then a ritardando through the four bars of the outro\ntempomap(\"0:24 52:24 56:16\")\n\n// The hook and the verse tune are written once, relative to their sections\nconst hook = n(\"0 2 4 2 5 4 2 1\")\nconst tune = n(\"<0 ~ 2 4>\")\n\n// Drums sit out the intro and outro, play softer in the verses and fill the last bar of each section\ndrums: s(\"bd ~ sd ~, hh*8\").gain(bysec(\"verse:.45 bridge:.35 *:.6\"))\n  .exceptSections(\"intro outro\").atEnd(1, x => x.ply(2))\n\n// The bass filter opens through every section and starts again at the next one\nbass: note(\"<d2 d2 f2 c2>\").s(\"sawtooth\").lpf(env(\"300 2000\", \"section\")).lpq(4)\n  .decay(.3).sustain(.5).release(.1).exceptSections(\"intro\").gain(.34)\n\n// One swell over the whole song, heard only in the intro, bridge and outro\npad: note(\"<[d3,f3,a3,c4] [c3,e3,g3,b3]>\").slow(2).s(\"triangle\").attack(1).release(2)\n  .room(.6).gain(env(\"0 .2@3 .06\", \"song\")).sections(\"intro bridge outro\")\n\n// The hook plays in every chorus; chorus' rises an octave and modulates to F major\nlead: hook.sections(\"chorus\").variant(x => x.add(7))\n  .scale(bysec(\"chorus':F:major *:D:dorian\")).transpose(12)\n  .s(\"square\").pw(.3).lpf(2600).decay(.2).sustain(.4).release(.1).pan(.6).gain(.16)\n\n// The verse tune; in verse' it answers itself backwards\nmelody: tune.sections(\"verse\").variant(x => x.rev()).scale(\"D:dorian\").transpose(12)\n  .s(\"sine\").fm(1).fmh(2).decay(.4).sustain(.2).release(.5).pan(.4).room(.4).gain(.2)\n",
+       "savedAt": "2026-11-05T12:00:00.000Z"
+     },
+     {
+       "id": "theme-and-endings",
+       "name": "Theme and Endings",
+       "description": "A theme in A minor played twice with numbered endings, the first a half cadence and the second a full one. The theme is through-composed with arrange, every section starts lightly with atStart, a bell rings once, and a tempo step drops the coda to a slower pace.",
+       "category": "Form",
+       "tags": ["84 bpm", "A minor", "repeats", "endings", "arrange"],
+       "source": "setcpm(84/4)\n\n// A repeat group with numbered endings: intro, theme, half, theme, full, coda\nsong(\"intro@2 (theme@16 1.half@2 2.full@2)*2 coda@4\", \"once\")\n// A step, not a slope: the cycle number repeats, so the coda jumps straight to 16 cpm\ntempomap(\"0:21 38:21 38:16\")\n\n// arrange plays 4 cycles of each idea, then 8 of the last: 16 cycles, one theme section\ntheme: arrange(4, n(\"0 2 4 5\"), 4, n(\"4 5 7 9\"), 8, n(\"<7 5 4 2>*4\"))\n  .scale(\"A:minor\").transpose(12).sections(\"theme\")\n  .s(\"triangle\").timbre(\"bright\").decay(.3).sustain(.2).release(.3).room(.4).gain(.22)\n\n// The first ending stops on the fifth, the second comes home\nhalf: n(\"<[5 4] [4@3 ~]>\").scale(\"A:minor\").transpose(12).sections(\"half\")\n  .s(\"triangle\").timbre(\"bright\").decay(.5).sustain(.2).release(.6).room(.5).gain(.22)\nfull: n(\"<[1 6] [7@3 ~]>\").scale(\"A:minor\").transpose(12).sections(\"full\")\n  .s(\"triangle\").timbre(\"bright\").decay(.5).sustain(.2).release(.8).room(.5).gain(.22)\n\n// The first bar of every section is thinned out, like a pickup into it\ndrums: s(\"bd ~ sd ~, hh*4\").atStart(1, x => x.degradeBy(.5)).seed(\"pickup\")\n  .exceptSections(\"intro coda\").gain(.4)\nbass: note(\"<a1 f1 c2 e1>\").s(\"sawtooth\").lpf(700).decay(.3).sustain(.5).release(.1)\n  .exceptSections(\"intro\").gain(.3)\n\n// A bell rings once at the very start, then never again\nbell: note(\"a4\").s(\"sine\").fm(2).fmh(2.76).decay(4).sustain(0).release(4).once().space(\"hall\").gain(.16)\n\n// The coda pad fades over its own section\ncoda: note(\"[a2,e3,a3,c4]\").s(\"sawtooth\").unison(3).detune(.2).lpf(1200).attack(.5).release(3)\n  .gain(env(\".2 0\", \"section\")).sections(\"coda\").room(.7)\n",
+       "savedAt": "2026-11-05T12:00:00.000Z"
+     }
   ]
 }

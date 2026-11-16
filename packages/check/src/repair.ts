@@ -8,9 +8,18 @@ export function isBenign(d: Diagnostic): boolean {
   return d.severity === 'info' || (d.severity === 'warning' && d.effect === 'none');
 }
 
-export function repairPayload(result: CheckResult, opts?: { includeBenign?: boolean }): string {
+/**
+ * `show` lists diagnostic ids a host wants in the payload even when they are benign, such as
+ * W-SONG-SHORT when the host asked for a target length (P6).
+ */
+export function repairPayload(
+  result: CheckResult,
+  opts?: { includeBenign?: boolean; show?: readonly string[] },
+): string {
   const lines = new LineIndex(result.tree.source);
-  const shown = result.diagnostics.filter((d) => opts?.includeBenign === true || !isBenign(d));
+  const shown = result.diagnostics.filter(
+    (d) => opts?.includeBenign === true || !isBenign(d) || opts?.show?.includes(d.id) === true,
+  );
   const hidden = result.diagnostics.length - shown.length;
   const note = hidden > 0 ? ` (${String(hidden)} cosmetic note${hidden === 1 ? '' : 's'} not shown)` : '';
   if (shown.length === 0) return `tartlet: no issues to fix${note}`;

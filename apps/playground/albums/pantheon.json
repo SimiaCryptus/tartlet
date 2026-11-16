@@ -8,7 +8,7 @@
   "license": "Apache-2.0",
   "category": "Mythology",
   "tags": ["mythology", "greek", "gods", "cinematic", "world"],
-  "exportedAt": "2026-11-04T12:00:00.000Z",
+   "exportedAt": "2026-11-18T12:00:00.000Z",
   "sketches": [
     {
       "id": "chaos",
@@ -58,11 +58,11 @@
     {
       "id": "zeus",
       "name": "Zeus",
-      "description": "The king of the gods in the storm over Olympus: rolling thunder, crashing bolts, commanding brass in D minor, driving strings and a choir.",
+       "description": "The king of the gods in the storm over Olympus: clouds gather, the storm breaks twice with rolling thunder, crashing bolts, commanding brass in D minor, driving strings and a choir that climbs higher the second time, then it passes.",
       "category": "Olympians",
-      "tags": ["100 bpm", "D minor", "storm", "orchestral"],
-      "source": "setcpm(100/4)\n\n// Storm clouds gather over Olympus\nrain: s(\"rain\").slow(4).intensity(.6).gain(.26)\nwind: s(\"wind\").slow(8).intensity(.5).gain(.14)\n\n// Thunder: low drums rolling, a crash for each bolt\nthunder: s(\"<[bd ~ ~ ~] [bd ~ lt ~] [bd lt bd lt] [bd*2 lt*4 lt*2]>\")\n  .speed(.6).lpf(700).room(.8).size(.9).gain(.6)\nbolts: s(\"<~ ~ cr ~ ~ cr ~ cr>\").room(.8).gain(.35)\n\n// The king of the gods: brass in D minor, commanding\nbrass: note(\"<[d3,a3,d4] [d3,a3,d4] [bb2,f3,d4] [c3,g3,e4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2)\n  .lpf(1000).lpenv(2.5).lpattack(.1)\n  .attack(.1).release(1).room(.6).gain(.28)\n\n// Strings driving underneath\nstrings: note(\"d3 d3 a2 d3 f3 d3 a2 d3\").add(\"<0 0 -4 -2>\")\n  .s(\"sawtooth\").attack(.01).decay(.12).sustain(.4).release(.08)\n  .lpf(sine.range(800, 2600).slow(8)).room(.4).gain(.24)\n\nchoir: note(\"<~ [d4,f4,a4] ~ [e4,g4,c5]>\").s(\"choir\").syl(\"ah\")\n  .attack(.4).release(1.5).room(.7).gain(.28)\n",
-      "savedAt": "2026-11-04T12:00:00.000Z"
+       "tags": ["100 bpm", "D minor", "storm", "orchestral", "sections"],
+       "source": "setcpm(100/4)\n\n// The storm gathers, breaks twice and passes\nsong(\"gathering@4 storm@8 storm'@8 clearing@4\")\n\n// Storm clouds over Olympus\nrain: s(\"rain\").slow(4).intensity(.6).gain(bysec(\"gathering:.14 clearing:.16 *:.26\"))\nwind: s(\"wind\").slow(8).intensity(.5).gain(.14)\n\n// Thunder: low drums rolling, a crash for each bolt\nthunder: s(\"<[bd ~ ~ ~] [bd ~ lt ~] [bd lt bd lt] [bd*2 lt*4 lt*2]>\")\n  .speed(.6).lpf(700).room(.8).size(.9).gain(.6)\n  .exceptSections(\"gathering clearing\").atEnd(1, x => x.ply(2))\nbolts: s(\"<~ ~ cr ~ ~ cr ~ cr>\").room(.8).gain(.35).sections(\"storm\")\n\n// The king of the gods: brass in D minor, commanding\nbrass: note(\"<[d3,a3,d4] [d3,a3,d4] [bb2,f3,d4] [c3,g3,e4]>\")\n  .s(\"sawtooth\").unison(3).detune(.2)\n  .lpf(1000).lpenv(2.5).lpattack(.1)\n  .attack(.1).release(1).room(.6).gain(.28)\n  .exceptSections(\"gathering\")\n\n// Strings driving underneath, opening through every section\nstrings: note(\"d3 d3 a2 d3 f3 d3 a2 d3\").add(\"<0 0 -4 -2>\")\n  .s(\"sawtooth\").attack(.01).decay(.12).sustain(.4).release(.08)\n  .lpf(env(\"800 2600\", \"section\")).room(.4).gain(.24)\n\n// The choir rises an octave when the storm breaks again\nchoir: note(\"<~ [d4,f4,a4] ~ [e4,g4,c5]>\").s(\"choir\").syl(\"ah\")\n  .attack(.4).release(1.5).room(.7).gain(.28)\n  .sections(\"storm clearing\").variant(x => x.add(12))\n",
+       "savedAt": "2026-11-18T12:00:00.000Z"
     },
     {
       "id": "hera",
@@ -94,11 +94,11 @@
     {
       "id": "persephone",
       "name": "Persephone",
-      "description": "Between two worlds: four bars of spring above ground, with a flute, harp and birdsong, then four bars of winter in the halls below, as the same harp turns minor. A low pulse carries the pomegranate through both.",
+       "description": "Between two worlds: a spring section above ground, with a flute, harp and birdsong, then a winter section in the halls below, as the same harp turns minor. A low pulse carries the pomegranate through both.",
       "category": "Underworld",
-      "tags": ["80 bpm", "G major", "E minor", "seasons"],
-      "source": "setcpm(80/4)\n\n// Four bars of spring above ground, four bars of winter below\nconst spring = \"<1 1 1 1 0 0 0 0>\"\nconst winter = \"<0 0 0 0 1 1 1 1>\"\n\n// Spring: a bright flute, a harp and birdsong\nflute: note(\"<[e5 g5 a5 b5] [d6@2 b5 a5] [g5 e5 d5 e5] [g5@4]>\").mask(spring)\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.1).attack(.05).sustain(.5).release(.4)\n  .delay(.25).delaytime(3/8).room(.5).gain(.24)\nharp: note(\"<[g3 b3 d4 b3] [c4 e4 g4 e4] [e3 g3 b3 g3] [d3 f#3 a3 f#3]>\").mask(spring)\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(0).release(.5).room(.5).gain(.22)\nbirds: s(\"bird\").slow(2).mask(spring).azimuth(40).distance(4).gain(.2)\n\n// Winter: the harp turns minor, slow and dark in the halls of Hades\ndark: note(\"<[e3 g3 b3 g3] [c3 eb3 g3 eb3] [a2 c3 e3 c3] [b2 d#3 f#3 d#3]>\").mask(winter)\n  .s(\"triangle\").timbre(\"soft\").decay(.8).sustain(0).release(1)\n  .lpf(1200).space(\"church\").gain(.22)\nwind: s(\"wind\").slow(4).mask(winter).intensity(.4).gain(.14)\n\n// Pomegranate seeds: a low pulse that carries through both worlds\nseeds: note(\"<g2 c2 e2 d2>\").s(\"sine\").attack(.3).sustain(.7).release(1).gain(.3)\n",
-      "savedAt": "2026-11-04T12:00:00.000Z"
+       "tags": ["80 bpm", "G major", "E minor", "seasons", "sections"],
+       "source": "setcpm(80/4)\n\n// Four bars of spring above ground, four bars of winter below\nsong(\"spring@4 winter@4\")\n\n// Spring: a bright flute, a harp and birdsong\nflute: note(\"<[e5 g5 a5 b5] [d6@2 b5 a5] [g5 e5 d5 e5] [g5@4]>\").sections(\"spring\")\n  .s(\"sine\").timbre(\"hollow\").vib(5).vibdepth(.1).attack(.05).sustain(.5).release(.4)\n  .delay(.25).delaytime(3/8).room(.5).gain(.24)\nharp: note(\"<[g3 b3 d4 b3] [c4 e4 g4 e4] [e3 g3 b3 g3] [d3 f#3 a3 f#3]>\").sections(\"spring\")\n  .s(\"triangle\").timbre(\"soft\").decay(.4).sustain(0).release(.5).room(.5).gain(.22)\nbirds: s(\"bird\").slow(2).sections(\"spring\").azimuth(40).distance(4).gain(.2)\n\n// Winter: the harp turns minor, slow and dark in the halls of Hades\ndark: note(\"<[e3 g3 b3 g3] [c3 eb3 g3 eb3] [a2 c3 e3 c3] [b2 d#3 f#3 d#3]>\").sections(\"winter\")\n  .s(\"triangle\").timbre(\"soft\").decay(.8).sustain(0).release(1)\n  .lpf(1200).space(\"church\").gain(.22)\nwind: s(\"wind\").slow(4).sections(\"winter\").intensity(.4).gain(.14)\n\n// Pomegranate seeds: a low pulse that carries through both worlds\nseeds: note(\"<g2 c2 e2 d2>\").s(\"sine\").attack(.3).sustain(.7).release(1).gain(.3)\n",
+       "savedAt": "2026-11-18T12:00:00.000Z"
     },
     {
       "id": "athena",

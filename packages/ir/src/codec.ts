@@ -1,6 +1,6 @@
 // tartlet/1 JSON encoding and ingestion validation (idea.md §8.1, §9.7). IR from outside
 // the checker gets no more trust than source does.
-import { type Rational, fromJson, isRational, toJson } from '@tartlet/time';
+import { type Rational, type TempoPoint, ZERO, fromJson, isRational, lt, lte, toJson } from '@tartlet/time';
 import type { MiniAst, MiniOp, MiniStep } from '@tartlet/mini';
 import type {
   Advisory,
@@ -15,6 +15,7 @@ import type {
   PatternType,
   Program,
   ResourceDecl,
+  SongSettings,
   SourceRange,
   SourceRef,
   ValueKind,
@@ -353,6 +354,22 @@ class Decoder {
     }
     return { output: this.str(o.output, `${p}.output`), headphones: o.headphones, ...(pulse ? { pulse } : undefined) };
   }
+  tempoMap(v: unknown, p: string): TempoPoint[] {
+    const list = this.arr(v, p);
+    if (list.length === 0 || list.length > 256) fail(p, 'expected 1 to 256 points');
+    let prev: Rational | undefined;
+    return list.map((x, i) => {
+      const q = `${p}[${String(i)}]`;
+      const o = this.obj(x, q);
+      const cycle = this.rational(o.cycle, `${q}.cycle`);
+      const cps = this.rational(o.cps, `${q}.cps`);
+      if (lt(cycle, ZERO) || (prev !== undefined && lt(cycle, prev)))
+        fail(`${q}.cycle`, 'cycles must be non-negative and in order');
+      if (lte(cps, ZERO)) fail(`${q}.cps`, 'tempo must be positive');
+      prev = cycle;
+      return { cycle, cps };
+    });
+  }
   program(v: unknown): Program {
     const o = this.obj(v, '$');
     if (o.irVersion !== 'tartlet/1') fail('$.irVersion', 'unsupported IR version');
@@ -360,8 +377,19 @@ class Decoder {
     const metaIn = this.obj(s.meta, '$.settings.meta');
     const meta = Object.create(null) as Record<string, string>;
     for (const [k, x] of Object.entries(metaIn)) meta[k] = this.str(x, `$.settings.meta.${k}`);
+    const tempoMap = s.tempoMap === undefined ? undefined : this.tempoMap(s.tempoMap, '$.settings.tempoMap');
+    let song: SongSettings | undefined;
+    if (s.song !== undefined) {
+      const so = this.obj(s.song, '$.settings.song');
+      const cycles = this.rational(so.cycles, '$.settings.song.cycles');
+      if (lte(cycles, ZERO)) fail('$.settings.song.cycles', 'length must be positive');
+      if (typeof so.once !== 'boolean') fail('$.settings.song.once', 'expected a boolean');
+      song = { cycles, once: so.once };
+    }
     const settings = {
       cps: this.rational(s.cps, '$.settings.cps'),
+      ...(tempoMap ? { tempoMap } : undefined),
+      ...(song ? { song } : undefined),
       ...(s.seed !== undefined ? { seed: this.str(s.seed, '$.settings.seed') } : undefined),
       meta,
     };

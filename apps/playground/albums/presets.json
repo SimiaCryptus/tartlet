@@ -3,7 +3,7 @@
   "version": 2,
   "id": "presets",
   "name": "Presets",
-  "description": "Built-in sketches that tour the Tartlet language: grooves, mini-notation, transforms, sound design and language features. Original compositions, written for Tartlet.",
+   "description": "Built-in sketches that tour the Tartlet language: grooves, mini-notation, transforms, sound design, language features and long-form songs. Original compositions, written for Tartlet.",
   "author": "Tartlet",
   "license": "Apache-2.0",
   "category": "Tutorials",
@@ -288,6 +288,51 @@
       "tags": ["const f =", "apply"],
       "source": "setcpm(104/4)\n\n// a function names a transform once; n has a default\nconst stutter = (x, n = 2) => x.ply(n).gain(.7)\n// a builder makes a whole pattern from a number\nconst beat = (k) => s(\"bd\").euclid(k, 8)\n\n$: beat(3)\n$: beat(5).late(1/16).gain(.5)\n// as a function value: the extra argument follows the pattern\n$: s(\"~ sd ~ sd\").every(4, stutter(3))\n// as a method, using the default\n$: s(\"hh*8\").stutter().gain(.4)\n// through apply\n$: n(\"0 2 4 7\").scale(\"A:minor\").s(\"triangle\").apply(stutter).release(.1)\n",
       "savedAt": "2026-10-29T00:00:00.000Z"
-    }
+     },
+     {
+       "id": "song-form",
+       "name": "Song form",
+       "description": "One song line names the structure; each track says which sections it plays in. Stops on its own.",
+       "category": "Long form",
+       "tags": ["song", "sections"],
+       "source": "setcpm(100/4)\n// one line names the whole structure; \"once\" stops at the end\nsong(\"intro@4 verse@8 chorus@8 verse'@8 chorus@8 outro@4\", \"once\")\n\nconst key = \"D:minor\"\n\n// each track says where it plays, written relative to its section\ndrums: s(\"bd*2 sd, hh*8\").gain(.8).exceptSections(\"intro outro\")\nbass: note(\"<d2 d2 f2 c2>\").s(\"sawtooth\").lpf(600).release(.2).exceptSections(\"intro\")\npad: note(\"<[d3,f3,a3] [c3,e3,g3]>\").s(\"triangle\").room(.5).gain(.4).sections(\"intro outro\")\n// sections(\"verse\") also plays in verse'\nmelody: n(\"<0 ~ 2 4>\").scale(key).s(\"sine\").release(.3).sections(\"verse\")\nlead: n(\"0 2 4 2 5 4 2 1\").scale(key).s(\"square\").gain(.25).release(.05).sections(\"chorus\")\n",
+       "savedAt": "2026-10-29T00:00:00.000Z"
+     },
+     {
+       "id": "section-values",
+       "name": "Section values",
+       "description": "Values held per section, envelopes over a section or the whole song, and a key change in the bridge.",
+       "category": "Long form",
+       "tags": ["bysec", "env"],
+       "source": "setcpm(96/4)\nsong(\"intro@2 verse@4 chorus@4 bridge@2 chorus@4\")\n\n// bysec holds one value per section, with * as the default\ndrums: s(\"bd [~ bd] sd ~, hh*8\").gain(bysec(\"intro:.3 verse:.6 *:.9\"))\n// a section envelope opens the filter through every section\nbass: note(\"<c2 c2 eb2 bb1>\").s(\"sawtooth\").lpf(env(\"300 2400\", \"section\")).release(.15)\n// a song envelope draws one arc over the whole piece\npad: note(\"<[c3,eb3,g3] [ab2,c3,eb3]>\").s(\"triangle\").gain(env(\"0 1@3 .3\", \"song\")).room(.5)\n// the scale is read at each onset, so the bridge changes key\nlead: n(\"0 2 4 7\").scale(bysec(\"bridge:Eb:major *:C:minor\")).s(\"square\").gain(.25).release(.05).sections(\"chorus bridge\")\n",
+       "savedAt": "2026-10-29T00:00:00.000Z"
+     },
+     {
+       "id": "fills-variations",
+       "name": "Fills and variations",
+       "description": "A fill at the end of every section, a lift at the start, and primes turned into real variations.",
+       "category": "Long form",
+       "tags": ["atEnd atStart", "variant"],
+       "source": "setcpm(120/4)\nsong(\"verse@4 verse'@4 chorus@4 chorus''@4\")\n\n// a fill in the last cycle of every section\ndrums: s(\"bd sd [~ bd] sd, hh*8\").atEnd(1, x => x.ply(2).gain(1.1))\n// the rim doubles up in the first cycle of every section\nrim: s(\"~ rim ~ rim\").atStart(1, x => x.fast(2)).gain(.5)\n// one prime picks the first function, two primes the second\nlead: n(\"0 2 4 2\").scale(\"A:minor\").s(\"triangle\").variant(x => x.add(7), x => x.add(12).fast(2)).release(.1)\nbass: note(\"<a1 f1 g1 e1>\").s(\"sawtooth\").lpf(700).release(.2)\n",
+       "savedAt": "2026-10-29T00:00:00.000Z"
+     },
+     {
+       "id": "repeats-endings",
+       "name": "Repeats and endings",
+       "description": "A repeated theme with first and second endings, and a ritardando into the coda.",
+       "category": "Long form",
+       "tags": ["( )*2 1. 2.", "tempomap"],
+       "source": "setcpm(100/4)\n// plays: intro theme half theme full coda (18 cycles), then stops\nsong(\"intro@2 (theme@4 1.half@2 2.full@2)*2 coda@4\", \"once\")\n// steady, then slowing over the coda\ntempomap(\"0:25 14:25 18:15\")\n\npad: note(\"<[g2,b2,d3] [c3,e3,g3]>\").s(\"triangle\").room(.5).gain(.4).sections(\"intro coda\")\ntheme: n(\"0 2 4 5 4 2 1 2\").scale(\"G:major\").s(\"square\").gain(.25).release(.05).sections(\"theme\")\ndrums: s(\"bd*2 sd, hh*4\").exceptSections(\"intro coda\")\n// the first ending turns back, the second lands home\nturn: note(\"d3 c3 b2 a2\").s(\"triangle\").release(.1).sections(\"half\")\nhome: note(\"[g2,d3,g3]\").s(\"sawtooth\").lpf(800).release(.5).sections(\"full coda\")\n",
+       "savedAt": "2026-10-29T00:00:00.000Z"
+     },
+     {
+       "id": "arrange-once",
+       "name": "Arrange and once",
+       "description": "Through-composed parts with arrange, and a flourish that plays only once.",
+       "category": "Long form",
+       "tags": ["arrange", "once"],
+       "source": "setcpm(110/4)\n\n// arrange plays 2 cycles of the first part, 1 of the next, 1 of the last, then repeats\n$: arrange(2, n(\"0 2 4 7\"), 1, n(\"7 4 2 0\"), 1, n(\"<0 3>\")).scale(\"E:minor\").s(\"triangle\").release(.1)\n$: s(\"bd*2 sd, hh*8\").gain(.8)\n// .once plays from cycle zero, then stays silent\n$: s(\"cp*4\").ply(2).gain(.5).once()\n",
+       "savedAt": "2026-10-29T00:00:00.000Z"
+     }
   ]
 }

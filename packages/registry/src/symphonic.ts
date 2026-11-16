@@ -1,6 +1,6 @@
 // Generators, embedded grammars and arithmetic for long-form composition (docs/symphonic.md).
 // Everything here is pure and local: a value depends only on its index and constants.
-import { type Rational, ONE, ZERO, add, lte, parseDecimal } from '@tartlet/time';
+import { type Rational, ONE, ZERO, add, div, isZero, lt, lte, parseDecimal } from '@tartlet/time';
 
 export interface GrammarError {
   readonly message: string;
@@ -39,6 +39,109 @@ function words(text: string, base: number): Word[] {
 function fail(message: string, start: number, end: number): { readonly error: GrammarError } {
   return { error: { message, range: [start, Math.max(start, end)] } };
 }
+// ---- repeats and endings in layouts (docs/long_compositions.md P4)
+const MAX_REPEAT = 16;
+const MAX_GROUP_DEPTH = 32;
+const ENDING = /^(\d{1,2})\.(.+)$/;
+const REPEAT = /^\*(\d{1,3})/;
+type LayoutItem =
+  | { readonly k: 'w'; readonly w: Word; readonly ending?: number }
+  | { readonly k: 'g'; readonly items: readonly LayoutItem[]; readonly times: number };
+class LayoutFail extends Error {
+  constructor(readonly error: GrammarError) {
+    super(error.message);
+  }
+}
+/**
+ * The words of a layout with `( … )*n` groups played out. `1.name` inside a group plays only on
+ * that pass. Words keep their offsets in `text`, so repeated sections point at the same text.
+ */
+function layoutWords(text: string): GrammarResult<{ readonly words: readonly Word[] }> {
+  let i = 0;
+  function stop(message: string, s: number, e: number): never {
+    throw new LayoutFail({ message, range: [s, Math.max(s, e)] });
+  }
+  const seq = (depth: number, open: number | null): LayoutItem[] => {
+    const items: LayoutItem[] = [];
+    for (;;) {
+      while (i < text.length && isSpace(text.charAt(i))) i++;
+      if (i >= text.length) {
+        if (open !== null) stop('`(` is never closed; expected `)*n`.', open, open + 1);
+        return items;
+      }
+      const ch = text.charAt(i);
+      if (ch === ')') {
+        if (open === null) stop('Unexpected `)`.', i, i + 1);
+        return items;
+      }
+      if (ch === '(') {
+        const start = i;
+        if (depth >= MAX_GROUP_DEPTH) stop('Repeats nest too deeply.', i, i + 1);
+        i++;
+        const inner = seq(depth + 1, start);
+        i++;
+        const m = REPEAT.exec(text.slice(i));
+        if (!m) stop('A group needs a repeat count right after `)`, such as `)*2`.', i - 1, i);
+        const times = Number(m[1]);
+        const countStart = i;
+        i += m[0].length;
+        if (!(times >= 2 && times <= MAX_REPEAT))
+          stop(`A group repeats from 2 to ${String(MAX_REPEAT)} times.`, countStart, i);
+        if (inner.length === 0) stop('A group needs at least one section.', start, i);
+        for (const it of inner) {
+          if (it.k === 'w' && it.ending !== undefined && it.ending > times)
+            stop(
+              `Ending ${String(it.ending)} never plays: the group repeats ${String(times)} times.`,
+              it.w.start,
+              it.w.end,
+            );
+        }
+        items.push({ k: 'g', items: inner, times });
+        continue;
+      }
+      let j = i;
+      while (j < text.length && !isSpace(text.charAt(j)) && text.charAt(j) !== '(' && text.charAt(j) !== ')') j++;
+      const raw = text.slice(i, j);
+      const m = ENDING.exec(raw);
+      if (m) {
+        if (open === null)
+          stop('An ending such as `1.name` must be inside a repeated group, as in `(a 1.b 2.c)*2`.', i, j);
+        const n = Number(m[1]);
+        if (n < 1) stop('Endings count from 1.', i, j);
+        const off = (m[1] ?? '').length + 1;
+        items.push({ k: 'w', w: { text: m[2] ?? '', start: i + off, end: j }, ending: n });
+      } else {
+        items.push({ k: 'w', w: { text: raw, start: i, end: j } });
+      }
+      i = j;
+    }
+  };
+  try {
+    const items = seq(0, null);
+    const out: Word[] = [];
+    const emit = (list: readonly LayoutItem[], pass: number | undefined): void => {
+      for (const it of list) {
+        if (it.k === 'g') {
+          for (let p = 1; p <= it.times; p++) emit(it.items, p);
+          continue;
+        }
+        if (it.ending !== undefined && it.ending !== pass) continue;
+        if (out.length >= MAX_SECTIONS)
+          stop(
+            `A layout has at most ${String(MAX_SECTIONS)} sections once repeats are played out.`,
+            it.w.start,
+            it.w.end,
+          );
+        out.push(it.w);
+      }
+    };
+    emit(items, undefined);
+    return { words: out };
+  } catch (e) {
+    if (e instanceof LayoutFail) return { error: e.error };
+    throw e;
+  }
+}
 
 // ---- form layouts
 
@@ -52,33 +155,66 @@ export interface FormSection {
 }
 export const MAX_SECTIONS = 256;
 // eslint-disable-next-line security/detect-unsafe-regex -- anchored, no nested repetition: linear time
-const SECTION = /^([A-Z])('*)(?:@(.+))?$/;
+const SECTION = /^([A-Z]{1,3})('*)(?:@(.+))?$/;
+// eslint-disable-next-line security/detect-unsafe-regex -- anchored, no nested repetition: linear time
+const NUMBERED = /^#(\d{1,4})('*)(?:@(.+))?$/;
+/** `A` is part 0, `Z` 25, `AA` 26, `AB` 27, … (bijective base 26). */
+export function partIndex(letters: string): number {
+  let n = 0;
+  for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n - 1;
+}
+/** The letters of part `i`: the inverse of `partIndex`. */
+export function partName(i: number): string {
+  let n = Math.floor(i) + 1;
+  let s = '';
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+/** A section length: a decimal, or `n/d` in generated layouts. */
+function parseLength(text: string, fractions: boolean): Rational | null {
+  const i = text.indexOf('/');
+  if (i < 0 || !fractions) return parseDecimal(text);
+  const n = parseDecimal(text.slice(0, i));
+  const d = parseDecimal(text.slice(i + 1));
+  return n && d && !isZero(d) ? div(n, d) : null;
+}
 
-/** `A@16 B@8 A'@16`: letters name parts, primes make variants, `@n` is a length in cycles. */
+/**
+ * `A@16 B@8 A'@16`: letters name parts (A to Z, then AA, AB, …), primes make variants, `@n` is a
+ * length in cycles. With `numbered`, parts may also be written `#12` and lengths `3/2`; only
+ * layouts generated by the checker use it.
+ */
 export function parseFormLayout(
   text: string,
+  opts?: { readonly numbered?: boolean },
 ): GrammarResult<{ readonly sections: readonly FormSection[]; readonly total: Rational }> {
-  const ws = words(text, 0);
+  const numbered = opts?.numbered === true;
+  const lw = layoutWords(text);
+  if ('error' in lw) return lw;
+  const ws = lw.words;
   if (ws.length === 0) return fail('A form needs at least one section, such as "A@8".', 0, text.length);
-  if (ws.length > MAX_SECTIONS) {
-    return fail(`A form has at most ${String(MAX_SECTIONS)} sections.`, ws[MAX_SECTIONS]?.start ?? 0, text.length);
-  }
   const sections: FormSection[] = [];
   let total = ZERO;
   for (const w of ws) {
-    const m = SECTION.exec(w.text);
+    const m = SECTION.exec(w.text) ?? (numbered ? NUMBERED.exec(w.text) : null);
     if (!m) {
       return fail(
-        `\`${w.text}\` is not a section: use a capital letter, optional primes and an optional length, such as "A@8" or "B'".`,
+        `\`${w.text}\` is not a section: use capital letters (A to Z, then AA, AB, …), optional primes and an optional length, such as "A@8" or "B'".`,
         w.start,
         w.end,
       );
     }
     const lenText = m[3];
-    const len = lenText === undefined ? ONE : parseDecimal(lenText);
+    const len = lenText === undefined ? ONE : parseLength(lenText, numbered);
     if (!len || lte(len, ZERO)) return fail(`The length of \`${w.text}\` must be a positive number.`, w.start, w.end);
+    const head = m[1] ?? 'A';
     sections.push({
-      part: (m[1] ?? 'A').charCodeAt(0) - 65,
+      part: /^\d/.test(head) ? Number(head) : partIndex(head),
       primes: (m[2] ?? '').length,
       len,
       range: [w.start, w.end],
@@ -86,6 +222,135 @@ export function parseFormLayout(
     total = add(total, len);
   }
   return { sections, total };
+}
+// ---- song timelines (docs/long_compositions.md)
+export interface SongSection {
+  readonly name: string;
+  readonly primes: number;
+  readonly len: Rational;
+  /** The length as written, reused in generated form layouts. */
+  readonly lenText: string;
+  readonly range: readonly [number, number];
+}
+// eslint-disable-next-line security/detect-unsafe-regex -- anchored, no nested repetition: linear time
+const SONG_SECTION = /^([a-z][a-z0-9_]*)('*)(?:@(.+))?$/;
+const SECTION_NAME = /^([a-z][a-z0-9_]*)('*)$/;
+const MAP_ENTRY = /^(\*|[a-z][a-z0-9_]*)('*):(.+)$/;
+/** `intro@4 verse@16 chorus@16 verse'@16`: lowercase names, optional primes and lengths. */
+export function parseSongLayout(
+  text: string,
+): GrammarResult<{ readonly sections: readonly SongSection[]; readonly total: Rational }> {
+  const lw = layoutWords(text);
+  if ('error' in lw) return lw;
+  const ws = lw.words;
+  if (ws.length === 0) return fail('A song needs at least one section, such as "verse@8".', 0, text.length);
+  const sections: SongSection[] = [];
+  let total = ZERO;
+  for (const w of ws) {
+    const m = SONG_SECTION.exec(w.text);
+    if (!m) {
+      return fail(
+        `\`${w.text}\` is not a section: use a lowercase name, optional primes and an optional length, such as "verse@16" or "chorus'".`,
+        w.start,
+        w.end,
+      );
+    }
+    const lenText = m[3] ?? '1';
+    const len = parseDecimal(lenText);
+    if (!len || lte(len, ZERO)) return fail(`The length of \`${w.text}\` must be a positive number.`, w.start, w.end);
+    sections.push({ name: m[1] ?? '', primes: (m[2] ?? '').length, len, lenText, range: [w.start, w.end] });
+    total = add(total, len);
+  }
+  return { sections, total };
+}
+export interface SectionRef {
+  readonly name: string;
+  readonly primes: number;
+  readonly range: readonly [number, number];
+}
+/** `verse chorus'`: section names for `.sections` and `.exceptSections`. */
+export function parseSectionNames(text: string): GrammarResult<{ readonly names: readonly SectionRef[] }> {
+  const ws = words(text, 0);
+  if (ws.length === 0) return fail('Name at least one section, such as "chorus".', 0, text.length);
+  if (ws.length > MAX_SECTIONS) return fail('Too many section names.', 0, text.length);
+  const names: SectionRef[] = [];
+  for (const w of ws) {
+    const m = SECTION_NAME.exec(w.text);
+    if (!m) return fail(`\`${w.text}\` is not a section name such as "verse" or "chorus'".`, w.start, w.end);
+    names.push({ name: m[1] ?? '', primes: (m[2] ?? '').length, range: [w.start, w.end] });
+  }
+  return { names };
+}
+export interface SectionValue extends SectionRef {
+  /** `*` is the default for sections that are not listed. */
+  readonly value: string;
+}
+/** `intro:.4 chorus':2 *:.9`: one value per section, for `bysec`. */
+export function parseSectionMap(text: string): GrammarResult<{ readonly entries: readonly SectionValue[] }> {
+  const ws = words(text, 0);
+  if (ws.length === 0) return fail('Give at least one value, such as "verse:.6 *:.9".', 0, text.length);
+  if (ws.length > MAX_SECTIONS + 1) return fail('Too many section values.', 0, text.length);
+  const entries: SectionValue[] = [];
+  const seen = new Set<string>();
+  for (const w of ws) {
+    const m = MAP_ENTRY.exec(w.text);
+    const name = m?.[1];
+    const primes = (m?.[2] ?? '').length;
+    if (!m || name === undefined || (name === '*' && primes > 0)) {
+      return fail(`\`${w.text}\` is not a section value such as "verse:.6" or "*:1".`, w.start, w.end);
+    }
+    const key = `${name}${"'".repeat(primes)}`;
+    if (seen.has(key)) return fail(`\`${key}\` has two values.`, w.start, w.end);
+    seen.add(key);
+    entries.push({ name, primes, value: m[3] ?? '', range: [w.start, w.end] });
+  }
+  return { entries };
+}
+// ---- tempo maps (docs/long_compositions.md P5)
+export interface TempoMapPoint {
+  readonly cycle: Rational;
+  /** Cycles per minute. */
+  readonly cpm: Rational;
+  readonly range: readonly [number, number];
+}
+export const MAX_TEMPO_POINTS = 256;
+const TEMPO_POINT = /^([^:]+):([^:]+)$/;
+/** `0:25 92:25 100:15`: cycle:cpm points in order; a repeated cycle is a step. */
+export function parseTempoMap(text: string): GrammarResult<{ readonly points: readonly TempoMapPoint[] }> {
+  const ws = words(text, 0);
+  if (ws.length === 0) return fail('A tempo map needs at least one point, such as "0:120".', 0, text.length);
+  if (ws.length > MAX_TEMPO_POINTS) {
+    return fail(
+      `A tempo map has at most ${String(MAX_TEMPO_POINTS)} points.`,
+      ws[MAX_TEMPO_POINTS]?.start ?? 0,
+      text.length,
+    );
+  }
+  const points: TempoMapPoint[] = [];
+  for (const w of ws) {
+    const m = TEMPO_POINT.exec(w.text);
+    const cycle = m?.[1] === undefined ? null : parseDecimal(m[1]);
+    const cpm = m?.[2] === undefined ? null : parseDecimal(m[2]);
+    if (!cycle || !cpm) {
+      return fail(
+        `\`${w.text}\` is not a point such as "16:120": a cycle, a colon and a tempo in cycles per minute.`,
+        w.start,
+        w.end,
+      );
+    }
+    if (lt(cycle, ZERO)) return fail(`The cycle of \`${w.text}\` must not be negative.`, w.start, w.end);
+    if (lte(cpm, ZERO)) return fail(`The tempo of \`${w.text}\` must be positive.`, w.start, w.end);
+    const prev = points[points.length - 1];
+    if (prev && lt(cycle, prev.cycle)) {
+      return fail(
+        `\`${w.text}\` comes before the point in front of it; list points in order of cycle.`,
+        w.start,
+        w.end,
+      );
+    }
+    points.push({ cycle, cpm, range: [w.start, w.end] });
+  }
+  return { points };
 }
 
 // ---- envelopes

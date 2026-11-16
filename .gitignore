@@ -7,9 +7,9 @@ coverage/
 pnpm*
 .github/
 
-albums
-*.md
-docs/
+#albums
+#*.md
+#docs/
 terraform/
 
 

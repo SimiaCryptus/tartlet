@@ -254,9 +254,11 @@ class MiniParser {
       const c = this.peek();
       if (this.isPunct(c, ':') && c && !c.spaceBefore) {
         const nt = this.toks[this.i + 1];
-        if (nt && nt.kind === 'word' && !nt.spaceBefore && INT.test(nt.text)) {
+        if (nt && nt.kind === 'word' && !nt.spaceBefore) {
           this.i += 2;
-          return { t: 'atom', text: t.text, index: Number(nt.text), range: [t.start, nt.end] };
+          if (INT.test(nt.text)) return { t: 'atom', text: t.text, index: Number(nt.text), range: [t.start, nt.end] };
+          // `D:minor` is one compound atom. Value kinds that need an index reject it in the checker.
+          return { t: 'atom', text: `${t.text}:${nt.text}`, range: [t.start, nt.end] };
         }
         this.err('E-MINI-INDEX', '`:` needs a whole-number index.', c);
         this.i++;

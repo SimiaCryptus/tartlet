@@ -45,8 +45,7 @@
         <p>Edit the source and press Play (or Ctrl+Enter).</p>
         <textarea id="custom" spellcheck="false" aria-label="Tartlet source">
 setcps(2)
-$: note("c5 e5 g5 c6").s("sine").decay(.1).sustain(0).room(.3)</textarea
-        >
+$: note("c5 e5 g5 c6").s("sine").decay(.1).sustain(0).room(.3)</textarea>
         <button id="custom-play" type="button" class="primary">Play</button>
         <ul id="custom-diags" class="diags"></ul>
       </section>
@@ -59,8 +58,8 @@ $: note("c5 e5 g5 c6").s("sine").decay(.1).sustain(0).room(.3)</textarea
       <section class="card wide">
         <h2>How it works</h2>
         <p>
-          <code>src/sfx.ts</code> checks and compiles a source once, reads the notes of its first cycle and plays
-          them through Tartlet's audio engine. Wiring a sound to an event takes one line:
+          <code>src/sfx.ts</code> checks and compiles a source once, reads the notes of its first cycle and plays them
+          through Tartlet's audio engine. Wiring a sound to an event takes one line:
         </p>
         <pre><code>import { TartletSfx } from './sfx';
 

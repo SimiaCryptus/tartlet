@@ -9,6 +9,7 @@ import {
   isRational,
   isZero,
   lt,
+  lte,
   mul,
   parseDecimal,
   rat,
@@ -66,6 +67,7 @@ import {
   every,
   fast,
   fastcat,
+  filterOnsets,
   fmap,
   grid,
   late,
@@ -134,6 +136,7 @@ interface SampleValue {
 }
 
 type Env = ReadonlyMap<string, Pattern<unknown>>;
+type ScaleSpec = NonNullable<ReturnType<typeof parseScale>>;
 const NO_ENV: Env = new Map();
 const NONE: readonly Provenance[] = [];
 
@@ -243,6 +246,8 @@ function num(v: unknown): unknown {
 
 function controlsFor(control: string, v: unknown): ControlMap {
   const out = dict();
+  // An empty string marks a song section without a value (`bysec`): the control stays unset.
+  if (v === '') return out;
   if (control === 's') {
     if (isObj(v) && typeof v.s === 'string') {
       out.s = v.s;
@@ -320,6 +325,14 @@ function invertValue(v: unknown, axis: number | null): unknown {
   });
 }
 const mod12 = (x: number): number => ((x % 12) + 12) % 12;
+/** A rational written by the checker as `n` or `n/d`. */
+function ratText(s: string): Rational | null {
+  const i = s.indexOf('/');
+  if (i < 0) return parseDecimal(s);
+  const n = parseDecimal(s.slice(0, i));
+  const d = parseDecimal(s.slice(i + 1));
+  return n && d && !isZero(d) ? div(n, d) : null;
+}
 
 export function compile(program: Program, opts?: CompileOptions): CompiledProgram {
   const locate = opts?.locate ?? ((i: number): Offset => ({ line: 0, col: i, byte: i }));
@@ -415,7 +428,7 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
   /** `form(layout, ...parts)`: sections with local time and seeded variants (docs/symphonic.md). */
   function formNode(n: Extract<PatternNode, { kind: 'transform' }>, env: Env): Pattern<unknown> {
     const layout = constStr(n.args[0]);
-    const parsed = layout === null ? null : parseFormLayout(layout);
+    const parsed = layout === null ? null : parseFormLayout(layout, { numbered: true });
     if (!parsed || 'error' in parsed) return silence();
     const parts = n.target.kind === 'combine' ? n.target.children.map((c) => node(c, env)) : [];
     let start = ZERO;
@@ -694,21 +707,65 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
       case 'label':
         return target;
       case 'scale': {
-        if (a?.kind !== 'const' || a.value.t !== 'str') return target;
-        const sc = parseScale(a.value.v);
-        if (!sc) return target;
-        return fmap(target, (v) => {
-          if (!isObj(v) || typeof v.n !== 'number') return v;
+        if (!a) return target;
+        const toScale = (v: unknown, sc: ScaleSpec | null): unknown => {
+          if (!sc || !isObj(v) || typeof v.n !== 'number') return v;
           const out = dict();
           Object.assign(out, v);
           delete out.n;
           out.note = { kind: 'midi', value: degreeToMidi(v.n, sc) };
           return out;
-        });
+        };
+        if (a.kind === 'const') {
+          if (a.value.t !== 'str') return target;
+          const sc = parseScale(a.value.v);
+          return sc ? fmap(target, (v) => toScale(v, sc)) : target;
+        }
+        // A patterned scale is read at each event's onset (docs/long_compositions.md P2).
+        const cache = new Map<string, ScaleSpec | null>();
+        const lookup = (x: unknown): ScaleSpec | null => {
+          if (typeof x !== 'string') return null;
+          let sc = cache.get(x);
+          if (sc === undefined) {
+            sc = parseScale(x);
+            cache.set(x, sc);
+          }
+          return sc;
+        };
+        return sampleOnset(target, argPattern(a, NONE, env), (v, x) => toScale(v, lookup(x)));
       }
       // ---- long-form transforms and generators (docs/symphonic.md)
-      case 'once':
-        return onceOf.get(target) ?? target;
+      case 'once': {
+        const whole = onceOf.get(target);
+        if (whole) return whole;
+        const c = constRat(a);
+        return clipTime(target, null, c !== null && lt(ZERO, c) ? c : ONE);
+      }
+      case 'inWindows': {
+        // Song section edges and variants, lowered by the checker (docs/long_compositions.md).
+        const text = constStr(a);
+        const f = args[1];
+        const period = constRat(args[2]) ?? ZERO;
+        if (text === null || f?.kind !== 'function') return target;
+        const nums = text
+          .split(/\s+/)
+          .filter((x) => x !== '')
+          .map(ratText);
+        if (nums.length % 2 !== 0 || nums.length > 2 * MAX_STEPS) return target;
+        const windows: (readonly [Rational, Rational])[] = [];
+        for (let i = 0; i + 1 < nums.length; i += 2) {
+          const b = nums[i];
+          const e = nums[i + 1];
+          if (!b || !e) return target;
+          windows.push([b, e]);
+        }
+        const looped = lt(ZERO, period);
+        const inside = (t: Rational): boolean => {
+          const x = looped ? sub(t, mul(floor(div(t, period)), period)) : t;
+          return windows.some(([b, e]) => lte(b, x) && lt(x, e));
+        };
+        return stack([filterOnsets(applyFn(f.fn, target, env, fid), inside), filterOnsets(target, (t) => !inside(t))]);
+      }
       case 'during': {
         const b = constNum(a);
         const e = constNum(args[1]);

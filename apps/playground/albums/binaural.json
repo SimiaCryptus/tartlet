@@ -8,34 +8,34 @@
   "license": "Apache-2.0",
   "category": "Headphones",
   "tags": ["binaural", "headphones", "experiments", "illusions", "spatial"],
-  "exportedAt": "2026-11-02T12:00:00.000Z",
+  "exportedAt": "2026-11-09T12:00:00.000Z",
   "sketches": [
     {
       "id": "beat-or-pulse",
       "name": "Beat or Pulse",
       "description": "Two bars of a 5 Hz binaural beat, then two bars of plain amplitude pulsing at the same rate. The first only exists on headphones; the second is audible on speakers too. The player asks before playing, as with any steady pulse.",
       "category": "Beats",
-      "tags": ["5 Hz", "binaural", "isochronic", "comparison"],
-      "source": "setcpm(60/4)\n\n// Two bars of a 5 Hz binaural beat: each ear hears a steady tone, and the beat forms between them\nbinaural: note(\"a2\").s(\"sine\").binaural(5).mask(\"<1 1 0 0>\")\n  .attack(.5).sustain(1).release(.5).gain(.3)\n\n// Two bars of the same rate as plain amplitude pulsing, audible on speakers too\npulse: note(\"a2\").s(\"sine\").isochronic(5).isodepth(.6).mask(\"<0 0 1 1>\")\n  .attack(.5).sustain(1).release(.5).gain(.3)\n\n// A quiet pad that never changes, for reference\npad: note(\"[a3,c#4,e4]\").slow(4).s(\"triangle\").timbre(\"soft\")\n  .attack(2).sustain(1).release(3).lpf(1200).room(.6).gain(.12)\n",
-      "savedAt": "2026-11-02T12:00:00.000Z"
+      "tags": ["5 Hz", "binaural", "isochronic", "comparison", "song"],
+      "source": "setcpm(60/4)\n\n// Two sections that loop: one only headphones can produce, one any speaker can\nsong(\"headphones@2 speakers@2\")\n\n// A 5 Hz binaural beat: each ear hears a steady tone, and the beat forms between them\nbinaural: note(\"a2\").s(\"sine\").binaural(5).sections(\"headphones\")\n  .attack(.5).sustain(1).release(.5).gain(.3)\n\n// The same rate as plain amplitude pulsing, audible on speakers too\npulse: note(\"a2\").s(\"sine\").isochronic(5).isodepth(.6).sections(\"speakers\")\n  .attack(.5).sustain(1).release(.5).gain(.3)\n\n// A quiet pad that never changes, for reference\npad: note(\"[a3,c#4,e4]\").slow(4).s(\"triangle\").timbre(\"soft\")\n  .attack(2).sustain(1).release(3).lpf(1200).room(.6).gain(.12)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
     },
     {
       "id": "cents-apart",
       "name": "Cents Apart",
       "description": "A drone whose ears drift apart in cents, two bars at a time: 2 cents beats slowly, 6 and 12 shimmer, and 30 widens into a chorus. A plain centred sine stays put as a reference.",
       "category": "Pitch",
-      "tags": ["earsh", "D", "drone"],
-      "source": "setcpm(50/4)\n\n// earsh raises the right ear and lowers the left by half the value each\n// 2 cents beats slowly; 30 cents widens into a chorus\ndrone: note(\"[d2,a2]\").s(\"sawtooth\").earsh(\"<2 2 6 6 12 12 30 30>\")\n  .lpf(700).attack(1.5).sustain(1).release(1.5).gain(.22)\n\n// A plain sine, the same in both ears, as a fixed point\ncentre: note(\"d3\").s(\"sine\").attack(1).sustain(1).release(1).gain(.12)\n\n// A bell marks each new setting\nbell: note(\"<a4 ~>\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(3).sustain(0).release(3).room(.6).gain(.1)\n",
-      "savedAt": "2026-11-02T12:00:00.000Z"
+      "tags": ["earsh", "D", "drone", "song"],
+      "source": "setcpm(50/4)\n\n// Four settings, two bars each, named by their detune in cents\nsong(\"two@2 six@2 twelve@2 thirty@2\")\n\n// earsh raises the right ear and lowers the left by half the value each\n// 2 cents beats slowly; 30 cents widens into a chorus\ndrone: note(\"[d2,a2]\").s(\"sawtooth\").earsh(bysec(\"two:2 six:6 twelve:12 thirty:30\"))\n  .lpf(700).attack(1.5).sustain(1).release(1.5).gain(.22)\n\n// A plain sine, the same in both ears, as a fixed point\ncentre: note(\"d3\").s(\"sine\").attack(1).sustain(1).release(1).gain(.12)\n\n// A bell marks each new setting\nbell: note(\"<a4 ~>\").s(\"sine\").fm(2).fmh(2.76)\n  .decay(3).sustain(0).release(3).room(.6).gain(.1)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
     },
     {
       "id": "haas-corridor",
       "name": "Haas Corridor",
       "description": "Interaural time differences. A pluck swings from side to side on delays under a millisecond, while a pad stays on the leading side and grows wider as its delay rises to 8 and 20 ms.",
       "category": "Time",
-      "tags": ["itd", "precedence", "E minor", "80 bpm"],
-      "source": "setcpm(80/4)\n\n// Under about 0.7 ms, a delay between the ears moves the sound sideways\n// Negative values delay the right ear, so the pluck leans left; positive values lean right\npluck: n(\"0 2 4 7 4 2 0 -1\").scale(\"E:minor\").s(\"triangle\").timbre(\"bright\")\n  .itd(sine.range(-.6, .6).slow(4))\n  .decay(.25).sustain(0).release(.3).gain(.3)\n\n// From about 1 to 30 ms the sound stays on the leading side but grows wider\npad: note(\"<[e3,g3,b3] [c3,e3,g3]>\").s(\"sawtooth\").unison(2).detune(.1)\n  .itd(\"<1 1 8 8 20 20 1 1>\").lpf(1400)\n  .attack(.5).sustain(1).release(1).gain(.14)\n\n// A centred bass, with no delay at all\nbass: note(\"<e2 c2>\").s(\"sine\").attack(.2).sustain(.8).release(.5).gain(.3)\n",
-      "savedAt": "2026-11-02T12:00:00.000Z"
+      "tags": ["itd", "precedence", "E minor", "80 bpm", "song"],
+      "source": "setcpm(80/4)\n\n// The pad's delay steps from near to wide and back, two bars at a time\nsong(\"near@2 wide@2 wider@2 near@2\")\n\n// Under about 0.7 ms, a delay between the ears moves the sound sideways\n// Negative values delay the right ear, so the pluck leans left; positive values lean right\npluck: n(\"0 2 4 7 4 2 0 -1\").scale(\"E:minor\").s(\"triangle\").timbre(\"bright\")\n  .itd(sine.range(-.6, .6).slow(4))\n  .decay(.25).sustain(0).release(.3).gain(.3)\n\n// From about 1 to 30 ms the sound stays on the leading side but grows wider\npad: note(\"<[e3,g3,b3] [c3,e3,g3]>\").s(\"sawtooth\").unison(2).detune(.1)\n  .itd(bysec(\"wide:8 wider:20 *:1\")).lpf(1400)\n  .attack(.5).sustain(1).release(1).gain(.14)\n\n// A centred bass, with no delay at all\nbass: note(\"<e2 c2>\").s(\"sine\").attack(.2).sustain(.8).release(.5).gain(.3)\n",
+      "savedAt": "2026-11-09T12:00:00.000Z"
     },
     {
       "id": "inside-the-head",

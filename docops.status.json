@@ -1,0 +1,229 @@
+{
+  "lastUpdated": "2026-11-16T10:53:47.739524119Z",
+  "tasks": {
+    "apps/playground/albums/binaural-jazz.json": {
+      "target": "apps/playground/albums/binaural-jazz.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261115-WiEUgL3l",
+      "startedAt": "2026-11-16T00:21:23.057623876Z",
+      "completedAt": "2026-11-16T00:25:10.167441716Z"
+    },
+    "apps/playground/albums/biomes.json": {
+      "target": "apps/playground/albums/biomes.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261115-PxcTes1X",
+      "startedAt": "2026-11-16T00:21:23.059927242Z",
+      "completedAt": "2026-11-16T00:25:40.744402604Z"
+    },
+    "apps/playground/albums/meditation.json": {
+      "target": "apps/playground/albums/meditation.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-nVr4nn6w",
+      "startedAt": "2026-11-16T10:40:04.896489842Z",
+      "completedAt": "2026-11-16T10:41:54.969063447Z"
+    },
+    "apps/playground/albums/sleep.json": {
+      "target": "apps/playground/albums/sleep.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-T9WWCY10",
+      "startedAt": "2026-11-16T10:40:04.891576769Z",
+      "completedAt": "2026-11-16T10:41:24.522078729Z"
+    },
+    "apps/playground/albums/alchemy.json": {
+      "target": "apps/playground/albums/alchemy.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-Pr71FkK4",
+      "startedAt": "2026-11-16T10:40:04.900996282Z",
+      "completedAt": "2026-11-16T10:41:14.141563785Z"
+    },
+    "apps/playground/albums/america.json": {
+      "target": "apps/playground/albums/america.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-AuVdEuD9",
+      "startedAt": "2026-11-16T10:40:04.912273517Z",
+      "completedAt": "2026-11-16T10:53:47.739524119Z"
+    },
+    "apps/playground/albums/binaural-calm-study.json": {
+      "target": "apps/playground/albums/binaural-calm-study.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-8sFMnqHP",
+      "startedAt": "2026-11-16T10:40:04.907963178Z",
+      "completedAt": "2026-11-16T10:43:06.067671622Z"
+    },
+    "apps/playground/albums/binaural-classical.json": {
+      "target": "apps/playground/albums/binaural-classical.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-bGxs9Hhs",
+      "startedAt": "2026-11-16T10:40:04.854750856Z",
+      "completedAt": "2026-11-16T10:45:13.378379217Z"
+    },
+    "apps/playground/albums/binaural-games.json": {
+      "target": "apps/playground/albums/binaural-games.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-Zr3Ps2cl",
+      "startedAt": "2026-11-16T10:40:04.914179333Z",
+      "completedAt": "2026-11-16T10:43:46.890972681Z"
+    },
+    "apps/playground/albums/binaural-nature.json": {
+      "target": "apps/playground/albums/binaural-nature.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-jAw9KPL9",
+      "startedAt": "2026-11-16T10:40:04.857202435Z",
+      "completedAt": "2026-11-16T10:43:29.911778696Z"
+    },
+    "apps/playground/albums/binaural-study.json": {
+      "target": "apps/playground/albums/binaural-study.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-0qr3MdKU",
+      "startedAt": "2026-11-16T10:40:04.888829506Z",
+      "completedAt": "2026-11-16T10:43:36.701162778Z"
+    },
+    "apps/playground/albums/binaural-techno.json": {
+      "target": "apps/playground/albums/binaural-techno.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-hwJ09Kgz",
+      "startedAt": "2026-11-16T10:40:04.919629759Z",
+      "completedAt": "2026-11-16T10:42:20.527434516Z"
+    },
+    "apps/playground/albums/binaural.json": {
+      "target": "apps/playground/albums/binaural.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-RT3z1ang",
+      "startedAt": "2026-11-16T10:40:04.916582230Z",
+      "completedAt": "2026-11-16T10:41:14.220860330Z"
+    },
+    "apps/playground/albums/body-double.json": {
+      "target": "apps/playground/albums/body-double.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-B3CpKNbe",
+      "startedAt": "2026-11-16T10:40:04.869777478Z",
+      "completedAt": "2026-11-16T10:40:53.758559072Z"
+    },
+    "apps/playground/albums/bundled.json": {
+      "target": "apps/playground/albums/bundled.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-ngTAQMmq",
+      "startedAt": "2026-11-16T10:40:04.860071078Z",
+      "completedAt": "2026-11-16T10:48:06.432585881Z"
+    },
+    "apps/playground/albums/crazy.json": {
+      "target": "apps/playground/albums/crazy.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-A4BMB1BX",
+      "startedAt": "2026-11-16T10:40:04.910358749Z",
+      "completedAt": "2026-11-16T10:42:24.087943526Z"
+    },
+    "apps/playground/albums/cthulhu.json": {
+      "target": "apps/playground/albums/cthulhu.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-BQb41oFS",
+      "startedAt": "2026-11-16T10:40:04.872097897Z",
+      "completedAt": "2026-11-16T10:41:19.261222476Z"
+    },
+    "apps/playground/albums/deprogramming.json": {
+      "target": "apps/playground/albums/deprogramming.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-Bs7fWfqh",
+      "startedAt": "2026-11-16T10:40:04.862266633Z",
+      "completedAt": "2026-11-16T10:43:01.110427336Z"
+    },
+    "apps/playground/albums/dinosaurs.json": {
+      "target": "apps/playground/albums/dinosaurs.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-n99JhC9u",
+      "startedAt": "2026-11-16T10:40:04.848818586Z",
+      "completedAt": "2026-11-16T10:41:08.999669515Z"
+    },
+    "apps/playground/albums/focus.json": {
+      "target": "apps/playground/albums/focus.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-ojGVkrDi",
+      "startedAt": "2026-11-16T10:40:04.898749918Z",
+      "completedAt": "2026-11-16T10:43:16.348156393Z"
+    },
+    "apps/playground/albums/instruments.json": {
+      "target": "apps/playground/albums/instruments.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-Vj8VVbAo",
+      "startedAt": "2026-11-16T10:40:04.924151334Z",
+      "completedAt": "2026-11-16T10:41:48.410794409Z"
+    },
+    "apps/playground/albums/manifest.json": {
+      "target": "apps/playground/albums/manifest.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-xzsGzN0t",
+      "startedAt": "2026-11-16T10:40:04.922307733Z",
+      "completedAt": "2026-11-16T10:40:23.501990125Z"
+    },
+    "apps/playground/albums/mockery.json": {
+      "target": "apps/playground/albums/mockery.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-dqlhz7CB",
+      "startedAt": "2026-11-16T10:40:04.903104862Z",
+      "completedAt": "2026-11-16T10:41:44.796058034Z"
+    },
+    "apps/playground/albums/nature-sounds.json": {
+      "target": "apps/playground/albums/nature-sounds.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-i5L4HndM",
+      "startedAt": "2026-11-16T10:40:04.905364838Z",
+      "completedAt": "2026-11-16T10:41:48.360748461Z"
+    },
+    "apps/playground/albums/pantheon.json": {
+      "target": "apps/playground/albums/pantheon.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-IOUiNaHG",
+      "startedAt": "2026-11-16T10:40:04.926522205Z",
+      "completedAt": "2026-11-16T10:40:58.964781876Z"
+    },
+    "apps/playground/albums/presets.json": {
+      "target": "apps/playground/albums/presets.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-ak5p1UFS",
+      "startedAt": "2026-11-16T10:40:04.864847917Z",
+      "completedAt": "2026-11-16T10:40:54.039746095Z"
+    },
+    "apps/playground/albums/showtunes.json": {
+      "target": "apps/playground/albums/showtunes.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-hBKInOVe",
+      "startedAt": "2026-11-16T10:40:04.867224077Z",
+      "completedAt": "2026-11-16T10:43:29.914098609Z"
+    },
+    "apps/playground/albums/shrinkwrapped.json": {
+      "target": "apps/playground/albums/shrinkwrapped.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-QCjX52RQ",
+      "startedAt": "2026-11-16T10:40:04.894333520Z",
+      "completedAt": "2026-11-16T10:42:45.792493426Z"
+    },
+    "apps/playground/albums/sound-effects.json": {
+      "target": "apps/playground/albums/sound-effects.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-SDWFPXya",
+      "startedAt": "2026-11-16T10:40:04.935060281Z",
+      "completedAt": "2026-11-16T10:41:34.619620708Z"
+    },
+    "apps/playground/albums/symphonic.json": {
+      "target": "apps/playground/albums/symphonic.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-qVYPqcS4",
+      "startedAt": "2026-11-16T10:40:04.929401206Z",
+      "completedAt": "2026-11-16T10:42:40.641572389Z"
+    },
+    "apps/playground/albums/unthought.json": {
+      "target": "apps/playground/albums/unthought.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-xsdPfV2a",
+      "startedAt": "2026-11-16T10:40:04.932435922Z",
+      "completedAt": "2026-11-16T10:41:48.416024040Z"
+    },
+    "apps/playground/albums/workout.json": {
+      "target": "apps/playground/albums/workout.json",
+      "status": "COMPLETED",
+      "sessionId": "U-20261116-R8Kd3NX1",
+      "startedAt": "2026-11-16T10:40:04.937992617Z",
+      "completedAt": "2026-11-16T10:43:21.552068031Z"
+    }
+  }
+}

@@ -50,6 +50,7 @@ const SINCE_T12 = '0.12.0';
 const SINCE_T13 = '0.13.0';
 const SINCE_T14 = '0.14.0';
 const SINCE_T15 = '0.15.0';
+const SINCE_T16 = '0.16.0';
 
 function control(
   id: string,
@@ -242,6 +243,14 @@ const RATIOS: readonly ParamSpec[] = [
     patternable: false,
     optional: true,
   })),
+];
+/** Song-structure methods from docs/long_compositions.md. L3. */
+function songT(id: string, params: readonly ParamSpec[], description: string): RegistryEntry {
+  return { ...transform(id, [id], params, description), level: 'L3', since: SINCE_T16 };
+}
+const VARIANT_FNS: readonly ParamSpec[] = [
+  { ...FN, name: 'f1' },
+  ...['f2', 'f3', 'f4', 'f5', 'f6'].map((n): ParamSpec => ({ ...FN, name: n, optional: true })),
 ];
 
 export const ENTRIES: readonly RegistryEntry[] = [
@@ -1099,7 +1108,7 @@ export const ENTRIES: readonly RegistryEntry[] = [
     'env',
     [CONST_STR('points'), { name: 'cycles', type: 'number', patternable: false }],
     { kind: 'signal', of: 'number' },
-    'A breakpoint envelope over a number of cycles: values with @ weights for segment lengths, joined by straight lines, then repeated.',
+    'A breakpoint envelope over a number of cycles, or over each "section" or the whole "song": values with @ weights for segment lengths, joined by straight lines, then repeated.',
   ),
   gen(
     'ints',
@@ -1125,7 +1134,20 @@ export const ENTRIES: readonly RegistryEntry[] = [
     { kind: 'pattern', of: 'controls' },
     'A twelve-tone row of pitch classes from 0 to 11, played like n.',
   ),
-  sym('once', [], 'Plays a form once and then nothing.'),
+  {
+    ...gen(
+      'arrange',
+      [CONST_NUM('cycles'), { ...ANY, name: 'part' }],
+      { kind: 'pattern', of: 'controls' },
+      'Plays parts one after another, each for a number of cycles, written as pairs such as arrange(8, verse, 4, chorus), then repeats. Each part starts from its beginning.',
+    ),
+    since: SINCE_T16,
+  },
+  sym(
+    'once',
+    [CONST_NUM('cycles', true)],
+    'Plays a form once and then nothing. On any other pattern, plays the first cycles (one, or the whole song) and then nothing.',
+  ),
   sym(
     'during',
     [CONST_NUM('begin'), CONST_NUM('end'), FN, CONST_NUM('period', true)],
@@ -1198,6 +1220,67 @@ export const ENTRIES: readonly RegistryEntry[] = [
     [{ name: 'form', type: 'string', patternable: true }],
     'Turns pitch classes into a row form such as P0, I5, R3 or RI7.',
   ),
+  // ---- Song structure (docs/long_compositions.md)
+  {
+    id: 'song',
+    names: ['song'],
+    form: 'directive',
+    params: [CONST_STR('layout'), { name: 'mode', type: 'string', patternable: false, optional: true }],
+    returns: { kind: 'error' },
+    level: 'L3',
+    deterministic: 'pure',
+    since: SINCE_T16,
+    description:
+      'Declares the sections of the piece once, such as "intro@4 verse@16 chorus@16", so tracks can say where they play. A second argument "once" ends the piece after the last section.',
+    category: 'directive',
+  },
+  {
+    id: 'tempomap',
+    names: ['tempomap'],
+    form: 'directive',
+    params: [CONST_STR('points')],
+    returns: { kind: 'error' },
+    level: 'L3',
+    deterministic: 'pure',
+    since: SINCE_T16,
+    description:
+      'Changes the tempo over the piece: cycle:cpm points such as "0:25 92:25 100:15", joined by straight lines. A repeated cycle makes a step.',
+    category: 'directive',
+  },
+  songT(
+    'sections',
+    [CONST_STR('names')],
+    'Plays only in the named song sections, starting from the beginning in each one.',
+  ),
+  songT(
+    'exceptSections',
+    [CONST_STR('names')],
+    'Plays everywhere except the named song sections, starting from the beginning in each section.',
+  ),
+  songT(
+    'atStart',
+    [CONST_NUM('cycles'), FN],
+    'Applies a function during the first cycles of every song section, for entrances and pickups.',
+  ),
+  songT(
+    'atEnd',
+    [CONST_NUM('cycles'), FN],
+    'Applies a function during the last cycles of every song section, for fills.',
+  ),
+  songT(
+    'variant',
+    VARIANT_FNS,
+    "In a primed song section such as verse', applies the function for its number of primes: the first for one prime, the second for two, and the last beyond that.",
+  ),
+  {
+    ...gen(
+      'bysec',
+      [CONST_STR('map')],
+      { kind: 'pattern', of: 'number' },
+      'A value per song section, written as name:value pairs with an optional *:value default, such as "intro:.4 *:.9".',
+    ),
+    since: SINCE_T16,
+  },
   {
     id: 'run',
     names: ['run'],
@@ -1239,12 +1322,13 @@ export const ENTRIES: readonly RegistryEntry[] = [
     id: 'scale',
     names: ['scale'],
     form: 'method',
-    params: [{ name: 'name', type: 'string', patternable: false }],
+    params: [{ name: 'name', type: 'string', patternable: true }],
     returns: 'same-as-receiver',
     level: 'L2',
     deterministic: 'pure',
     since: SINCE,
-    description: 'Turns `n` degrees into notes of a named scale such as "D:minor".',
+    description:
+      'Turns `n` degrees into notes of a named scale such as "D:minor", or a pattern of scales such as "<D:minor F:major>".',
     category: 'tonal',
   },
   {
