@@ -25,6 +25,9 @@ export interface ThereminOptions {
   readonly resonance?: number;
   readonly room?: number;
   readonly size?: number;
+  readonly delay?: number;
+  readonly delayTime?: number;
+  readonly delayFeedback?: number;
   readonly pan?: number;
   readonly attack?: number;
   readonly release?: number;
@@ -244,6 +247,9 @@ export class ThereminController {
   #resonance: number;
   #room: number;
   #size: number;
+  #delay: number;
+  #delayTime: number;
+  #delayFeedback: number;
   #pan: number;
   #attack: number;
   #release: number;
@@ -262,6 +268,9 @@ export class ThereminController {
     this.#resonance = opts.resonance ?? 1.5;
     this.#room = opts.room ?? 0.2;
     this.#size = opts.size ?? 0.4;
+    this.#delay = opts.delay ?? 0;
+    this.#delayTime = opts.delayTime ?? 0.25;
+    this.#delayFeedback = opts.delayFeedback ?? 0.35;
     this.#pan = opts.pan ?? 0.5;
     this.#attack = opts.attack ?? 0.015;
     this.#release = opts.release ?? 0.08;
@@ -376,6 +385,9 @@ export class ThereminController {
     if (patch.resonance !== undefined) this.#resonance = patch.resonance;
     if (patch.room !== undefined) this.#room = patch.room;
     if (patch.size !== undefined) this.#size = patch.size;
+    if (patch.delay !== undefined) this.#delay = clamp(patch.delay, 0, 1);
+    if (patch.delayTime !== undefined) this.#delayTime = clamp(patch.delayTime, 0.01, 2);
+    if (patch.delayFeedback !== undefined) this.#delayFeedback = clamp(patch.delayFeedback, 0, 0.95);
     if (patch.pan !== undefined) this.#pan = patch.pan;
     if (patch.attack !== undefined) this.#attack = patch.attack;
     if (patch.release !== undefined) this.#release = patch.release;
@@ -479,6 +491,9 @@ export class ThereminController {
       release: this.#release,
       room: this.#room,
       size: this.#size,
+      delay: this.#delay,
+      delaytime: this.#delayTime,
+      delayfeedback: this.#delayFeedback,
       orbit: 0,
     };
   }

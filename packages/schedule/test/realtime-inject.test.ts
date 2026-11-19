@@ -187,7 +187,7 @@ describe('Scheduler imperative inject and live controls', () => {
             // Non-onset fragment (part.begin !== whole.begin) must be ignored.
             { whole: mkSpan(0, 0.3), part: mkSpan(0.1, 0.3), value: 'pat-fragment', provenance: [] },
             // Continuous event (no whole) must be ignored.
-            { whole: undefined, part: mkSpan(0.1, 0.3), value: 'pat-continuous', provenance: [] },
+            { whole: null, part: mkSpan(0.1, 0.3), value: 'pat-continuous', provenance: [] },
             { whole: mkSpan(0.18, 0.2), part: mkSpan(0.18, 0.2), value: 'pat-0.18', provenance: [] },
             { whole: mkSpan(0.22, 0.24), part: mkSpan(0.22, 0.24), value: 'pat-0.22', provenance: [] },
           ];

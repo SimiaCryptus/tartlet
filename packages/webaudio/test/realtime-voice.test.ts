@@ -94,7 +94,7 @@ class MockOscillatorNode extends MockNode {
   type: OscillatorType = 'sine';
   readonly frequency = new MockAudioParam(440);
   readonly detune = new MockAudioParam(0);
-  readonly startCalls: Array<[number, number?]> = [];
+  readonly startCalls: Array<[number, number | undefined]> = [];
   readonly stopCalls: Array<number | undefined> = [];
   periodicWave?: PeriodicWave;
 
@@ -117,7 +117,7 @@ class MockBufferSourceNode extends MockNode {
   loopStart = 0;
   loopEnd = 0;
   readonly playbackRate = new MockAudioParam(1);
-  readonly startCalls: Array<[number, number?]> = [];
+  readonly startCalls: Array<[number, number | undefined]> = [];
   readonly stopCalls: Array<number | undefined> = [];
 
   start(when = 0, offset?: number): void {
