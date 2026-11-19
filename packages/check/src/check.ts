@@ -30,6 +30,8 @@ import type {
   Diagnostic,
   Fix,
   LimitsConfig,
+  LiveParamDecl,
+  LiveParamNode,
   MiniNode,
   NodeId,
   Offset,
@@ -558,6 +560,7 @@ export function check(source: string, opts: CheckOptions): CheckResult {
     bindings: lw.bindings,
     outputs: lw.outputs,
     resources: lw.resources,
+    ...(lw.liveParamDecls.length > 0 ? { params: lw.liveParamDecls } : undefined),
     ...(lw.advisories.length > 0 ? { advisories: lw.advisories } : undefined),
     diagnostics,
   };
@@ -586,6 +589,7 @@ class Lowerer {
   private readonly bindingIndex = new Map<string, { id: NodeId; errored: boolean }>();
   private readonly bindingExprs = new Map<string, PatternNode>();
   private readonly constBindings = new Map<string, Rational>();
+  private readonly liveParams = new Map<string, { decl: LiveParamDecl; hasExplicitDefault: boolean }>();
   private readonly labels = new Set<string>();
   /** User function definitions (TS-48). */
   private readonly functions = new Map<string, FnDef>();
@@ -681,6 +685,10 @@ class Lowerer {
   get songSettings(): { readonly cycles: Rational; readonly once: boolean } | undefined {
     const song = this.song;
     return song ? { cycles: song.total, once: song.once } : undefined;
+  }
+  /** Deduplicated live parameter declarations recorded across the program. */
+  get liveParamDecls(): readonly LiveParamDecl[] {
+    return [...this.liveParams.values()].map((entry) => entry.decl);
   }
   private seconds(cycles: number): number {
     const map = this.tempoMap;
@@ -1115,7 +1123,42 @@ class Lowerer {
     this.bindings.push({ id, name: st.name, expr });
     this.bindingExprs.set(id, expr);
     this.bindingIndex.set(st.name, { id, errored: this.errored });
-    if (expr.kind === 'pure' && expr.value.t === 'num') this.constBindings.set(st.name, expr.value.v);
+    if (expr.kind === 'pure' && expr.value.t === 'num' && !this.hasLiveParam(expr)) {
+      this.constBindings.set(st.name, expr.value.v);
+    }
+  }
+  /** Whether a lowered node or any referenced binding contains a live `param(...)` node. */
+  private hasLiveParam(n: PatternNode, depth = 0): boolean {
+    if (depth > 64) return false;
+    switch (n.kind) {
+      case 'param':
+        return true;
+      case 'ref': {
+        if (n.binding.startsWith('param:')) return false;
+        const b = this.bindingExprs.get(n.binding);
+        return b ? this.hasLiveParam(b, depth + 1) : false;
+      }
+      case 'combine':
+        return n.children.some((c) => this.hasLiveParam(c, depth + 1));
+      case 'transform':
+        return (
+          this.hasLiveParam(n.target, depth + 1) ||
+          n.args.some(
+            (a) =>
+              (a.kind === 'pattern' && this.hasLiveParam(a.node, depth + 1)) ||
+              (a.kind === 'function' && a.fn.kind === 'lambda' && this.hasLiveParam(a.fn.body, depth + 1)),
+          )
+        );
+      case 'control':
+        return (
+          (n.target !== null && this.hasLiveParam(n.target, depth + 1)) ||
+          (n.value.kind === 'pattern' && this.hasLiveParam(n.value.node, depth + 1))
+        );
+      case 'error':
+        return n.recovered ? this.hasLiveParam(n.recovered, depth + 1) : false;
+      default:
+        return false;
+    }
   }
 
   /** Runs a lowering, turning an exhausted expansion budget into E-LIMIT-EXPAND (TS-52). */
@@ -2383,6 +2426,8 @@ class Lowerer {
     const hit = this.reg.lookup(e.name);
     if (hit?.entry.id === 'run' || hit?.entry.id === 'irand')
       return this.reject('E-ARG-MISSING', `\`${e.name}\` needs a count, as in \`${e.name}(8)\`.`, e.range, e.range);
+    if (hit?.entry.id === 'param')
+      return this.reject('E-ARG-MISSING', '`param` needs a name, as in `param("cutoff", 800)`.', e.range, e.range);
     if (hit?.entry.id === 'silence')
       return { kind: 'silence', id: hash64(anchor, 'silence'), range: this.sr(e.range), type: CONTROLS };
     if (hit?.entry.category === 'signal') {
@@ -2475,6 +2520,7 @@ class Lowerer {
       };
     }
     if (entry.id === 'run') return this.runCall(args, range, anchor, id);
+    if (entry.id === 'param') return this.paramCall(args, range, anchor);
     if (entry.id === 'irand') {
       // TS-58: irand(n) lowers onto the rand signal, so the IR gains no new node kind.
       const lowered = this.lowerArgs(entry, args, range, anchor, name);
@@ -2530,6 +2576,161 @@ class Lowerer {
       value: { t: 'num', v: rat(i) },
     }));
     return { kind: 'combine', id, range: this.sr(range), type, op: 'fastcat', children };
+  }
+  /** Lowers `param(name, defaultValue?, min?, max?)` into a `LiveParamNode` and records a `LiveParamDecl`. */
+  private paramCall(args: readonly Expr[], range: Range, anchor: NodeId): PatternNode {
+    const a0 = args[0];
+    if (!a0) {
+      this.diag(
+        'E-ARG-MISSING',
+        'error',
+        '`param` needs a name, as in `param("cutoff", 800)`.',
+        range,
+        'subtree-muted',
+      );
+      return this.errorNode('E-ARG-MISSING', range);
+    }
+    const rawName = this.resolve(a0);
+    const numArg = (i: number, label: string): { ok: boolean; value?: number; tainted: boolean } => {
+      const e = args[i];
+      if (!e) return { ok: true, tainted: false };
+      this.resetTaint();
+      const v = this.fold(e);
+      if (!v) {
+        this.diag(
+          'E-ARG-TYPE',
+          'error',
+          `\`param\` ${label} must be a constant finite number.`,
+          e.range,
+          'subtree-muted',
+        );
+        return { ok: false, tainted: false };
+      }
+      const n = toNumber(v);
+      if (!Number.isFinite(n)) {
+        this.diag('E-ARG-TYPE', 'error', `\`param\` ${label} must be a finite number.`, e.range, 'subtree-muted');
+        return { ok: false, tainted: false };
+      }
+      return { ok: true, value: n, tainted: this.taint };
+    };
+    const defArg = numArg(1, 'default value');
+    const minArg = numArg(2, 'min');
+    const maxArg = numArg(3, 'max');
+    if (args[4]) {
+      this.diag('W-ARG-EXTRA', 'warning', 'Extra arguments to `param` are ignored.', args[4].range, 'none');
+    }
+    if (rawName === 'abstract') {
+      if (!defArg.ok || !minArg.ok || !maxArg.ok) return this.errorNode('E-ARG-TYPE', range);
+      return {
+        kind: 'param',
+        id: hash64(anchor, 'param'),
+        range: this.sr(range),
+        type: { kind: 'signal', of: 'number' },
+        name: '',
+        defaultValue: defArg.value ?? 0,
+        ...(minArg.value !== undefined ? { min: minArg.value } : undefined),
+        ...(maxArg.value !== undefined ? { max: maxArg.value } : undefined),
+      };
+    }
+    if (rawName?.k !== 'str') {
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        '`param` name must be a constant non-empty string.',
+        rawName?.range ?? a0.range,
+        'subtree-muted',
+      );
+      return this.errorNode('E-ARG-TYPE', range);
+    }
+    const name = rawName.value;
+    if (name.trim().length === 0) {
+      this.diag('E-ARG-TYPE', 'error', '`param` name must be a non-empty string.', rawName.range, 'subtree-muted');
+      return this.errorNode('E-ARG-TYPE', range);
+    }
+    if (!defArg.ok || !minArg.ok || !maxArg.ok) return this.errorNode('E-ARG-TYPE', range);
+    const hasExplicitDefault = defArg.value !== undefined;
+    let defaultValue = defArg.value ?? 0;
+    let minVal = minArg.value;
+    let maxVal = maxArg.value;
+    if (minVal !== undefined && maxVal !== undefined && !minArg.tainted && !maxArg.tainted && minVal > maxVal) {
+      const r2 = args[2]?.range ?? range;
+      const r3 = args[3]?.range ?? range;
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        `\`param\` min (${String(minVal)}) must not exceed max (${String(maxVal)}).`,
+        { start: r2.start, end: r3.end },
+        'subtree-muted',
+      );
+      return this.errorNode('E-ARG-TYPE', range);
+    }
+    if (!this.dry && !defArg.tainted && !minArg.tainted && !maxArg.tainted) {
+      const prev = this.liveParams.get(name);
+      if (prev) {
+        const mergedMin = prev.decl.min ?? minVal;
+        const mergedMax = prev.decl.max ?? maxVal;
+        const conflict =
+          (prev.hasExplicitDefault && hasExplicitDefault && prev.decl.defaultValue !== defaultValue) ||
+          (prev.decl.min !== undefined && minVal !== undefined && prev.decl.min !== minVal) ||
+          (prev.decl.max !== undefined && maxVal !== undefined && prev.decl.max !== maxVal) ||
+          (mergedMin !== undefined && mergedMax !== undefined && mergedMin > mergedMax);
+        if (conflict) {
+          this.diag(
+            'E-NAME-DUP',
+            'error',
+            `Live parameter \`${name}\` was already declared with different settings.`,
+            range,
+            'subtree-muted',
+          );
+          return this.errorNode('E-NAME-DUP', range);
+        }
+        const mergedDefault = prev.hasExplicitDefault ? prev.decl.defaultValue : defaultValue;
+        const mergedHasDefault = prev.hasExplicitDefault || hasExplicitDefault;
+        const decl: LiveParamDecl = {
+          name,
+          defaultValue: mergedDefault,
+          ...(mergedMin !== undefined ? { min: mergedMin } : undefined),
+          ...(mergedMax !== undefined ? { max: mergedMax } : undefined),
+        };
+        this.liveParams.set(name, { decl, hasExplicitDefault: mergedHasDefault });
+        defaultValue = mergedDefault;
+        minVal = mergedMin;
+        maxVal = mergedMax;
+      } else {
+        const decl: LiveParamDecl = {
+          name,
+          defaultValue,
+          ...(minVal !== undefined ? { min: minVal } : undefined),
+          ...(maxVal !== undefined ? { max: maxVal } : undefined),
+        };
+        this.liveParams.set(name, { decl, hasExplicitDefault });
+      }
+    }
+    if (
+      !defArg.tainted &&
+      !minArg.tainted &&
+      !maxArg.tainted &&
+      ((minVal !== undefined && defaultValue < minVal) || (maxVal !== undefined && defaultValue > maxVal))
+    ) {
+      this.diag(
+        'W-RANGE',
+        'warning',
+        `\`param\` default value ${String(defaultValue)} is outside its min/max range.`,
+        args[1]?.range ?? range,
+        'none',
+      );
+    }
+    const node: LiveParamNode = {
+      kind: 'param',
+      id: hash64(anchor, 'param', name),
+      range: this.sr(range),
+      type: { kind: 'signal', of: 'number' },
+      name,
+      defaultValue,
+      ...(minVal !== undefined ? { min: minVal } : undefined),
+      ...(maxVal !== undefined ? { max: maxVal } : undefined),
+    };
+    return node;
   }
   // ---- long-form composition (docs/symphonic.md)
   /** Constant-argument constructors, lowered as transforms on silence like `irand` (TS-58). */
@@ -3162,6 +3363,7 @@ class Lowerer {
         return;
       case 'control':
       case 'signal':
+      case 'param':
         out.push('#');
         return;
       case 'ref': {

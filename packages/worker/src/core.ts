@@ -1,11 +1,12 @@
 import type { TimeSpan } from '@tartlet/time';
 import { check, locator } from '@tartlet/check';
 import { compile, type CompiledProgram } from '@tartlet/core';
-import type { CheckRequest, Checked, QueryReply } from './protocol';
+import { toParamEntries, type CheckRequest, type Checked, type ParamInput, type QueryReply } from './protocol';
 
 /** Check, compile and query. It is shared by the worker host and the inline evaluator. */
 export class EvalCore {
   #compiled: CompiledProgram | undefined;
+  #params: ReadonlyMap<string, unknown> = new Map();
 
   check(req: CheckRequest): Checked {
     const r = check(req.source, {
@@ -21,9 +22,16 @@ export class EvalCore {
     return { program: r.program, diagnostics: r.diagnostics };
   }
 
+  /** Replaces the live parameter values used by later queries. They survive re-checks. */
+  setParams(params: ParamInput): void {
+    this.#params = new Map(toParamEntries(params));
+  }
+
   query(span: TimeSpan, provenance: boolean): QueryReply {
     if (!this.#compiled) return { events: [], muted: [] };
-    const q = this.#compiled.query(span, { provenance });
+    // `compile` reads `controls`; `params` is the same map under the host-facing name.
+    const options = { provenance, controls: this.#params, params: this.#params };
+    const q = this.#compiled.query(span, options);
     return { events: q.events, muted: [...q.muted] };
   }
 }

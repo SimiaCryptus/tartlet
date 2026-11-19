@@ -82,6 +82,50 @@ const STYLE = `
 
 /** Seconds the transport keeps running after a `song(…, "once")` ends, so releases ring out. */
 const END_GRACE = 2;
+type ParamPatch = ReadonlyMap<string, unknown> | Readonly<Record<string, unknown>>;
+type NoiseKind = 'white' | 'pink' | 'brown';
+function isMapPatch(p: ParamPatch): p is ReadonlyMap<string, unknown> {
+  return p instanceof Map;
+}
+/** Entries of a parameter patch, keeping `undefined` values (they delete the parameter). */
+function patchEntries(p: ParamPatch): [string, unknown][] {
+  return isMapPatch(p) ? [...p] : Object.entries(p);
+}
+interface VoiceHandle {
+  controls: Record<string, unknown>;
+  update(controls: Partial<ControlMap>, glideSeconds?: number): void;
+  release(): void;
+}
+const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
+const fin = (v: unknown, dflt: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : dflt);
+const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+function fillNoiseBuffer(kind: NoiseKind, out: Float32Array, seed: number): void {
+  let s = seed | 0;
+  const rand = (): number => {
+    s ^= s << 13;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    return ((s >>> 0) / 0xffffffff) * 2 - 1;
+  };
+  let b0 = 0;
+  let b1 = 0;
+  let b2 = 0;
+  let brown = 0;
+  for (let i = 0; i < out.length; i++) {
+    const w = rand();
+    if (kind === 'white') {
+      out[i] = w;
+    } else if (kind === 'pink') {
+      b0 = 0.99765 * b0 + w * 0.099046;
+      b1 = 0.963 * b1 + w * 0.2965164;
+      b2 = 0.57 * b2 + w * 1.0526913;
+      out[i] = (b0 + b1 + b2 + w * 0.1848) * 0.25;
+    } else {
+      brown = (brown + 0.02 * w) / 1.02;
+      out[i] = brown * 3.5;
+    }
+  }
+}
 
 function createEvaluator(): Evaluator {
   if (typeof Worker === 'undefined') return new InlineEvaluator();
@@ -100,6 +144,13 @@ export class TartletPlayerElement extends HTMLElement {
   #engine: AudioEngine | undefined;
   #scheduler: Scheduler<ControlMap> | undefined;
   #raf = 0;
+  #params = new Map<string, unknown>();
+  #voices = new Map<string, VoiceHandle>();
+  #pendingNotes = new Map<string, symbol>();
+  #voiceGen = 0;
+  #liveBus: AudioNode | undefined;
+  #liveBusCtx: AudioContext | undefined;
+  #noiseBeds = new Map<NoiseKind, AudioBuffer>();
   /**
    * Host hook for samples (docs/samples.md §1.3): bytes for a path relative to the host's root,
    * or null. Set it before `source`. Without it, `sample-base` is used.
@@ -182,6 +233,85 @@ export class TartletPlayerElement extends HTMLElement {
   get playing(): boolean {
     return this.#scheduler?.running ?? false;
   }
+  /** Current live parameter overrides. */
+  get params(): ReadonlyMap<string, unknown> {
+    return new Map(this.#params);
+  }
+  /** Sets a single live parameter, forwarding it to the evaluator, scheduler, and active live voices. */
+  setParam(name: string, value: number | string | boolean): void {
+    this.#params.set(name, value);
+    this.#forwardParams();
+    const patch: Partial<ControlMap> = { [name]: value };
+    for (const voice of this.#voices.values()) voice.update(patch);
+  }
+  /** Merges multiple live parameters, forwarding updates to the evaluator, scheduler, and active live voices. */
+  setParams(params: ParamPatch): void {
+    const patch: Record<string, unknown> = {};
+    let hasPatch = false;
+    for (const [k, v] of patchEntries(params)) {
+      if (v === undefined) this.#params.delete(k);
+      else this.#params.set(k, v);
+      patch[k] = v;
+      hasPatch = true;
+    }
+    this.#forwardParams();
+    if (hasPatch) {
+      for (const voice of this.#voices.values()) voice.update(patch);
+    }
+  }
+  /** Starts or retriggers a held live voice identified by `id`. Must be called from a user gesture. */
+  async noteOn(id: string, controls: ControlMap): Promise<boolean> {
+    const token = Symbol(id);
+    const gen = this.#voiceGen;
+    this.#pendingNotes.set(id, token);
+    const engine = await this.#ensureEngine();
+    if (!engine || gen !== this.#voiceGen || this.#pendingNotes.get(id) !== token) {
+      if (this.#pendingNotes.get(id) === token) this.#pendingNotes.delete(id);
+      return false;
+    }
+    this.#pendingNotes.delete(id);
+    const existing = this.#voices.get(id);
+    if (existing) {
+      this.#voices.delete(id);
+      existing.release();
+    }
+    const merged: Record<string, unknown> = {};
+    for (const [k, v] of this.#params) merged[k] = v;
+    for (const [k, v] of Object.entries(controls)) {
+      if (v === undefined) Reflect.deleteProperty(merged, k);
+      else merged[k] = v;
+    }
+    const handle = this.#createVoice(engine, merged);
+    if (!handle) return false;
+    this.#voices.set(id, handle);
+    return true;
+  }
+  /** Updates controls on an active held voice, optionally gliding over `glideSeconds`. */
+  updateVoice(id: string, controls: Partial<ControlMap>, glideSeconds?: number): void {
+    this.#voices.get(id)?.update(controls, glideSeconds);
+  }
+  /** Releases a single held live voice identified by `id`. */
+  noteOff(id: string): void {
+    this.#pendingNotes.delete(id);
+    const voice = this.#voices.get(id);
+    if (!voice) return;
+    this.#voices.delete(id);
+    voice.release();
+  }
+  /** Releases all currently held live voices. */
+  releaseAll(): void {
+    this.#voiceGen++;
+    this.#pendingNotes.clear();
+    for (const voice of this.#voices.values()) voice.release();
+    this.#voices.clear();
+  }
+  #forwardParams(): void {
+    const snapshot = new Map(this.#params);
+    this.#evaluator.setParams(snapshot).catch((e: unknown) => {
+      console.warn(e);
+    });
+    this.#scheduler?.setControls(snapshot);
+  }
 
   async #runCheck(source: string, gen: number): Promise<void> {
     const seed = this.getAttribute('seed');
@@ -202,6 +332,7 @@ export class TartletPlayerElement extends HTMLElement {
       console.warn('Tartlet worker unavailable; evaluating on this thread instead.', e);
       this.#evaluator.dispose();
       this.#evaluator = new InlineEvaluator();
+      if (this.#params.size > 0) this.#forwardParams();
       r = await this.#evaluator.check(req);
     }
     if (gen !== this.#gen) return;
@@ -220,15 +351,8 @@ export class TartletPlayerElement extends HTMLElement {
     // Hosts may cancel this to show a warning first, for example for steady pulsing (TS-61).
     const detail = { advisories: result.program.advisories ?? [] };
     if (!this.dispatchEvent(new CustomEvent('beforeplay', { cancelable: true, detail }))) return;
-    try {
-      this.#engine ??= await AudioEngine.create();
-      this.#engine.setLibrary(this.#library);
-    } catch (e) {
-      this.#status.textContent = 'Audio is unavailable here, so playback is refused without the safety chain.';
-      console.error(e);
-      return;
-    }
-    const engine = this.#engine;
+    const engine = await this.#ensureEngine();
+    if (!engine) return;
     this.#scheduler = new Scheduler<ControlMap>({
       query: async (span) => (await this.#evaluator.query(span, false)).events,
       onEvent: (ev, t, d) => {
@@ -241,6 +365,7 @@ export class TartletPlayerElement extends HTMLElement {
       cps: result.program.settings.cps,
       tempo: result.program.settings.tempoMap ?? [],
     });
+    if (this.#params.size > 0) this.#scheduler.setControls(this.#params);
     this.#scheduler.start();
     this.#status.textContent = `Playing${this.#hint()}`;
     this.#play.disabled = true;
@@ -253,6 +378,7 @@ export class TartletPlayerElement extends HTMLElement {
 
   stop(): void {
     const wasPlaying = this.playing;
+    this.releaseAll();
     this.#scheduler?.stop();
     this.#scheduler = undefined;
     this.#engine?.stopAll();
@@ -379,6 +505,196 @@ export class TartletPlayerElement extends HTMLElement {
         return li;
       }),
     );
+  }
+  async #ensureEngine(): Promise<AudioEngine | undefined> {
+    if (this.#engine) {
+      this.#engine.setLibrary(this.#library);
+      if (this.#engine.ctx.state === 'suspended') {
+        try {
+          await this.#engine.ctx.resume();
+        } catch (e) {
+          console.error(e);
+          return undefined;
+        }
+      }
+      return this.#engine;
+    }
+    try {
+      this.#engine = await AudioEngine.create();
+      this.#engine.setLibrary(this.#library);
+      return this.#engine;
+    } catch (e) {
+      this.#status.textContent = 'Audio is unavailable here, so playback is refused without the safety chain.';
+      console.error(e);
+      return undefined;
+    }
+  }
+  #getLiveBus(engine: AudioEngine): AudioNode {
+    if (this.#liveBus && this.#liveBusCtx === engine.ctx) return this.#liveBus;
+    const ctx = engine.ctx;
+    const bus = ctx.createGain();
+    bus.gain.value = 0.7;
+    if (typeof ctx.createDynamicsCompressor === 'function') {
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -14;
+      comp.ratio.value = 3;
+      comp.attack.value = 0.005;
+      comp.release.value = 0.2;
+      bus.connect(comp).connect(ctx.destination);
+    } else {
+      bus.connect(ctx.destination);
+    }
+    this.#liveBus = bus;
+    this.#liveBusCtx = ctx;
+    this.#noiseBeds.clear();
+    return bus;
+  }
+  #noiseBuffer(ctx: AudioContext, kind: NoiseKind): AudioBuffer {
+    const hit = this.#noiseBeds.get(kind);
+    if (hit) return hit;
+    const sr = ctx.sampleRate;
+    const buf = ctx.createBuffer(1, sr * 2, sr);
+    const seed = kind === 'white' ? 0x2545f491 : kind === 'pink' ? 0x1b873593 : 0x7feb352d;
+    fillNoiseBuffer(kind, buf.getChannelData(0), seed);
+    this.#noiseBeds.set(kind, buf);
+    return buf;
+  }
+  #createVoice(engine: AudioEngine, initial: Record<string, unknown>): VoiceHandle | undefined {
+    const note = initial.note as { kind?: string; value?: unknown } | undefined;
+    const midi = note?.kind === 'midi' ? fin(note.value, NaN) : NaN;
+    const hz = num(initial.freq);
+    const sound =
+      typeof initial.s === 'string' ? initial.s : Number.isFinite(midi) || hz !== undefined ? 'triangle' : undefined;
+    if (sound === undefined) return undefined;
+    const freqOf = (c: Record<string, unknown>): number => {
+      const f = num(c.freq);
+      if (f !== undefined) return clamp(f, 1, 20000);
+      const n = c.note as { kind?: string; value?: unknown } | undefined;
+      const m = n?.kind === 'midi' ? fin(n.value, 57) : 57;
+      return clamp(440 * 2 ** ((m - 69) / 12), 1, 20000);
+    };
+    const levelOf = (c: Record<string, unknown>): number => {
+      const vel = clamp(fin(c.velocity, 1), 0, 1);
+      const gain = clamp(fin(c.gain, 1), 0, 1.5);
+      const velcurve = clamp(fin(c.velcurve, 1), 0.25, 4);
+      return gain * vel ** velcurve * 0.3;
+    };
+    const ctx = engine.ctx;
+    const now = ctx.currentTime;
+    const attack = clamp(fin(initial.attack, 0.005), 0.001, 5);
+    const decay = clamp(fin(initial.decay, 0.05), 0.001, 5);
+    const sustain = clamp(fin(initial.sustain, 1), 0, 1);
+    const peak = levelOf(initial);
+    const envGain = ctx.createGain();
+    envGain.gain.setValueAtTime(0, now);
+    envGain.gain.linearRampToValueAtTime(peak, now + attack);
+    envGain.gain.linearRampToValueAtTime(peak * sustain, now + attack + decay);
+    const lpf = ctx.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.value = clamp(fin(initial.cutoff, 20000), 20, 20000);
+    lpf.Q.value = clamp(fin(initial.resonance, 0.7), 0.0001, 20);
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = 'highpass';
+    hpf.frequency.value = clamp(fin(initial.hcutoff, 20), 20, 20000);
+    hpf.Q.value = 0.7;
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = clamp(fin(initial.pan, 0.5), 0, 1) * 2 - 1;
+    const noiseKind = sound === 'white' || sound === 'pink' || sound === 'brown' ? sound : undefined;
+    let source: OscillatorNode | AudioBufferSourceNode;
+    let osc: OscillatorNode | undefined;
+    if (noiseKind) {
+      const bufSrc = ctx.createBufferSource();
+      bufSrc.buffer = this.#noiseBuffer(ctx, noiseKind);
+      bufSrc.loop = true;
+      source = bufSrc;
+    } else {
+      osc = ctx.createOscillator();
+      osc.type =
+        sound === 'sine' || sound === 'triangle' || sound === 'sawtooth' || sound === 'square' ? sound : 'triangle';
+      osc.frequency.value = freqOf(initial);
+      const detune = num(initial.detune);
+      if (detune !== undefined) osc.detune.value = clamp(detune, -1200, 1200);
+      source = osc;
+    }
+    source.connect(envGain).connect(lpf).connect(hpf).connect(panner).connect(this.#getLiveBus(engine));
+    source.start(now);
+    let released = false;
+    const controls: Record<string, unknown> = { ...initial };
+    const ramp = (param: AudioParam, target: number, glide: number, exp = false): void => {
+      const t = ctx.currentTime;
+      param.cancelScheduledValues(t);
+      if (glide > 0) {
+        const cur = param.value;
+        param.setValueAtTime(exp ? Math.max(1e-4, cur) : cur, t);
+        if (exp && target > 0) param.exponentialRampToValueAtTime(target, t + glide);
+        else param.linearRampToValueAtTime(target, t + glide);
+      } else {
+        param.setValueAtTime(target, t);
+      }
+    };
+    return {
+      controls,
+      update: (patch, glideSeconds) => {
+        if (released) return;
+        const entries = Object.entries(patch);
+        if (entries.length === 0) return;
+        for (const [k, v] of entries) {
+          if (v === undefined) Reflect.deleteProperty(controls, k);
+          else controls[k] = v;
+        }
+        const glide = glideSeconds !== undefined && Number.isFinite(glideSeconds) ? Math.max(0, glideSeconds) : 0;
+        if (osc) {
+          if ('s' in patch && typeof controls.s === 'string') {
+            const next = controls.s;
+            if (next === 'sine' || next === 'triangle' || next === 'sawtooth' || next === 'square') {
+              osc.type = next;
+            }
+          }
+          if ('freq' in patch || 'note' in patch) {
+            ramp(osc.frequency, freqOf(controls), glide, true);
+          }
+          if ('detune' in patch) {
+            ramp(osc.detune, clamp(fin(controls.detune, 0), -1200, 1200), glide);
+          }
+        }
+        if ('gain' in patch || 'velocity' in patch || 'velcurve' in patch || 'sustain' in patch) {
+          ramp(envGain.gain, levelOf(controls) * clamp(fin(controls.sustain, 1), 0, 1), glide);
+        }
+        if ('cutoff' in patch) {
+          ramp(lpf.frequency, clamp(fin(controls.cutoff, 20000), 20, 20000), glide, true);
+        }
+        if ('resonance' in patch) {
+          ramp(lpf.Q, clamp(fin(controls.resonance, 0.7), 0.0001, 20), glide);
+        }
+        if ('hcutoff' in patch) {
+          ramp(hpf.frequency, clamp(fin(controls.hcutoff, 20), 20, 20000), glide, true);
+        }
+        if ('pan' in patch) {
+          ramp(panner.pan, clamp(fin(controls.pan, 0.5), 0, 1) * 2 - 1, glide);
+        }
+      },
+      release: () => {
+        if (released) return;
+        released = true;
+        const t = ctx.currentTime;
+        const rel = clamp(fin(controls.release, 0.08), 0.01, 8);
+        envGain.gain.cancelScheduledValues(t);
+        envGain.gain.setValueAtTime(envGain.gain.value, t);
+        envGain.gain.linearRampToValueAtTime(0, t + rel);
+        try {
+          source.stop(t + rel + 0.02);
+        } catch {
+          /* already stopped */
+        }
+        source.onended = () => {
+          source.disconnect();
+          envGain.disconnect();
+          lpf.disconnect();
+          hpf.disconnect();
+          panner.disconnect();
+        };
+      },
+    };
   }
 }
 

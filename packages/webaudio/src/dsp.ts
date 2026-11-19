@@ -97,6 +97,86 @@ export function envelope(t: number, hold: number, e: Adsr, peak: number): [numbe
   pts.push([end, level], [end + e.r, 0]);
   return pts;
 }
+/**
+ * Attack and decay breakpoints `[time, level]` down to `sustain * peak` for a sustained live
+ * voice, with no pre-scheduled release tail.
+ */
+export function attackDecayEnvelope(t: number, e: Adsr, peak: number): [number, number][] {
+  const a = Math.max(0, e.a);
+  const pts: [number, number][] = [
+    [t, 0],
+    [t + a, peak],
+  ];
+  const s = clamp(e.s, 0, 1);
+  if (s < 1) {
+    const d = Math.max(e.d, 1e-3);
+    pts.push([t + a + d, peak * s]);
+  }
+  return pts;
+}
+/**
+ * Instantaneous ADSR gain at an arbitrary release time `now` for a two-phase envelope started at
+ * `t0`, for environments lacking `AudioParam.cancelAndHoldAtTime`.
+ */
+export function envelopeLevelAt(t0: number, now: number, e: Adsr, peak: number): number {
+  if (!(now > t0)) return 0;
+  const a = Math.max(0, e.a);
+  if (a > 0 && now < t0 + a) return peak * ((now - t0) / a);
+  const s = clamp(e.s, 0, 1);
+  const sus = peak * s;
+  if (s >= 1) return sus;
+  const d = Math.max(e.d, 1e-3);
+  const elapsed = now - t0 - a;
+  if (elapsed < d) return peak - (peak - sus) * (elapsed / d);
+  return sus;
+}
+/** Positive floor enforced on target values for exponential ramps. */
+export const PARAM_EXP_FLOOR = 1e-4;
+const MAX_SMOOTH_TAU = 30;
+export type SmoothMode = 'target' | 'linear' | 'exponential';
+/** Minimal AudioParam-compatible target so `smoothParam` stays free of DOM types. */
+export interface SmoothableParam {
+  value: number;
+  readonly minValue?: number;
+  readonly maxValue?: number;
+  setValueAtTime(value: number, startTime: number): unknown;
+  linearRampToValueAtTime(value: number, endTime: number): unknown;
+  exponentialRampToValueAtTime(value: number, endTime: number): unknown;
+  setTargetAtTime(target: number, startTime: number, timeConstant: number): unknown;
+}
+/**
+ * Schedules a bounded, safe parameter transition at `at` with time constant / ramp duration `tau`.
+ * Defaults to `setTargetAtTime`; `'linear'` and `'exponential'` schedule ramps ending at `at + tau`,
+ * clamping exponential targets to a positive floor. Non-positive `tau` snaps via `setValueAtTime`.
+ */
+export function smoothParam(
+  param: SmoothableParam,
+  value: number,
+  at: number,
+  tau: number,
+  mode: SmoothMode = 'target',
+): void {
+  if (!Number.isFinite(value) || !Number.isFinite(at)) return;
+  const t = Math.max(0, at);
+  const safeTau = Number.isFinite(tau) ? clamp(tau, 0, MAX_SMOOTH_TAU) : 0;
+  let v = value;
+  if (typeof param.minValue === 'number' && Number.isFinite(param.minValue)) v = Math.max(v, param.minValue);
+  if (typeof param.maxValue === 'number' && Number.isFinite(param.maxValue)) v = Math.min(v, param.maxValue);
+  if (mode === 'exponential') {
+    const floor =
+      typeof param.maxValue === 'number' && Number.isFinite(param.maxValue) && param.maxValue < PARAM_EXP_FLOOR
+        ? Math.max(param.maxValue, Number.MIN_VALUE)
+        : PARAM_EXP_FLOOR;
+    v = Math.max(v, floor);
+  }
+  if (safeTau <= 0) {
+    param.setValueAtTime(v, t);
+    return;
+  }
+  if (mode === 'linear') param.linearRampToValueAtTime(v, t + safeTau);
+  else if (mode === 'exponential') param.exponentialRampToValueAtTime(v, t + safeTau);
+  else param.setTargetAtTime(v, t, safeTau);
+}
 
 /** A pulse wave with duty cycle `duty` in (0, 1). A duty of one half is a square. */
 export function pulseWave(duty: number, harmonics = 64): Wave {

@@ -51,6 +51,7 @@ const SINCE_T13 = '0.13.0';
 const SINCE_T14 = '0.14.0';
 const SINCE_T15 = '0.15.0';
 const SINCE_T16 = '0.16.0';
+const SINCE_T17 = '0.17.0';
 
 function control(
   id: string,
@@ -1318,6 +1319,19 @@ export const ENTRIES: readonly RegistryEntry[] = [
   signalEntry('tri', 'Climbs and then falls once per cycle.'),
   signalEntry('square', 'Zero in the first half of each cycle and one in the second.'),
   signalEntry('rand', 'A seeded random value between zero and one.'),
+  {
+    id: 'param',
+    names: ['param'],
+    form: 'constructor',
+    params: [CONST_STR('name'), CONST_NUM('fallback', true), CONST_NUM('min', true), CONST_NUM('max', true)],
+    returns: { kind: 'signal', of: 'number' },
+    level: 'L2',
+    deterministic: 'pure',
+    since: SINCE_T17,
+    description:
+      'Reads a named live parameter supplied by the host, with an optional fallback value and min/max range.',
+    category: 'signal',
+  },
   {
     id: 'scale',
     names: ['scale'],

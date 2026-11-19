@@ -53,7 +53,8 @@ Pre-release. The phases are defined in [`plan.md`](plan.md).
   - synthesis controls, voices and choirs that sing syllables;
   - headphone and binaural controls, space presets and procedural textures;
   - frequency-domain, impulse-response and response-curve DSP;
-  - host-supplied WAV samples and banks, with a CLI importer.
+   - host-supplied WAV samples and banks, with a CLI importer;
+   - live `param(...)` variable controls, realtime note injection and continuous voice modulation.
 
   Not yet: the piano roll, Web MIDI, offline-render tests and the mixer UI.
 
@@ -81,8 +82,13 @@ import { rat } from '@tartlet/time';
 const source = '$: s("bd*4")\n$: note("<c3 e3>").s("triangle")';
 const result = check(source, { documentId: 'doc-1', blobIndex: '0' });
 const program = compile(result.program, { locate: locator(source), documentId: 'doc-1', blobIndex: '0' });
-const { events } = program.query({ begin: rat(0), end: rat(1) }, { provenance: true });
+const controls = new Map([['cutoff', 900]]);
+const { events } = program.query({ begin: rat(0), end: rat(1) }, { provenance: true, controls });
 ```
+Compositions can declare live variables with `param(name, defaultValue, min?, max?)` (for
+example `lpf(param('cutoff', 800, 100, 4000))`) and receive updated values per query via
+`controls`, `Evaluator.setParams`, or `<tartlet-player>`.
+
 
 To use it in a page:
 
@@ -93,6 +99,14 @@ To use it in a page:
   defineTartletPlayer();
 </script>
 ```
+`<tartlet-player>` also exposes realtime parameter and voice APIs for interactive hosts:
+- `setParam(name, value)` / `setParams(params)` and `params`: update live `param(...)` overrides
+   and forward them to the evaluator, scheduler and active live voices.
+- `noteOn(id, controls)`, `updateVoice(id, controls, glideSeconds?)`, `noteOff(id)` and
+   `releaseAll()`: start, continuously modulate and release sustained voices through the safety
+   chain (complementing `AudioEngine.noteOn` / `VoiceHandle` and `Scheduler.inject` for one-shot
+   event injection).
+
 
 ## Documentation
 
@@ -119,10 +133,8 @@ To use it in a page:
   `src/index.ts`)
 - `apps/playground/`: the Vite demo app, deployed to S3 and CloudFront by `deploy.sh`.
   `albums/` holds the bundled album catalog
-- `collection/`: the optional shared sample collection, served as `/samples/` next to the
 - `apps/sfx-demo/`: a compact page that adds Tartlet sound effects to button presses, mouse
   clicks and typing (`pnpm --filter sfx-demo dev`)
-  playground (see [docs/samples.md](docs/samples.md))
 - `corpus/`: prompt generation and model-output collection for coverage measurement
 - `oracle/`: neutral behavioural specifications written by the oracle analyst (empty so far)
 - `clean-room-log/`: one provenance entry per implementation session
@@ -137,3 +149,10 @@ Licensed under Apache-2.0. Every commit carries a DCO sign-off (`git commit -s`)
 "Strudel" is named only to describe language compatibility. Tartlet is not affiliated with or
 endorsed by the Strudel project. Tartlet contains no Strudel, TidalCycles or SuperDirt code.
 Source and issues: https://github.com/SimiaCryptus/tartlet
+- `apps/synth-keyboard/`: an interactive polyphonic synth keyboard demo using `<tartlet-player>`
+   live `noteOn`/`noteOff` voice control and `param(...)` variables (`pnpm --filter synth-keyboard dev`)
+- `apps/theremin/`: a continuous-pitch theremin demo using live voice modulation (`updateVoice` /
+   `VoiceHandle`), tonal pitch helpers (`freqToMidi`, `quantizeMidi`) and `param(...)` controls
+   (`pnpm --filter theremin dev`)
+- `collection/`: the optional shared sample collection, served as `/samples/` next to the
+   playground (see [docs/samples.md](docs/samples.md))

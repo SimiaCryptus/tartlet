@@ -9,6 +9,7 @@ import type {
   ConstValue,
   Diagnostic,
   FunctionValue,
+  LiveParamDecl,
   Offset,
   Output,
   PatternNode,
@@ -90,6 +91,10 @@ class Decoder {
       fail(p, `expected an integer in [${String(lo)}, ${String(hi)}]`);
     return v;
   }
+  finite(v: unknown, p: string): number {
+    if (typeof v !== 'number' || !Number.isFinite(v)) fail(p, 'expected a finite number');
+    return v;
+  }
   pick<T extends string>(v: unknown, p: string, allowed: readonly T[]): T {
     if (typeof v !== 'string' || !(allowed as readonly string[]).includes(v))
       fail(p, `expected one of ${allowed.join(', ')}`);
@@ -165,6 +170,7 @@ class Decoder {
       'pure',
       'silence',
       'ref',
+      'param',
       'combine',
       'transform',
       'control',
@@ -195,6 +201,8 @@ class Decoder {
         if (!binding.startsWith('param:')) this.current.add(binding);
         return { ...base, kind, name: this.str(o.name, `${p}.name`), binding };
       }
+      case 'param':
+        return { ...base, kind, ...this.paramFields(o, p) };
       case 'combine':
         return {
           ...base,
@@ -370,6 +378,27 @@ class Decoder {
       return { cycle, cps };
     });
   }
+  private paramFields(
+    o: Obj,
+    p: string,
+  ): { readonly name: string; readonly defaultValue: number; readonly min?: number; readonly max?: number } {
+    const name = this.str(o.name, `${p}.name`);
+    const defaultValue = this.finite(o.defaultValue, `${p}.defaultValue`);
+    const min = o.min !== undefined ? this.finite(o.min, `${p}.min`) : undefined;
+    const max = o.max !== undefined ? this.finite(o.max, `${p}.max`) : undefined;
+    if (min !== undefined && max !== undefined && min > max) fail(`${p}.min`, 'min must not exceed max');
+    if (min !== undefined && defaultValue < min) fail(`${p}.defaultValue`, 'defaultValue must be at least min');
+    if (max !== undefined && defaultValue > max) fail(`${p}.defaultValue`, 'defaultValue must not exceed max');
+    return {
+      name,
+      defaultValue,
+      ...(min !== undefined ? { min } : undefined),
+      ...(max !== undefined ? { max } : undefined),
+    };
+  }
+  liveParam(v: unknown, p: string): LiveParamDecl {
+    return this.paramFields(this.obj(v, p), p);
+  }
   program(v: unknown): Program {
     const o = this.obj(v, '$');
     if (o.irVersion !== 'tartlet/1') fail('$.irVersion', 'unsupported IR version');
@@ -393,6 +422,10 @@ class Decoder {
       ...(s.seed !== undefined ? { seed: this.str(s.seed, '$.settings.seed') } : undefined),
       meta,
     };
+    let params: LiveParamDecl[] | undefined;
+    if (o.params !== undefined) {
+      params = this.arr(o.params, '$.params').map((x, i) => this.liveParam(x, `$.params[${String(i)}]`));
+    }
     const bindings: Binding[] = this.arr(o.bindings, '$.bindings').map((b, i) => {
       const p = `$.bindings[${String(i)}]`;
       const bo = this.obj(b, p);
@@ -453,6 +486,7 @@ class Decoder {
       irVersion: 'tartlet/1',
       ...(source ? { source } : undefined),
       settings,
+      ...(params ? { params } : undefined),
       bindings,
       outputs,
       resources,

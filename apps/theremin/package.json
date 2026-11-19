@@ -1,0 +1,24 @@
+{
+  "name": "theremin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4175"
+  },
+  "dependencies": {
+    "@tartlet/check": "workspace:*",
+    "@tartlet/core": "workspace:*",
+    "@tartlet/ir": "workspace:*",
+    "@tartlet/registry": "workspace:*",
+    "@tartlet/schedule": "workspace:*",
+    "@tartlet/time": "workspace:*",
+    "@tartlet/webaudio": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

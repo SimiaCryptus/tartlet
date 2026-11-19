@@ -6,6 +6,7 @@ import {
   add,
   div,
   floor,
+  fromFloat,
   isRational,
   isZero,
   lt,
@@ -24,6 +25,7 @@ import type {
   Diagnostic,
   FunctionValue,
   LimitsConfig,
+  LiveParamDecl,
   Offset,
   PatternNode,
   Program,
@@ -127,7 +129,17 @@ export interface CompiledProgram {
   readonly outputs: ReadonlyMap<string, Pattern<ControlMap>>;
   /** Output id to its label. */
   readonly labels: ReadonlyMap<string, string>;
-  query(span: TimeSpan, opts: { provenance: boolean; limits?: Partial<LimitsConfig> }): QueryResult;
+  /** Live parameters declared by `param(...)`. */
+  readonly params: readonly LiveParamDecl[];
+  query(
+    span: TimeSpan,
+    opts: {
+      provenance: boolean;
+      limits?: Partial<LimitsConfig>;
+      /** Live parameter values read by `param(...)` signals. */
+      controls?: ReadonlyMap<string, unknown>;
+    },
+  ): QueryResult;
 }
 
 interface SampleValue {
@@ -138,6 +150,8 @@ interface SampleValue {
 type Env = ReadonlyMap<string, Pattern<unknown>>;
 type ScaleSpec = NonNullable<ReturnType<typeof parseScale>>;
 const NO_ENV: Env = new Map();
+const NO_PARAMS: readonly LiveParamDecl[] = [];
+const EMPTY_CONTROLS: ReadonlyMap<string, unknown> = new Map();
 const NONE: readonly Provenance[] = [];
 
 const TAU = 2 * Math.PI;
@@ -384,6 +398,22 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
         const f = SIGNALS.get(n.fn);
         return f ? signal((t, st) => f(t, st, n.id)) : silence();
       }
+      case 'param':
+        return signal((_t, st) => {
+          const raw = st.controls.get(n.name);
+          let v =
+            typeof raw === 'number'
+              ? raw
+              : isRational(raw)
+                ? toNumber(raw)
+                : typeof raw === 'string' && raw.trim() !== ''
+                  ? Number(raw)
+                  : n.defaultValue;
+          if (!Number.isFinite(v)) v = n.defaultValue;
+          if (n.min !== undefined && v < n.min) v = n.min;
+          if (n.max !== undefined && v > n.max) v = n.max;
+          return v;
+        });
       case 'silence':
       case 'error':
         return silence();
@@ -454,7 +484,11 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
   function numArg(a: Arg | undefined, env: Env, apply: (r: Rational) => Pattern<unknown>): Pattern<unknown> | null {
     if (!a) return null;
     if (a.kind === 'const') return a.value.t === 'num' ? apply(a.value.v) : null;
-    if (a.kind === 'pattern') return bindWindow(node(a.node, env), (v) => (isRational(v) ? apply(v) : silence()));
+    if (a.kind === 'pattern') {
+      return bindWindow(node(a.node, env), (v) =>
+        isRational(v) ? apply(v) : typeof v === 'number' && Number.isFinite(v) ? apply(fromFloat(v)) : silence(),
+      );
+    }
     return null;
   }
 
@@ -975,8 +1009,10 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
   return {
     outputs,
     labels,
+    params: program.params ?? NO_PARAMS,
     query(span, q) {
       const limits = { ...DEFAULT_LIMITS, ...q.limits };
+      const controls = q.controls ?? EMPTY_CONTROLS;
       const events: Event<ControlMap>[] = [];
       const byOutput = new Map<string, readonly Event<ControlMap>[]>();
       const muted = new Map<string, Diagnostic>();
@@ -996,7 +1032,7 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
           const evs = pat.query({
             span,
             seed: root,
-            controls: new Map(),
+            controls,
             provenance: q.provenance,
             budget: { steps: limits.maxEvalSteps, events: limits.maxEventsPerWindow },
           });

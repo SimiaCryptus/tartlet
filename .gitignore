@@ -7,11 +7,13 @@ coverage/
 pnpm*
 .github/
 
-#albums
-#*.md
-#docs/
+albums
+*.md
+docs/
 terraform/
 
-
+#apps/sfx-demo
+#apps/synth-keyboard
+#apps/theremin
 
 

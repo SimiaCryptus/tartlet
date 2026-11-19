@@ -60,6 +60,13 @@ export interface RefNode extends NodeBase {
   readonly name: string;
   readonly binding: NodeId;
 }
+export interface LiveParamNode extends NodeBase {
+  readonly kind: 'param';
+  readonly name: string;
+  readonly defaultValue: number;
+  readonly min?: number;
+  readonly max?: number;
+}
 export interface CombineNode extends NodeBase {
   readonly kind: 'combine';
   readonly op: 'stack' | 'slowcat' | 'fastcat' | 'timecat' | 'polymeter' | 'arrange'; // timecat: TS-3
@@ -90,7 +97,16 @@ export interface ErrorNode extends NodeBase {
   readonly recovered?: PatternNode;
 }
 export type PatternNode =
-  MiniNode | PureNode | SilenceNode | RefNode | CombineNode | TransformNode | ControlNode | SignalNode | ErrorNode;
+  | MiniNode
+  | PureNode
+  | SilenceNode
+  | RefNode
+  | LiveParamNode
+  | CombineNode
+  | TransformNode
+  | ControlNode
+  | SignalNode
+  | ErrorNode;
 
 export type Arg =
   | { readonly kind: 'pattern'; readonly node: PatternNode }
@@ -118,6 +134,12 @@ export interface Settings {
   readonly song?: SongSettings;
   readonly seed?: string;
   readonly meta: Readonly<Record<string, string>>;
+}
+export interface LiveParamDecl {
+  readonly name: string;
+  readonly defaultValue: number;
+  readonly min?: number;
+  readonly max?: number;
 }
 export interface Binding {
   readonly id: NodeId;
@@ -156,6 +178,7 @@ export interface Program {
   readonly bindings: readonly Binding[];
   readonly outputs: readonly Output[];
   readonly resources: readonly ResourceDecl[];
+  readonly params?: readonly LiveParamDecl[];
   readonly diagnostics: readonly Diagnostic[];
   readonly advisories?: readonly Advisory[];
 }

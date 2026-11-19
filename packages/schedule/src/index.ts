@@ -5,9 +5,16 @@ import {
   type TempoPoint,
   type TimeSpan,
   add,
+  ceil,
+  div,
   eq,
   fromFloat,
+  gt,
+  lt,
   lte,
+  max,
+  mul,
+  ONE,
   sub,
   tempoCurve,
   toNumber,
@@ -47,8 +54,12 @@ function samePoints(a: readonly TempoPoint[], b: readonly TempoPoint[]): boolean
 
 export interface SchedulerOptions<T> {
   /** May be asynchronous, for example when evaluation runs in a worker (idea.md §11.3). */
-  readonly query: (span: TimeSpan) => readonly Event<T>[] | Promise<readonly Event<T>[]>;
+  readonly query: (
+    span: TimeSpan,
+    controls: ReadonlyMap<string, unknown>,
+  ) => readonly Event<T>[] | Promise<readonly Event<T>[]>;
   readonly onEvent: (ev: Event<T>, time: number, duration: number) => void;
+  readonly onControls?: (controls: ReadonlyMap<string, unknown>) => void;
   readonly onError?: (e: unknown) => void;
   readonly now: () => number;
   readonly cps: Rational;
@@ -56,6 +67,24 @@ export interface SchedulerOptions<T> {
   readonly tempo?: readonly TempoPoint[];
   readonly lookahead?: number;
   readonly interval?: number;
+}
+export type ControlPatch = ReadonlyMap<string, unknown> | Readonly<Record<string, unknown>>;
+export interface InjectOptions {
+  /** Event duration in cycles. Defaults to 1 cycle when neither duration option is set. */
+  readonly durationCycles?: Rational;
+  /** Event duration in seconds, converted through the active ClockMapping. */
+  readonly durationSeconds?: number;
+  /** Cycle grid size to quantize the injected onset to. */
+  readonly quantize?: Rational;
+}
+interface QueuedEvent<T> {
+  readonly begin: Rational;
+  readonly value: T;
+  readonly durationCycles?: Rational;
+  readonly durationSeconds?: number;
+}
+function isReadonlyMap(v: ControlPatch): v is ReadonlyMap<string, unknown> {
+  return v instanceof Map;
 }
 
 export class Scheduler<T> {
@@ -65,6 +94,8 @@ export class Scheduler<T> {
   private timer: ReturnType<typeof setInterval> | undefined;
   private busy = false;
   private generation = 0;
+  private currentControls: ReadonlyMap<string, unknown> = new Map();
+  private injected: QueuedEvent<T>[] = [];
 
   constructor(private readonly opts: SchedulerOptions<T>) {
     this.points = opts.tempo ?? [];
@@ -77,6 +108,9 @@ export class Scheduler<T> {
 
   get running(): boolean {
     return this.timer !== undefined;
+  }
+  get controls(): ReadonlyMap<string, unknown> {
+    return this.currentControls;
   }
 
   /** The current cycle position (approximate, for display only). */
@@ -102,6 +136,50 @@ export class Scheduler<T> {
     this.generation++;
     if (this.timer !== undefined) clearInterval(this.timer);
     this.timer = undefined;
+    this.injected = [];
+  }
+  /** Replaces the live control map and forwards it to `onControls` (if provided). */
+  setControls(controls: ControlPatch): void {
+    const next = new Map<string, unknown>();
+    const entries = isReadonlyMap(controls) ? controls.entries() : Object.entries(controls);
+    for (const [k, v] of entries) {
+      if (v !== undefined) next.set(k, v);
+    }
+    this.currentControls = next;
+    this.opts.onControls?.(next);
+  }
+  /** Merges control updates into the live control map and forwards the result to `onControls`. */
+  updateControls(patch: ControlPatch): void {
+    const next = new Map(this.currentControls);
+    const entries = isReadonlyMap(patch) ? patch.entries() : Object.entries(patch);
+    for (const [k, v] of entries) {
+      if (v === undefined) next.delete(k);
+      else next.set(k, v);
+    }
+    this.currentControls = next;
+    this.opts.onControls?.(next);
+  }
+  /** Queues an imperative one-shot or grid-quantized event for dispatch in time order. */
+  inject(value: T, opts?: InjectOptions): void {
+    const q = opts?.quantize;
+    if (q !== undefined && lt(q, ZERO)) {
+      throw new RangeError('Scheduler.inject: quantize must be non-negative');
+    }
+    if (opts?.durationSeconds !== undefined && !Number.isFinite(opts.durationSeconds)) {
+      throw new RangeError('Scheduler.inject: durationSeconds must be finite');
+    }
+    let ref = this.cursor;
+    if (this.running) {
+      const nowCycle = fromFloat(Math.max(toNumber(this.clock.cycle0), timeToCycle(this.clock, this.opts.now())), 1000);
+      ref = max(ref, nowCycle);
+    }
+    const begin = q !== undefined && gt(q, ZERO) ? mul(ceil(div(ref, q)), q) : ref;
+    this.injected.push({
+      begin,
+      value,
+      ...(opts?.durationCycles !== undefined ? { durationCycles: opts.durationCycles } : {}),
+      ...(opts?.durationSeconds !== undefined ? { durationSeconds: opts.durationSeconds } : {}),
+    });
   }
 
   /** Re-anchors at the cursor. The event graph is untouched. */
@@ -132,10 +210,11 @@ export class Scheduler<T> {
     if (lte(end, this.cursor)) return;
     const begin = this.cursor;
     this.cursor = end;
+    const controls = this.currentControls;
     const gen = this.generation;
     this.busy = true;
     Promise.resolve()
-      .then(() => this.opts.query({ begin, end }))
+      .then(() => this.opts.query({ begin, end }, controls))
       .then(
         (events) => {
           if (gen !== this.generation) return;
@@ -148,6 +227,35 @@ export class Scheduler<T> {
               ? cycleToTime(clock, ev.whole.end) - time
               : toNumber(sub(ev.whole.end, ev.whole.begin)) / toNumber(clock.cps);
             due.push([ev, time, duration]);
+          }
+          if (this.injected.length > 0) {
+            const remaining: QueuedEvent<T>[] = [];
+            for (const item of this.injected) {
+              if (!lt(item.begin, end)) {
+                remaining.push(item);
+                continue;
+              }
+              const time = cycleToTime(clock, item.begin);
+              let spanEnd: Rational;
+              if (item.durationCycles !== undefined) {
+                spanEnd = add(item.begin, lt(item.durationCycles, ZERO) ? ZERO : item.durationCycles);
+              } else if (item.durationSeconds !== undefined) {
+                const sec = Math.max(0, item.durationSeconds);
+                const durCycles = clock.tempo
+                  ? fromFloat(Math.max(0, timeToCycle(clock, time + sec) - toNumber(item.begin)), 1_000_000)
+                  : fromFloat(sec * toNumber(clock.cps), 1_000_000);
+                spanEnd = add(item.begin, durCycles);
+              } else {
+                spanEnd = add(item.begin, ONE);
+              }
+              const span: TimeSpan = { begin: item.begin, end: spanEnd };
+              const ev: Event<T> = { whole: span, part: span, value: item.value, provenance: [] };
+              const duration = clock.tempo
+                ? cycleToTime(clock, spanEnd) - time
+                : toNumber(sub(spanEnd, item.begin)) / toNumber(clock.cps);
+              due.push([ev, time, duration]);
+            }
+            this.injected = remaining;
           }
           due.sort((a, b) => a[1] - b[1]);
           for (const [ev, time, duration] of due) this.opts.onEvent(ev, time, duration);

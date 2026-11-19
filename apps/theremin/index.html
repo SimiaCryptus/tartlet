@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#fff8f3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e0a12" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Tartlet Theremin: a continuous 2D virtual theremin with scale guides, timbre shaping, and live-coupled Tartlet accompaniment."
+    />
+    <title>Tartlet theremin</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">TT</span>
+        <div class="brand-text">
+          <h1>Tartlet theremin</h1>
+          <p class="subtitle">2D continuous pitch &amp; expression instrument</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <p id="audio-status" class="audio-status" data-state="idle" role="status" aria-live="polite">
+          Audio off — touch or click the field to start
+        </p>
+        <button id="hold-btn" class="btn btn-hold" type="button" aria-pressed="false">Hold (drone)</button>
+        <button id="panic-btn" class="btn btn-panic" type="button" title="Immediately silence all audio">Panic</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel stage-panel" aria-labelledby="stage-heading">
+        <div class="stage-head">
+          <h2 id="stage-heading" class="visually-hidden">Performance field and live readouts</h2>
+          <dl class="readouts" aria-label="Live instrument readouts">
+            <div class="readout">
+              <dt>Pitch</dt>
+              <dd><output id="readout-hz" class="readout-val">— Hz</output></dd>
+            </div>
+            <div class="readout">
+              <dt>Note</dt>
+              <dd><output id="readout-note" class="readout-val">—</output></dd>
+            </div>
+            <div class="readout">
+              <dt>Gain</dt>
+              <dd><output id="readout-gain" class="readout-val">0.00</output></dd>
+            </div>
+            <div class="readout">
+              <dt>Cutoff</dt>
+              <dd><output id="readout-cutoff" class="readout-val">— Hz</output></dd>
+            </div>
+          </dl>
+        </div>
+
+        <div
+          id="theremin-field"
+          class="theremin-field"
+          role="application"
+          tabindex="0"
+          data-active="false"
+          aria-label="2D Theremin performance field. Horizontal position controls pitch; vertical position controls gain and filter brightness."
+          aria-describedby="field-instructions"
+        >
+          <div id="theremin-guides" class="theremin-guides" aria-hidden="true"></div>
+          <div id="theremin-crosshair" class="theremin-crosshair" aria-hidden="true" hidden>
+            <span class="crosshair-v"></span>
+            <span class="crosshair-h"></span>
+            <span class="crosshair-dot"></span>
+          </div>
+          <div class="field-axis field-axis-y" aria-hidden="true">
+            <span>Loud / Bright</span>
+            <span>Quiet / Dark</span>
+          </div>
+          <div class="field-axis field-axis-x" aria-hidden="true">
+            <span>Low Hz</span>
+            <span>Pitch →</span>
+            <span>High Hz</span>
+          </div>
+          <p id="field-instructions" class="field-prompt">Click, touch, or drag anywhere inside the field to play</p>
+        </div>
+      </section>
+
+      <section class="panel controls-panel" aria-labelledby="controls-heading">
+        <h2 id="controls-heading" class="panel-title">Instrument controls</h2>
+
+        <div class="controls-grid">
+          <fieldset class="control-group">
+            <legend>Sound &amp; pitch</legend>
+
+            <label class="field">
+              <span>Timbre</span>
+              <select id="timbre">
+                <option value="sine" selected>Sine</option>
+                <option value="triangle">Triangle</option>
+                <option value="sawtooth">Sawtooth</option>
+                <option value="square">Square</option>
+                <option value="aah">Voice — Aah</option>
+                <option value="ooh">Voice — Ooh</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Pitch mode</span>
+              <select id="pitch-mode">
+                <option value="continuous" selected>Continuous</option>
+                <option value="snap">Snap to scale</option>
+              </select>
+            </label>
+
+            <div class="field-pair">
+              <label class="field">
+                <span>Scale</span>
+                <select id="scale-select">
+                  <option value="major" selected>Major</option>
+                  <option value="minor">Minor</option>
+                  <option value="dorian">Dorian</option>
+                  <option value="phrygian">Phrygian</option>
+                  <option value="lydian">Lydian</option>
+                  <option value="mixolydian">Mixolydian</option>
+                  <option value="locrian">Locrian</option>
+                  <option value="harmonicMinor">Harmonic minor</option>
+                  <option value="melodicMinor">Melodic minor</option>
+                  <option value="pentatonicMajor">Major pentatonic</option>
+                  <option value="pentatonicMinor">Minor pentatonic</option>
+                  <option value="blues">Blues</option>
+                  <option value="wholeTone">Whole tone</option>
+                  <option value="chromatic">Chromatic</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Root</span>
+                <select id="scale-root">
+                  <option value="C" selected>C</option>
+                  <option value="C#">C♯ / D♭</option>
+                  <option value="D">D</option>
+                  <option value="Eb">E♭ / D♯</option>
+                  <option value="E">E</option>
+                  <option value="F">F</option>
+                  <option value="F#">F♯ / G♭</option>
+                  <option value="G">G</option>
+                  <option value="Ab">A♭ / G♯</option>
+                  <option value="A">A</option>
+                  <option value="Bb">B♭ / A♯</option>
+                  <option value="B">B</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="control-group">
+            <legend>Range &amp; glide</legend>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Min frequency</span>
+                <output id="freq-min-val" class="range-val">110 Hz</output>
+              </span>
+              <input id="freq-min" type="range" min="32" max="520" step="1" value="110" />
+            </label>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Max frequency</span>
+                <output id="freq-max-val" class="range-val">1760 Hz</output>
+              </span>
+              <input id="freq-max" type="range" min="220" max="4186" step="1" value="1760" />
+            </label>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Glide smoothing (τ)</span>
+                <output id="glide-tau-val" class="range-val">0.025 s</output>
+              </span>
+              <input id="glide-tau" type="range" min="0" max="0.35" step="0.005" value="0.025" />
+            </label>
+          </fieldset>
+
+          <fieldset class="control-group">
+            <legend>Vibrato &amp; filter</legend>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Vibrato rate</span>
+                <output id="vibrato-rate-val" class="range-val">5.5 Hz</output>
+              </span>
+              <input id="vibrato-rate" type="range" min="0" max="12" step="0.1" value="5.5" />
+            </label>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Vibrato depth</span>
+                <output id="vibrato-depth-val" class="range-val">12 ¢</output>
+              </span>
+              <input id="vibrato-depth" type="range" min="0" max="100" step="1" value="12" />
+            </label>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Filter ceiling</span>
+                <output id="filter-cutoff-val" class="range-val">3200 Hz</output>
+              </span>
+              <input id="filter-cutoff" type="range" min="150" max="12000" step="10" value="3200" />
+            </label>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Resonance (Q)</span>
+                <output id="filter-q-val" class="range-val">1.5</output>
+              </span>
+              <input id="filter-q" type="range" min="0.5" max="14" step="0.1" value="1.5" />
+            </label>
+          </fieldset>
+
+          <fieldset class="control-group">
+            <legend>Space (room &amp; delay)</legend>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Room reverb</span>
+                <output id="room-amount-val" class="range-val">0.25</output>
+              </span>
+              <input id="room-amount" type="range" min="0" max="1" step="0.01" value="0.25" />
+            </label>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Delay mix</span>
+                <output id="delay-amount-val" class="range-val">0.15</output>
+              </span>
+              <input id="delay-amount" type="range" min="0" max="1" step="0.01" value="0.15" />
+            </label>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Delay time</span>
+                <output id="delay-time-val" class="range-val">0.28 s</output>
+              </span>
+              <input id="delay-time" type="range" min="0.05" max="0.75" step="0.01" value="0.28" />
+            </label>
+
+            <label class="range-field">
+              <span class="range-head">
+                <span>Delay feedback</span>
+                <output id="delay-feedback-val" class="range-val">0.35</output>
+              </span>
+              <input id="delay-feedback" type="range" min="0" max="0.85" step="0.01" value="0.35" />
+            </label>
+          </fieldset>
+        </div>
+      </section>
+
+      <section id="accompaniment-panel" class="panel accomp-panel" aria-labelledby="accomp-heading">
+        <div class="accomp-head">
+          <div class="accomp-title-wrap">
+            <h2 id="accomp-heading" class="panel-title">Tartlet accompaniment</h2>
+            <span class="tag">optional</span>
+          </div>
+          <div class="accomp-actions">
+            <label class="toggle-chip">
+              <input id="accomp-enabled" type="checkbox" />
+              <span>Run accompaniment</span>
+            </label>
+            <label class="field inline-field">
+              <span>Preset</span>
+              <select id="accomp-preset">
+                <option value="pulse">Coupled pulse &amp; bass</option>
+                <option value="drone">Harmonic pad</option>
+                <option value="perc">Responsive percussion</option>
+              </select>
+            </label>
+            <button id="accomp-apply" class="btn btn-primary" type="button">Apply</button>
+          </div>
+        </div>
+
+        <p class="accomp-hint">Reads live theremin state through Tartlet <code>param(...)</code> variables:</p>
+        <ul class="param-chips" aria-label="Available live param variables">
+          <li><code>param("thereminHz")</code></li>
+          <li><code>param("thereminNote")</code></li>
+          <li><code>param("thereminGain")</code></li>
+          <li><code>param("thereminCutoff")</code></li>
+          <li><code>param("thereminX")</code></li>
+          <li><code>param("thereminY")</code></li>
+          <li><code>param("thereminActive")</code></li>
+        </ul>
+
+        <textarea
+          id="accomp-source"
+          class="accomp-editor"
+          rows="5"
+          spellcheck="false"
+          autocapitalize="off"
+          autocomplete="off"
+          aria-label="Tartlet accompaniment pattern source"
+        >
+setcpm(108/4)
+bass: note("c2 ~ eb2 g2").s("triangle").lpf(param("thereminCutoff").range(200, 1800)).gain(0.28)
+pulse: s("hh*8").gain(param("thereminGain").range(0.04, 0.24)).pan(param("thereminX"))</textarea>
+
+        <ul id="accomp-diags" class="accomp-diags" aria-live="polite"></ul>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

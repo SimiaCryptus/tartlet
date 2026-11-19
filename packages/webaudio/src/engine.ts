@@ -57,7 +57,15 @@ import {
 } from './dsp';
 import { SAFETY_WORKLET_SOURCE } from './safety-worklet';
 import { SPECTRAL_WORKLET_SOURCE } from './spectral-worklet';
-import { curveName, curveTable, shapeEnvelope, type CurveTable } from './dsp';
+import {
+  attackDecayEnvelope,
+  curveName,
+  curveTable,
+  envelopeLevelAt,
+  shapeEnvelope,
+  smoothParam,
+  type CurveTable,
+} from './dsp';
 import { GATE_WORKLET_SOURCE } from './gate-worklet';
 import {
   cavityFallback,
@@ -125,6 +133,8 @@ const MAX_CAB_BUSES = 8;
 const MAX_COMP_BUSES = 8;
 /** Polyphony cost of a per-voice gate (TS-87). */
 const GATE_COST = 2;
+/** Time constant in seconds for live changes to held voices. */
+const HELD_TAU = 0.02;
 
 const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
 const fin = (v: unknown, dflt: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : dflt);
@@ -137,9 +147,18 @@ const seedInt = (u: number): number => Math.floor(clamp(u, 0, 1) * 0x7ffffffe) +
 interface Voice {
   end: number;
   readonly cost: number;
+  /** Held voices (from `noteOn`) are never stolen to make room for one-shots. */
+  readonly held?: boolean;
   stop(): void;
   /** Fades the voice out from `at`, for mono lines (TS-42). */
   cut?: (at: number) => void;
+}
+/** A live, held voice. It sounds until `noteOff`. */
+export interface VoiceHandle {
+  /** Moves pitch and level. Other controls apply to the next note. Ignored after `noteOff`. */
+  update(controls: ControlMap, at?: number): void;
+  /** Releases the voice from `at` (default now) over its `release` time. */
+  noteOff(at?: number): void;
 }
 
 /** Start time, buffer offset and optional stop time per source. */
@@ -444,16 +463,7 @@ export class AudioEngine {
       dichoticq: clamp(fin(c.dichoticq, 10), 1, 50),
     };
     const dual = twoEar(ear);
-    const post = ctx.createGain();
-    // A cabinet sits in the dry path, after placement and the ear stage (TS-83).
-    const cab = typeof c.cab === 'string' && CABS.has(c.cab) ? c.cab : undefined;
-    // A compressor shared by the orbit takes the dry path of voices that ask for it (TS-87).
-    const orbit = clamp(Math.round(fin(c.orbit, 0)), 0, 15);
-    const threshold = num(c.comp);
-    const dry = threshold !== undefined && threshold < 0 ? this.compBus(orbit, c, t) : this.input;
-    const sink = this.earStage(c, cab ? this.cabBus(orbit, cab, dry) : dry);
-    post.connect(dual ? sink : this.air(c, this.placer(c, sink, t)));
-    this.sends(c, post, t);
+    const post = this.bus(c, t, dual);
     const textured = amb || creature;
     const attack = clamp(fin(c.attack, vocal ? 0.03 : textured ? 0.3 : 0.005), 0.001, 5);
     const release = clamp(fin(c.release, vocal ? 0.12 : textured ? 0.6 : 0.08), 0.01, 8);
@@ -533,6 +543,203 @@ export class AudioEngine {
       });
     }
   }
+  /**
+   * The routing shared by one-shot and held voices: the node a voice feeds, already connected
+   * through placement, ear stage, cabinet and compressor to the master bus, with its sends.
+   */
+  private bus(c: ControlMap, t: number, dual: boolean): GainNode {
+    const post = this.ctx.createGain();
+    // A cabinet sits in the dry path, after placement and the ear stage (TS-83).
+    const cab = typeof c.cab === 'string' && CABS.has(c.cab) ? c.cab : undefined;
+    // A compressor shared by the orbit takes the dry path of voices that ask for it (TS-87).
+    const orbit = clamp(Math.round(fin(c.orbit, 0)), 0, 15);
+    const threshold = num(c.comp);
+    const dry = threshold !== undefined && threshold < 0 ? this.compBus(orbit, c, t) : this.input;
+    const sink = this.earStage(c, cab ? this.cabBus(orbit, cab, dry) : dry);
+    post.connect(dual ? sink : this.air(c, this.placer(c, sink, t)));
+    this.sends(c, post, t);
+    return post;
+  }
+  /**
+   * Starts a held oscillator voice for live playing. It rises through attack and decay to its
+   * sustain level and sounds until `noteOff`. Returns undefined for sounds that cannot be held
+   * (only oscillators are). Ear mode (binaural, earsh, iphase, earsplit) is fixed at note start.
+   */
+  noteOn(c: ControlMap, time?: number): VoiceHandle | undefined {
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const t = Math.max(fin(time, now), now);
+    const note = c.note as { kind?: string; value?: unknown } | undefined;
+    const midi = note?.kind === 'midi' ? fin(note.value, NaN) : NaN;
+    const pitched = Number.isFinite(midi) || num(c.freq) !== undefined;
+    const sound = typeof c.s === 'string' ? c.s : pitched ? 'triangle' : undefined;
+    if (sound === undefined) return undefined;
+    const res = resolveSound(sound);
+    if (res.status === 'missing') {
+      this.unknownSounds.add(sound);
+      return undefined;
+    }
+    const name = res.status === 'fallback' ? res.to : sound;
+    if (!OSC_SET.has(name)) return undefined;
+    const pitchOf = (x: ControlMap): number => {
+      const f = num(x.freq);
+      if (f !== undefined) return clamp(f, 1, 20000);
+      const n = x.note as { kind?: string; value?: unknown } | undefined;
+      const m = n?.kind === 'midi' ? fin(n.value, 57) : 57;
+      return clamp(440 * 2 ** ((m - 69) / 12), 1, 20000);
+    };
+    const levelOf = (x: ControlMap): number => {
+      const vel = clamp(fin(x.velocity, 1), 0, 1);
+      return clamp(fin(x.gain, 1), 0, 1.5) * vel ** clamp(fin(x.velcurve, 1), 0.25, 4) * 0.3;
+    };
+    const earOf = (x: ControlMap): { readonly beat: number; readonly k: number } => ({
+      beat: clamp(fin(x.binaural, 0), 0, MAX_BEAT) + clamp(fin(x.irate, 0), 0, MAX_IRATE),
+      k: 2 ** (clamp(fin(x.earsh, 0), -100, 100) / 2400),
+    });
+    const first = earOf(c);
+    const phase = clamp(fin(c.iphase, 0), 0, 180);
+    const harmonics = c.earsplit === 'harmonics';
+    const dual = first.beat > 0 || first.k !== 1 || phase > 0 || harmonics;
+    const copies = clamp(Math.round(fin(c.unison, 1)), 1, 8);
+    const offsetsOf = (x: ControlMap): number[] => unisonOffsets(copies, clamp(fin(x.detune, 12), 0, 100));
+    /** The frequency of one oscillator: pitch, then the ear shift, then its unison detune. */
+    const targetOf = (x: ControlMap, side: number, idx: number): number => {
+      const { beat, k } = earOf(x);
+      const f = pitchOf(x);
+      const base = dual ? (side === 0 ? f / k - beat / 2 : f * k + beat / 2) : f;
+      return clamp(clamp(base, 1, 20000) * 2 ** ((offsetsOf(x)[idx] ?? 0) / 1200), 1, 20000);
+    };
+    const env: Adsr = {
+      a: clamp(fin(c.attack, 0.005), 0.001, 5),
+      d: clamp(fin(c.decay, 0.05), 0.001, 5),
+      s: clamp(fin(c.sustain, 1), 0, 1),
+      r: clamp(fin(c.release, 0.08), 0.01, 8),
+    };
+    const post = this.bus(c, t, dual);
+    const fx = this.effects(c, t, t + env.a + env.d, env.r, post, undefined, pitchOf(c));
+    const amp = ctx.createGain();
+    amp.connect(fx.input);
+    const basePeak = levelOf(c);
+    const pts = attackDecayEnvelope(t, env, basePeak);
+    amp.gain.setValueAtTime(0, t);
+    for (const [time, v] of pts.slice(1)) amp.gain.linearRampToValueAtTime(v, time);
+    const buses: AudioNode[] = [];
+    if (dual) {
+      const merger = ctx.createChannelMerger(2);
+      merger.connect(amp);
+      const left = ctx.createGain();
+      left.connect(merger, 0, 0);
+      const right = ctx.createGain();
+      if (phase > 0) {
+        // Delaying by phase/360 of a period shifts every harmonic of the right ear by that phase.
+        const d = ctx.createDelay(1);
+        d.delayTime.value = clamp(phase / 360 / targetOf(c, 1, 0), 0, 1);
+        right.connect(d).connect(merger, 0, 1);
+      } else {
+        right.connect(merger, 0, 1);
+      }
+      buses.push(left, right);
+    }
+    const wave = this.waveFor(name, c);
+    const sides = harmonics ? this.splitPair(name, c) : undefined;
+    const level = 1 / Math.sqrt(copies);
+    const carriers: { readonly o: OscillatorNode; readonly side: number; readonly idx: number }[] = [];
+    for (let side = 0; side < (dual ? 2 : 1); side++) {
+      for (let idx = 0; idx < copies; idx++) {
+        const o = ctx.createOscillator();
+        const w = sides?.[side] ?? wave;
+        if (w) o.setPeriodicWave(w);
+        else o.type = name as OscillatorType;
+        o.frequency.value = targetOf(c, side, idx);
+        const g = ctx.createGain();
+        g.gain.value = level;
+        o.connect(g);
+        g.connect(buses[side] ?? amp);
+        carriers.push({ o, side, idx });
+      }
+    }
+    const penv = clamp(fin(c.penv, 0), -48, 48);
+    if (penv !== 0) {
+      const pd = clamp(fin(c.pdecay, 0.1), 0.001, 5);
+      for (const { o } of carriers) {
+        o.detune.setValueAtTime(penv * 100, t);
+        o.detune.linearRampToValueAtTime(0, t + pd);
+      }
+    }
+    const lfos: OscillatorNode[] = [];
+    const vib = clamp(fin(c.vib, 0), 0, 30);
+    if (vib > 0) {
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = vib;
+      const depth = ctx.createGain();
+      depth.gain.value = clamp(fin(c.vibdepth, 0.2), 0, 12) * 100;
+      lfo.connect(depth);
+      for (const { o } of carriers) depth.connect(o.detune);
+      lfos.push(lfo);
+    }
+    const sources: AudioScheduledSourceNode[] = [...carriers.map((x) => x.o), ...lfos, ...fx.lfos];
+    for (const s of sources) s.start(t);
+    const cur: Record<string, unknown> = { ...c };
+    let peak = basePeak;
+    let sustain = env.s;
+    let changedAt: number | undefined;
+    let released = false;
+    /** The envelope level at `when`, for starting the release from where the voice is. */
+    const levelAt = (when: number): number =>
+      changedAt !== undefined && when >= changedAt ? peak * sustain : envelopeLevelAt(t, when, env, basePeak);
+    const voice: Voice = {
+      end: Infinity,
+      cost: sources.length + fx.cost,
+      held: true,
+      stop: () => {
+        for (const s of sources) safeStop(s);
+      },
+    };
+    this.admit(voice, now);
+    return {
+      update: (patch, at) => {
+        if (released) return;
+        const when = Math.max(fin(at, ctx.currentTime), ctx.currentTime);
+        for (const [k, v] of Object.entries(patch)) {
+          if (v === undefined) Reflect.deleteProperty(cur, k);
+          else cur[k] = v;
+        }
+        const moved = ['freq', 'note', 'detune', 'binaural', 'irate', 'earsh'].some((k) => k in patch);
+        if (moved) {
+          for (const x of carriers) smoothParam(x.o.frequency, targetOf(cur, x.side, x.idx), when, HELD_TAU);
+        }
+        const louder = ['gain', 'velocity', 'velcurve', 'sustain'].some((k) => k in patch);
+        if (louder) {
+          peak = levelOf(cur);
+          sustain = clamp(fin(cur.sustain, 1), 0, 1);
+          changedAt = when;
+          smoothParam(amp.gain, peak * sustain, when, HELD_TAU);
+        }
+      },
+      noteOff: (at) => {
+        if (released) return;
+        released = true;
+        const when = Math.max(fin(at, ctx.currentTime), ctx.currentTime);
+        const g = amp.gain;
+        if (typeof g.cancelAndHoldAtTime === 'function') {
+          g.cancelAndHoldAtTime(when);
+        } else {
+          g.cancelScheduledValues(when);
+          g.setValueAtTime(levelAt(when), when);
+        }
+        g.linearRampToValueAtTime(0, when + env.r);
+        const stopAt = when + env.r + 0.02;
+        for (const s of sources) {
+          try {
+            s.stop(stopAt);
+          } catch {
+            /* already stopped */
+          }
+        }
+        voice.end = stopAt;
+      },
+    };
+  }
 
   stopAll(): void {
     for (const v of this.voices.splice(0)) v.stop();
@@ -592,8 +799,11 @@ export class AudioEngine {
     for (let i = this.voices.length - 1; i >= 0; i--) if ((this.voices[i]?.end ?? 0) < now) this.voices.splice(i, 1);
     this.voices.push(v);
     let cost = this.voices.reduce((acc, x) => acc + x.cost, 0);
-    while (cost > MAX_COST && this.voices.length > 1) {
-      const old = this.voices.shift();
+    while (cost > MAX_COST) {
+      // Steal the oldest one-shot, never a held voice and never the voice just admitted.
+      const i = this.voices.findIndex((x) => x.held !== true);
+      if (i < 0 || i >= this.voices.length - 1) break;
+      const [old] = this.voices.splice(i, 1);
       if (!old) break;
       old.stop();
       cost -= old.cost;

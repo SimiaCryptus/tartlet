@@ -14,10 +14,14 @@ export function startWorkerHost(port: WorkerPort): void {
     if (!isRequest(req)) return;
     let res: Response;
     try {
-      res =
-        req.type === 'check'
-          ? { id: req.id, type: 'checked', ...core.check(req) }
-          : { id: req.id, type: 'events', ...core.query({ begin: req.begin, end: req.end }, req.provenance) };
+      if (req.type === 'check') {
+        res = { id: req.id, type: 'checked', ...core.check(req) };
+      } else if (req.type === 'query') {
+        res = { id: req.id, type: 'events', ...core.query({ begin: req.begin, end: req.end }, req.provenance) };
+      } else {
+        core.setParams(req.params);
+        res = { id: req.id, type: 'ok' };
+      }
     } catch (err) {
       res = { id: req.id, type: 'error', message: err instanceof Error ? err.message : String(err) };
     }

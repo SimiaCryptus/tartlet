@@ -1,6 +1,15 @@
 import type { TimeSpan } from '@tartlet/time';
 import { EvalCore } from './core';
-import type { CheckRequest, Checked, Evaluator, QueryReply, RequestBody, Response } from './protocol';
+import {
+  toParamEntries,
+  type CheckRequest,
+  type Checked,
+  type Evaluator,
+  type ParamInput,
+  type QueryReply,
+  type RequestBody,
+  type Response,
+} from './protocol';
 
 /** Same-thread evaluation. It is the fallback when workers are unavailable (plan.md R-3). */
 export class InlineEvaluator implements Evaluator {
@@ -15,6 +24,14 @@ export class InlineEvaluator implements Evaluator {
   query(span: TimeSpan, provenance: boolean): Promise<QueryReply> {
     try {
       return Promise.resolve(this.#core.query(span, provenance));
+    } catch (e) {
+      return Promise.reject(e instanceof Error ? e : new Error(String(e)));
+    }
+  }
+  setParams(params: ParamInput): Promise<void> {
+    try {
+      this.#core.setParams(params);
+      return Promise.resolve();
     } catch (e) {
       return Promise.reject(e instanceof Error ? e : new Error(String(e)));
     }
@@ -39,6 +56,7 @@ export class WorkerEvaluator implements Evaluator {
   #seq = 0;
   readonly #pending = new Map<number, Pending>();
   #last: CheckRequest | undefined;
+  #lastParams: readonly (readonly [string, unknown])[] | undefined;
   #healthy = false;
   #failures = 0;
   #broken = false;
@@ -89,6 +107,9 @@ export class WorkerEvaluator implements Evaluator {
     }
     this.#worker = this.#spawn();
     if (this.#last) this.#send({ type: 'check', ...this.#last }, this.timeouts.check).catch(() => undefined);
+    if (this.#lastParams) {
+      this.#send({ type: 'setParams', params: this.#lastParams }, this.timeouts.query).catch(() => undefined);
+    }
   }
 
   #send(body: RequestBody, timeout: number): Promise<Response> {
@@ -114,6 +135,12 @@ export class WorkerEvaluator implements Evaluator {
     const r = await this.#send({ type: 'query', begin: span.begin, end: span.end, provenance }, this.timeouts.query);
     if (r.type !== 'events') throw new Error('Unexpected worker reply.');
     return { events: r.events, muted: r.muted };
+  }
+  async setParams(params: ParamInput): Promise<void> {
+    const entries = toParamEntries(params);
+    this.#lastParams = entries;
+    const r = await this.#send({ type: 'setParams', params: entries }, this.timeouts.query);
+    if (r.type !== 'ok') throw new Error('Unexpected worker reply.');
   }
 
   dispose(): void {

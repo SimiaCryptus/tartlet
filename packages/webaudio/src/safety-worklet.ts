@@ -20,6 +20,11 @@ class TartletSafety extends AudioWorkletProcessor {
     const output = outputs[0];
     const frames = output[0] ? output[0].length : 128;
     const chans = output.length;
+    while (this.x1.length < chans) {
+      this.x1.push(0);
+      this.y1.push(0);
+      this.tmp.push(0);
+    }
     for (let i = 0; i < frames; i++) {
       let peak = 0;
       for (let c = 0; c < chans; c++) {

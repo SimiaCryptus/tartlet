@@ -73,3 +73,27 @@ export function degreeToMidi(degree: number, scale: { root: number; intervals: r
   const idx = d - octave * len;
   return scale.root + (scale.intervals[idx] ?? 0) + 12 * octave;
 }
+/** Convert a MIDI note number to frequency in Hz (A4 = 69 = 440 Hz). */
+export function midiToFreq(midi: number): number {
+  return 440 * 2 ** ((midi - 69) / 12);
+}
+/** Convert a frequency in Hz to a continuous MIDI note number (A4 = 440 Hz = 69). */
+export function freqToMidi(freq: number): number {
+  return 69 + 12 * Math.log2(freq / 440);
+}
+/** Snap a continuous MIDI pitch to the nearest tone in the given scale across octaves. */
+export function quantizeMidi(midi: number, scale: { root: number; intervals: readonly number[] }): number {
+  if (scale.intervals.length === 0 || !Number.isFinite(midi)) return midi;
+  let best = midi;
+  let bestDist = Infinity;
+  for (const interval of scale.intervals) {
+    const octave = Math.round((midi - scale.root - interval) / 12);
+    const candidate = scale.root + interval + 12 * octave;
+    const dist = Math.abs(midi - candidate);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = candidate;
+    }
+  }
+  return best;
+}

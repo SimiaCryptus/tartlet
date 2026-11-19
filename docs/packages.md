@@ -43,7 +43,7 @@ The expression-language lexer and parser.
 IR types, the codec and the sample path grammar.
 
 - Types:
-  - `Program`, `Settings`, `Binding`, `Output`, `ResourceDecl`, `Advisory`;
+   - `Program`, `Settings`, `Binding`, `Output`, `ResourceDecl`, `Advisory`, `LiveParamDecl`;
   - `PatternNode` and its variants, `Arg`, `FunctionValue`, `ConstValue`;
   - `Diagnostic`, `Fix`, `Provenance`, `SourceRange`, `Offset`;
   - `LimitsConfig` and `QueryBudget`.
@@ -81,7 +81,6 @@ The single source of truth for names.
 - `defaultRegistry`, `editDistance`, and `systemPrompt(reg?)`, which generates the model prompt
   snippet from the non-L3 entries. A test keeps it under 260 words.
 - Tonal helpers: `noteToMidi(text)` (a bare letter means octave 3, so `c` = 48), `SCALES`,
-  `parseScale("D:minor")` and `degreeToMidi(degree, scale)`.
 - The singing alphabet (TS-45): `VOWELS`, `CONSONANTS`, `VOICE_TYPES`, `VOCAL_SOUNDS`,
   `MAX_SYLLABLE_LENGTH`, `parseSyllable`, `suggestSyllable` and `normalizeVowel`.
 - Sound kinds, mirrored from `@tartlet/resources` and checked by a conformance test:
@@ -116,8 +115,6 @@ The single source of truth for names.
 - `compile(program, opts?)` returns a `CompiledProgram`. The options are `locate`, `seed`,
   `documentId` and `blobIndex`.
   - `outputs` maps each output id to its pattern. `labels` maps each output id to its label.
-  - `query(span, { provenance, limits? })` returns
-    `{ events, byOutput, muted: Map<outputId, Diagnostic> }`.
 - `ControlMap` is the merged control dictionary carried by each output event. `note` is
   `{ kind: 'midi', value }`. Other controls are plain numbers or strings. Core also adds
   per-event seeds for the audio adapter: `vseed`, `iseed`, `tseed`, `dseed` and `rseed` (see
@@ -164,8 +161,6 @@ rseed })`, `speedRate`, `MAX_TRANSPOSE` and the General MIDI map `GM_DRUMS`.
 ## @tartlet/worker
 
 - `EvalCore` holds a compiled program. Its `check(req)` re-checks and recompiles, and
-  `query(span, provenance)` queries the current program.
-- `Evaluator` is the host-neutral async interface, with `check`, `query` and `dispose`.
 - `InlineEvaluator` evaluates on the same thread.
 - `WorkerEvaluator(factory, timeouts?)` evaluates in a worker. A watchdog terminates and
   respawns the worker when a request times out. The defaults are 5 s for check and 2 s for
@@ -178,8 +173,6 @@ rseed })`, `speedRate`, `MAX_TRANSPOSE` and the General MIDI map `GM_DRUMS`.
 ## @tartlet/schedule
 
 - `Scheduler<T>({ query, onEvent, onError?, now, cps, lookahead?, interval? })` has `start`,
-  `stop`, `setCps`, `position()`, `running` and `mapping`. Onsets in a window are dispatched in
-  time order, which mono lines rely on (TS-42).
 - `cycleToTime(mapping, cycle)` converts a cycle position to seconds.
 
 ## @tartlet/webaudio
@@ -188,6 +181,9 @@ rseed })`, `speedRate`, `MAX_TRANSPOSE` and the General MIDI map `GM_DRUMS`.
   and gate worklets from `blob:` URLs; the last two are optional.
 - The engine has:
   - `play(controls, time, duration)` and `stopAll()`;
+   - `noteOn(controls, time?)`, which starts a sustained live voice through the safety chain
+     and returns a `VoiceHandle` supporting continuous parameter modulation and a `noteOff`
+     release lifecycle;
   - `ctx`, and `unknown`, the set of sound names it could not play;
   - `setLibrary(library)`, which installs host samples (they win over kit sounds);
   - `skippedSamples`, the number of events skipped while their sample was loading;
@@ -200,6 +196,13 @@ rseed })`, `speedRate`, `MAX_TRANSPOSE` and the General MIDI map `GM_DRUMS`.
 ## @tartlet/element
 
 - `TartletPlayerElement` and `defineTartletPlayer()`. See [embedding.md](embedding.md).
+- Realtime parameter and voice methods on `<tartlet-player>`:
+   - `params`, `setParam(name, value)` and `setParams(params)`: read and update live `param(...)`
+     overrides across the evaluator, scheduler and active held voices.
+   - `noteOn(id, controls)`, `updateVoice(id, controls, glideSeconds?)`, `noteOff(id)` and
+     `releaseAll()`: start or retrigger held voices (merging live `params`), continuously
+     modulate pitch, level, filter and pan controls with optional gliding, and release voices
+     via their ADSR release envelope.
 
 ## @tartlet/cli (private)
 
@@ -213,3 +216,17 @@ rseed })`, `speedRate`, `MAX_TRANSPOSE` and the General MIDI map `GM_DRUMS`.
 
 - `runSource(source, span, seed?)`, `runFixture(fixture)` and `canon(events)`. See
   [testing.md](testing.md).
+   `parseScale("D:minor")`, `degreeToMidi(degree, scale)`, `midiToFreq(midi)`,
+   `freqToMidi(freq)` and `quantizeMidi(midi, scale)` (snaps a continuous MIDI pitch to the
+   nearest scale tone across octaves).
+     `params` lists declared live parameters (`param(name, defaultValue, min?, max?)`).
+   - `query(span, { provenance, limits?, controls? })` returns
+     `{ events, byOutput, muted: Map<outputId, Diagnostic> }`. Passing `controls` (a
+     `ReadonlyMap<string, unknown>`) supplies runtime values for `param(...)` nodes, clamped to
+     `[min, max]` when declared and falling back to `defaultValue`.
+   `query(span, provenance)` queries the current program with the latest live controls.
+- `Evaluator` is the host-neutral async interface, with `check`, `query`, `setParams(params)`
+   (updates live `param(...)` values across subsequent queries) and `dispose`.
+   `stop`, `setCps`, `setControls(controls)`, `inject(...)` (dispatches an immediate one-shot
+   event through `onEvent` alongside scheduled pattern events), `position()`, `running` and
+   `mapping`. Onsets in a window are dispatched in time order, which mono lines rely on (TS-42).
