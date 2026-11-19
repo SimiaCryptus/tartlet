@@ -551,6 +551,14 @@ export class ThereminController {
       gain: st.gain,
       cutoff: st.cutoff,
       active: st.active ? 1 : 0,
+      // Names used by `param("...")` in accompaniment sources.
+      thereminX: st.x,
+      thereminY: st.y,
+      thereminHz: st.freq,
+      thereminNote: st.midi,
+      thereminGain: st.gain,
+      thereminCutoff: st.cutoff,
+      thereminActive: st.active ? 1 : 0,
     });
   }
 }

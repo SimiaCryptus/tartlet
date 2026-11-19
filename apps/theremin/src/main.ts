@@ -1,4 +1,5 @@
 import { freqToMidi, midiToFreq, parseScale } from '@tartlet/registry';
+import { FieldFx, hueForMidi } from './fx';
 import { ThereminController, midiToNoteName } from './theremin';
 
 function el<T extends HTMLElement>(id: string, type: new () => T): T {
@@ -10,16 +11,29 @@ function el<T extends HTMLElement>(id: string, type: new () => T): T {
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
 // ---- elements (ids match index.html)
+const root = document.documentElement;
+const app = el('app', HTMLElement);
 const field = el('theremin-field', HTMLElement);
 const guides = el('theremin-guides', HTMLElement);
-const crosshair = el('theremin-crosshair', HTMLElement);
+const fxCanvas = el('fx-canvas', HTMLCanvasElement);
 const statusEl = el('audio-status', HTMLElement);
 const hzOut = el('readout-hz', HTMLElement);
 const noteOut = el('readout-note', HTMLElement);
 const gainOut = el('readout-gain', HTMLElement);
 const cutoffOut = el('readout-cutoff', HTMLElement);
+const gainMeter = el('gain-meter', HTMLElement);
+const cutoffMeter = el('cutoff-meter', HTMLElement);
+
 const holdBtn = el('hold-btn', HTMLButtonElement);
+const snapBtn = el('snap-btn', HTMLButtonElement);
+const jamBtn = el('jam-btn', HTMLButtonElement);
+const settingsBtn = el('settings-btn', HTMLButtonElement);
 const panicBtn = el('panic-btn', HTMLButtonElement);
+const fullscreenBtn = el('fullscreen-btn', HTMLButtonElement);
+
+const sheet = el('settings-sheet', HTMLElement);
+const sheetClose = el('sheet-close', HTMLButtonElement);
+const tabs = Array.from(sheet.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
 
 const timbre = el('timbre', HTMLSelectElement);
 const pitchMode = el('pitch-mode', HTMLSelectElement);
@@ -31,8 +45,6 @@ const accompPreset = el('accomp-preset', HTMLSelectElement);
 const accompApply = el('accomp-apply', HTMLButtonElement);
 const accompSource = el('accomp-source', HTMLTextAreaElement);
 const accompDiags = el('accomp-diags', HTMLElement);
-
-field.style.touchAction = 'none';
 
 // ---- option mapping
 /** Scale names as the registry knows them. */
@@ -57,10 +69,13 @@ const delayAmount = range('delay-amount');
 const delayTime = range('delay-time');
 const delayFeedback = range('delay-feedback');
 
+const MAX_GAIN = 0.85;
+
 const controller = new ThereminController({
   fMin: fMin.valueAsNumber,
   fMax: fMax.valueAsNumber,
   tau: glideTau.valueAsNumber,
+  maxGain: MAX_GAIN,
   waveform: waveformOf(timbre.value),
   scale: pitchMode.value === 'snap' ? scaleSpec() : '',
   vibratoRate: vibRate.valueAsNumber,
@@ -73,41 +88,75 @@ const controller = new ThereminController({
   delayFeedback: delayFeedback.valueAsNumber,
 });
 
+const fx = new FieldFx(fxCanvas, () => controller.state);
+
+// ---- small helpers
+function haptic(ms: number): void {
+  if (!('vibrate' in navigator)) return;
+  try {
+    navigator.vibrate(ms);
+  } catch {
+    /* not supported */
+  }
+}
+
+const formatHz = (hz: number): string => (hz >= 1000 ? `${(hz / 1000).toFixed(1)}k` : String(Math.round(hz)));
+
+function popNote(): void {
+  noteOut.classList.remove('pop');
+  noteOut.classList.add('pop');
+}
+
 // ---- rendering
 let rafId: number | null = null;
 let audioFailed = false;
+let pendingAccomp = false;
+let lastNote = '';
 
 function render(): void {
   const st = controller.state;
 
-  field.dataset.active = String(st.active);
-  field.style.setProperty('--cx', `${(st.x * 100).toFixed(2)}%`);
-  field.style.setProperty('--cy', `${((1 - st.y) * 100).toFixed(2)}%`);
-  crosshair.hidden = !st.active;
+  root.style.setProperty('--hue', hueForMidi(st.midi).toFixed(1));
+  app.dataset.active = String(st.active);
+  app.dataset.hold = String(st.hold);
+  app.dataset.mode = st.quantized ? 'snap' : 'glide';
 
   if (audioFailed) {
     statusEl.dataset.state = 'error';
-    statusEl.textContent = 'Audio is unavailable in this browser.';
+    statusEl.textContent = 'No audio';
   } else if (st.muted) {
     statusEl.dataset.state = 'idle';
     statusEl.textContent = 'Muted';
   } else if (controller.ready) {
     statusEl.dataset.state = 'active';
-    statusEl.textContent = st.hold ? 'Audio on · Hold' : 'Audio on';
+    statusEl.textContent = st.hold ? 'Live · Hold' : 'Live';
   } else {
     statusEl.dataset.state = 'idle';
-    statusEl.textContent = 'Audio off — touch or click the field to start';
+    statusEl.textContent = 'Tap to start';
   }
 
-  hzOut.textContent = `${st.freq.toFixed(1)} Hz`;
+  hzOut.textContent = st.freq.toFixed(1);
   noteOut.textContent = st.noteName;
+  if (st.active && st.noteName !== lastNote) {
+    popNote();
+    if (st.quantized && lastNote !== '') {
+      fx.noteChange(st.noteName);
+      haptic(6);
+    }
+  }
+  lastNote = st.active ? st.noteName : '';
+
   gainOut.textContent = st.gain.toFixed(2);
-  cutoffOut.textContent = `${String(Math.round(st.cutoff))} Hz`;
+  cutoffOut.textContent = formatHz(st.cutoff);
+  gainMeter.style.setProperty('--level', clamp01(st.gain / MAX_GAIN).toFixed(3));
+  cutoffMeter.style.setProperty('--level', clamp01(Math.log(st.cutoff / 150) / Math.log(12000 / 150)).toFixed(3));
 
   holdBtn.setAttribute('aria-pressed', String(st.hold));
+  snapBtn.setAttribute('aria-pressed', String(pitchMode.value === 'snap'));
 
   const running = controller.accompanimentRunning;
   if (accompEnabled.checked !== running && !pendingAccomp) accompEnabled.checked = running;
+  jamBtn.setAttribute('aria-pressed', String(accompEnabled.checked));
 }
 
 function scheduleRender(): void {
@@ -148,6 +197,29 @@ function renderGuides(): void {
   guides.replaceChildren(...nodes);
 }
 
+// ---- audio unlock (iOS needs a real gesture; retry until it sticks)
+const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'] as const;
+
+function unlock(): void {
+  if (controller.ready) return;
+  void controller.start().then((engine) => {
+    audioFailed = !engine;
+    if (engine) {
+      for (const t of UNLOCK_EVENTS) document.removeEventListener(t, unlock, true);
+    }
+    scheduleRender();
+  });
+}
+for (const t of UNLOCK_EVENTS) document.addEventListener(t, unlock, { capture: true, passive: true });
+
+function resumeAudio(): void {
+  void controller.start().then((engine) => {
+    if (engine && engine.ctx.state !== 'running') {
+      engine.ctx.resume().catch(() => undefined);
+    }
+  });
+}
+
 // ---- pointer handling on the field
 let activePointerId: number | null = null;
 
@@ -158,22 +230,17 @@ function normalizedFromPointer(e: PointerEvent): readonly [number, number] {
   return [x, y];
 }
 
-function unlock(): void {
-  void controller.start().then((engine) => {
-    if (!engine) audioFailed = true;
-    scheduleRender();
-  });
-}
-document.addEventListener('pointerdown', unlock, { once: true });
-document.addEventListener('keydown', unlock, { once: true });
-
 field.addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   if (activePointerId !== null) return;
   activePointerId = e.pointerId;
   field.setPointerCapture(e.pointerId);
+  app.dataset.started = 'true';
+  resumeAudio();
   const [x, y] = normalizedFromPointer(e);
   controller.pointerDown(x, y);
+  fx.burst();
+  haptic(8);
   scheduleRender();
 });
 
@@ -181,6 +248,7 @@ field.addEventListener('pointermove', (e) => {
   if (e.pointerId !== activePointerId) return;
   const [x, y] = normalizedFromPointer(e);
   controller.pointerMove(x, y);
+  fx.wake();
   scheduleRender();
 });
 
@@ -193,20 +261,99 @@ function handlePointerRelease(e: PointerEvent): void {
 }
 field.addEventListener('pointerup', handlePointerRelease);
 field.addEventListener('pointercancel', handlePointerRelease);
+field.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+});
+// Safari pinch-zoom gestures would otherwise hijack the field.
+document.addEventListener(
+  'gesturestart',
+  (e) => {
+    e.preventDefault();
+  },
+  { passive: false },
+);
 
-// ---- buttons
+// ---- dock
 holdBtn.addEventListener('click', () => {
+  app.dataset.started = 'true';
   controller.toggleHold();
+  fx.wake();
+  haptic(10);
   scheduleRender();
+});
+
+snapBtn.addEventListener('click', () => {
+  pitchMode.value = pitchMode.value === 'snap' ? 'continuous' : 'snap';
+  applyScale();
+  haptic(6);
+});
+
+jamBtn.addEventListener('click', () => {
+  accompEnabled.checked = !accompEnabled.checked;
+  accompEnabled.dispatchEvent(new Event('change'));
+  haptic(6);
 });
 
 function panic(): void {
   activePointerId = null;
   controller.panic();
   accompEnabled.checked = false;
+  haptic(20);
   scheduleRender();
 }
 panicBtn.addEventListener('click', panic);
+
+// ---- fullscreen (hidden where unsupported, e.g. iPhone Safari)
+if (!document.fullscreenEnabled) fullscreenBtn.hidden = true;
+fullscreenBtn.addEventListener('click', () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => undefined);
+  } else {
+    root.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined);
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  fullscreenBtn.setAttribute('aria-pressed', String(document.fullscreenElement !== null));
+});
+
+// ---- settings sheet
+function setSheet(open: boolean): void {
+  sheet.dataset.open = String(open);
+  sheet.setAttribute('aria-hidden', String(!open));
+  sheet.toggleAttribute('inert', !open);
+  settingsBtn.setAttribute('aria-expanded', String(open));
+}
+settingsBtn.addEventListener('click', () => {
+  setSheet(sheet.dataset.open !== 'true');
+});
+sheetClose.addEventListener('click', () => {
+  setSheet(false);
+  settingsBtn.focus({ preventScroll: true });
+});
+
+function selectTab(tab: HTMLButtonElement): void {
+  for (const t of tabs) {
+    const selected = t === tab;
+    t.setAttribute('aria-selected', String(selected));
+    t.tabIndex = selected ? 0 : -1;
+    const panel = document.getElementById(t.getAttribute('aria-controls') ?? '');
+    if (panel) panel.hidden = !selected;
+  }
+}
+tabs.forEach((tab, i) => {
+  tab.addEventListener('click', () => {
+    selectTab(tab);
+  });
+  tab.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    if (next) {
+      selectTab(next);
+      next.focus();
+    }
+  });
+});
 
 // ---- sound & pitch
 timbre.addEventListener('change', () => {
@@ -223,7 +370,7 @@ pitchMode.addEventListener('change', applyScale);
 scaleSelect.addEventListener('change', applyScale);
 scaleRoot.addEventListener('change', applyScale);
 
-// ---- sliders: a readout next to each one
+// ---- sliders: a readout and a filled track for each one
 function bindRange(
   input: HTMLInputElement,
   outId: string,
@@ -231,15 +378,23 @@ function bindRange(
   apply: (v: number) => void,
 ): void {
   const out = el(outId, HTMLElement);
+  const setFill = (): void => {
+    const min = Number(input.min || 0);
+    const max = Number(input.max || 100);
+    const pct = max > min ? ((input.valueAsNumber - min) / (max - min)) * 100 : 0;
+    input.style.setProperty('--fill', `${String(clamp01(pct / 100) * 100)}%`);
+  };
   const update = (): void => {
     const v = input.valueAsNumber;
     if (!Number.isFinite(v)) return;
     out.textContent = format(v);
+    setFill();
     apply(v);
     scheduleRender();
   };
   input.addEventListener('input', update);
   out.textContent = format(input.valueAsNumber);
+  setFill();
 }
 
 bindRange(
@@ -347,8 +502,6 @@ tick: s("hh*8").gain(param("thereminGain").range(0.05, 0.3)).pan(param("theremin
 clap: s("~ cp").gain(param("thereminY").range(0.2, 0.7))`,
 };
 
-let pendingAccomp = false;
-
 function renderDiagnostics(diags: ReturnType<ThereminController['setAccompaniment']>): void {
   const items = diags
     .filter((d) => d.severity !== 'info')
@@ -388,6 +541,7 @@ accompEnabled.addEventListener('change', () => {
   }
   pendingAccomp = true;
   applyAccompaniment();
+  scheduleRender();
   void controller.startAccompaniment().then((ok) => {
     pendingAccomp = false;
     if (!ok) {
@@ -410,11 +564,27 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space' && !inEditable) {
     if (e.repeat) return;
     e.preventDefault();
+    app.dataset.started = 'true';
     controller.toggleHold();
+    fx.wake();
     scheduleRender();
   } else if (e.key === 'Escape') {
     e.preventDefault();
+    setSheet(false);
     panic();
+  }
+});
+
+// ---- lifecycle
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (activePointerId !== null) {
+      activePointerId = null;
+      controller.pointerUp();
+    }
+  } else {
+    fx.wake();
+    scheduleRender();
   }
 });
 
@@ -423,8 +593,10 @@ window.addEventListener('pagehide', () => {
     window.cancelAnimationFrame(rafId);
     rafId = null;
   }
+  fx.dispose();
   controller.dispose();
 });
 
+setSheet(false);
 renderGuides();
 render();
