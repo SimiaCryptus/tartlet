@@ -206,6 +206,37 @@ pre {
   white-space: pre-wrap;
 }
 
+.clip-form {
+  margin-bottom: 10px;
+}
+
+.clip-fields {
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) 1fr auto;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .clip-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.clip-demos {
+  margin-bottom: 10px;
+}
+
+.clip-readout {
+  font-weight: 600;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .diags {
   list-style: none;
   margin: 8px 0 0;

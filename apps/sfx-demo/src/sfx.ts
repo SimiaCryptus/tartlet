@@ -3,7 +3,8 @@
 // notes are played through Tartlet's audio engine (with its non-bypassable safety chain).
 import { check, locator } from '@tartlet/check';
 import { compile, type ControlMap } from '@tartlet/core';
-import type { Diagnostic } from '@tartlet/ir';
+import type { Diagnostic, ResourceDecl } from '@tartlet/ir';
+import type { LoadClipUrlOptions, SampleEntry } from '@tartlet/samples';
 import { eq, rat, sub, toNumber } from '@tartlet/time';
 import { AudioEngine } from '@tartlet/webaudio';
 
@@ -18,6 +19,7 @@ interface Hit {
 export interface Sound {
   readonly source: string;
   readonly hits: readonly Hit[];
+  readonly resources: readonly ResourceDecl[];
   readonly diagnostics: readonly Diagnostic[];
 }
 
@@ -36,7 +38,7 @@ export function compileSound(source: string): Sound {
     hits.push({ value: ev.value, at: toNumber(w.begin) / cps, dur: toNumber(sub(w.end, w.begin)) / cps });
   }
   hits.sort((a, b) => a.at - b.at);
-  return { source, hits, diagnostics: r.diagnostics };
+  return { source, hits, resources: r.program.resources, diagnostics: r.diagnostics };
 }
 
 export class TartletSfx {
@@ -78,6 +80,16 @@ export class TartletSfx {
     return s;
   }
 
+  /**
+   * Imports an audio clip from `url` (WAV or browser-decodable audio), resamples it to the
+   * engine's sample rate and retunes it for calibrated musical use, and registers it under `name`.
+   */
+  async importClip(name: string, url: string, opts: LoadClipUrlOptions = {}): Promise<SampleEntry | undefined> {
+    const engine = await this.start();
+    if (!engine) return undefined;
+    return engine.importClip(name, url, opts);
+  }
+
   /** Plays a sound now. Call it from an event handler. */
   async play(source: string): Promise<Sound> {
     // Start the engine first, while the user gesture is still fresh.
@@ -86,6 +98,15 @@ export class TartletSfx {
     if (this.muted) return sound;
     const engine = await started;
     if (!engine) return sound;
+    for (const r of sound.resources) {
+      if (r.kind === 'clip' && r.name !== undefined && !engine.getLibrary()?.get(r.name)) {
+        try {
+          await engine.importClip(r.name, r.spec, r.root !== undefined ? { targetRoot: r.root } : undefined);
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+    }
     const t0 = engine.ctx.currentTime + 0.02;
     for (const h of sound.hits) engine.play(h.value, t0 + h.at, h.dur);
     return sound;

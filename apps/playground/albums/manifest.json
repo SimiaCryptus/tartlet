@@ -133,6 +133,18 @@
     {
       "id": "public-domain-classics",
       "file": "public-domain-classics.json"
+    },
+    {
+      "id": "canine-chorus",
+      "file": "canine-chorus.json"
+    },
+    {
+      "id": "feline-philharmonic",
+      "file": "feline-philharmonic.json"
+    },
+    {
+      "id": "open-sfx-studio",
+      "file": "open-sfx-studio.json"
     }
   ]
 }

@@ -998,7 +998,7 @@ export function compile(program: Program, opts?: CompileOptions): CompiledProgra
   const outputs = new Map<string, Pattern<ControlMap>>();
   const labels = new Map<string, string>();
   const ranges = new Map<string, PatternNode['range']>();
-  const sampled = program.resources.some((r) => r.kind === 'wav' || r.kind === 'bank');
+  const sampled = program.resources.some((r) => r.kind === 'wav' || r.kind === 'bank' || r.kind === 'clip');
   for (const o of program.outputs) {
     if (o.status !== 'ok') continue;
     outputs.set(o.id, withEventSeeds(node(o.expr, NO_ENV) as Pattern<ControlMap>, o.id, sampled));

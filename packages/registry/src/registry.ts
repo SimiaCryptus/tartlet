@@ -1409,6 +1409,23 @@ export const ENTRIES: readonly RegistryEntry[] = [
       'Binds a WAV file, given by a path relative to the sample collection, to a sound name. The host loads it; the document never fetches anything.',
     category: 'directive',
   },
+  {
+    id: 'importClip',
+    names: ['importClip'],
+    form: 'directive',
+    params: [
+      { name: 'name', type: 'string', patternable: false },
+      { name: 'url', type: 'string', patternable: false },
+      { name: 'root', type: 'note', patternable: false, optional: true },
+    ],
+    returns: { kind: 'error' },
+    level: 'L3',
+    deterministic: 'pure',
+    since: SINCE_T13,
+    description:
+      'Imports an audio clip (WAV or browser-decodable audio) from a URL and binds it to a sound name. The runtime resamples and retunes it for calibrated musical use.',
+    category: 'directive',
+  },
 ];
 
 export class Registry {

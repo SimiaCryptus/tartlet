@@ -60,4 +60,19 @@ describe('IR ingestion (Z-10)', () => {
     expect(() => decodeProgram(res('keys.wav', 'bank'))).toThrow();
     expect(decodeProgram(res('keys/', 'bank')).resources[0]?.kind).toBe('bank');
   });
+  it('validates clip URL resources and optional root', () => {
+    const clip = (spec: string, extra: Record<string, unknown> = {}) =>
+      base({ resources: [{ kind: 'clip', name: 'bell', spec, range: R, ...extra }] });
+    expect(decodeProgram(clip('https://example.com/bell.wav', { root: 60 })).resources[0]).toMatchObject({
+      kind: 'clip',
+      name: 'bell',
+      spec: 'https://example.com/bell.wav',
+      root: 60,
+    });
+    expect(decodeProgram(clip('./clips/bell.wav')).resources[0]?.spec).toBe('./clips/bell.wav');
+    for (const bad of ['file:///etc/passwd', 'javascript:alert(1)', '../escape.wav', '//evil.example/a.wav']) {
+      expect(() => decodeProgram(clip(bad))).toThrow();
+    }
+    expect(() => decodeProgram(clip('https://example.com/bell.wav', { root: 200 }))).toThrow();
+  });
 });

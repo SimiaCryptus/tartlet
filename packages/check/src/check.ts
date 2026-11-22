@@ -42,7 +42,7 @@ import type {
   SourceRange,
   PatternType,
 } from '@tartlet/ir';
-import { DEFAULT_LIMITS, isBankPath, isSoundName, isWavPath } from '@tartlet/ir';
+import { DEFAULT_LIMITS, isBankPath, isClipUrl, isSoundName, isWavPath } from '@tartlet/ir';
 import {
   BODY_NAMES,
   CAB_NAMES,
@@ -72,6 +72,7 @@ import {
   isTwelveToneRow,
   lsysPlan,
   normalizeVowel,
+  noteToMidi,
   parseEnvPoints,
   parseFormLayout,
   parseLsysAxiom,
@@ -1508,8 +1509,10 @@ class Lowerer {
   /** Resource diagnostics for every sample name used by an `s` control (idea.md §11.2). */
   checkResources(cat: SoundCatalog): void {
     const seen = new Set<number>();
-    // Declared samples are known; names a bank may provide are only known after loading (TS-91).
-    const declared = new Set(this.resources.flatMap((r) => (r.kind === 'wav' && r.name ? [r.name] : [])));
+    // Declared samples and URL clips are known; names a bank may provide are only known after loading (TS-91).
+    const declared = new Set(
+      this.resources.flatMap((r) => ((r.kind === 'wav' || r.kind === 'clip') && r.name ? [r.name] : [])),
+    );
     const banks = this.resources.some((r) => r.kind === 'bank');
     const walk = (n: PatternNode, inS: boolean): void => {
       switch (n.kind) {
@@ -2036,6 +2039,10 @@ class Lowerer {
       this.sampleDirective(id, e);
       return true;
     }
+    if (id === 'importClip') {
+      this.clipDirective(e);
+      return true;
+    }
     const a = e.args[0];
     const v = a ? this.fold(a) : null;
     if (!v) {
@@ -2189,7 +2196,7 @@ class Lowerer {
       badPath(p, 'path to a .wav file');
       return;
     }
-    if (this.resources.some((r) => r.kind === 'wav' && r.name === n.value)) {
+    if (this.resources.some((r) => (r.kind === 'wav' || r.kind === 'clip') && r.name === n.value)) {
       this.diag('E-NAME-DUP', 'error', `The sample \`${n.value}\` is already declared.`, n.range, 'none');
       return;
     }
@@ -2203,6 +2210,97 @@ class Lowerer {
       );
     }
     this.resources.push({ kind: 'wav', name: n.value, spec: p.value, range: this.sr(p.range) });
+  }
+  /** `importClip(name, url, root?)`: declares a URL audio clip to be resampled and retuned at runtime. */
+  private clipDirective(e: Extract<Expr, { k: 'call' }>): void {
+    const strArg = (i: number): Extract<Expr, { k: 'str' }> | undefined => {
+      const a = e.args[i];
+      return a?.k === 'str' ? a : undefined;
+    };
+    const n = strArg(0);
+    const u = strArg(1);
+    if (!n || !u) {
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        '`importClip` needs a constant name and a constant URL, as in importClip("bell", "https://example.com/bell.wav").',
+        e.range,
+        'none',
+      );
+      return;
+    }
+    if (!isSoundName(n.value)) {
+      this.diag(
+        'E-ARG-TYPE',
+        'error',
+        `\`${n.value}\` is not a sound name: start with a letter, then use letters, digits, "_" or "-".`,
+        n.range,
+        'none',
+      );
+      return;
+    }
+    if (!isClipUrl(u.value)) {
+      this.diag(
+        'E-RES-PATH',
+        'error',
+        `\`${u.value}\` is not a valid clip URL. Use an https://, http://, blob:, data:audio/... or relative path.`,
+        u.range,
+        'none',
+      );
+      return;
+    }
+    let root: number | undefined;
+    const rootArg = e.args[2];
+    if (rootArg !== undefined) {
+      if (rootArg.k === 'str') {
+        const parsed = noteToMidi(rootArg.value);
+        if (parsed === null || parsed < 0 || parsed > 127) {
+          this.diag(
+            'E-ARG-TYPE',
+            'error',
+            `\`${rootArg.value}\` is not a valid note name (for example "c4" or "a4").`,
+            rootArg.range,
+            'none',
+          );
+          return;
+        }
+        root = parsed;
+      } else {
+        const folded = this.fold(rootArg);
+        const midi = folded ? Math.round(toNumber(folded)) : NaN;
+        if (!folded || !Number.isInteger(midi) || midi < 0 || midi > 127) {
+          this.diag(
+            'E-ARG-TYPE',
+            'error',
+            '`importClip` root must be a note name (such as "c4") or MIDI number 0–127.',
+            rootArg.range,
+            'none',
+          );
+          return;
+        }
+        root = midi;
+      }
+    }
+    if (this.resources.some((r) => (r.kind === 'wav' || r.kind === 'clip') && r.name === n.value)) {
+      this.diag('E-NAME-DUP', 'error', `The sample \`${n.value}\` is already declared.`, n.range, 'none');
+      return;
+    }
+    if (KIT_SOUNDS.has(n.value)) {
+      this.diag(
+        'I-RES-OVERRIDE',
+        'info',
+        `The clip \`${n.value}\` replaces the built-in kit sound of the same name in this document.`,
+        n.range,
+        'none',
+      );
+    }
+    this.resources.push({
+      kind: 'clip',
+      name: n.value,
+      spec: u.value,
+      ...(root !== undefined ? { root } : undefined),
+      range: this.sr(u.range),
+    });
   }
 
   // ---- constants

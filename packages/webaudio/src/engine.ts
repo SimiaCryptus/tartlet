@@ -76,7 +76,18 @@ import {
   type AcousticParams,
 } from './acoustics';
 import { AcousticRenders, type RenderKind, type RenderedResponse } from './renders';
-import { planImpulse, planNote, type DecodedTake, type SampleEntry, type SampleLibrary } from '@tartlet/samples';
+import {
+  SampleLibrary,
+  importClipBytes,
+  loadClipFromUrl,
+  planImpulse,
+  planNote,
+  type DecodedTake,
+  type ImportClipOptions,
+  type LoadClipUrlOptions,
+  type SampleEntry,
+  type WavData,
+} from '@tartlet/samples';
 
 type ControlMap = Readonly<Record<string, unknown>>;
 
@@ -383,6 +394,55 @@ export class AudioEngine {
   /** Sets the decoded samples this engine plays; names in it win over kit sounds (TS-91). */
   setLibrary(lib: SampleLibrary | undefined): void {
     this.library = lib;
+  }
+  /** The engine's current sample library, if any. */
+  getLibrary(): SampleLibrary | undefined {
+    return this.library;
+  }
+  private async decodeWithContext(bytes: ArrayBuffer): Promise<WavData | null> {
+    if (typeof this.ctx.decodeAudioData !== 'function') return null;
+    try {
+      const buf = await this.ctx.decodeAudioData(bytes.slice(0));
+      const nCh = Math.min(2, Math.max(1, buf.numberOfChannels));
+      const channels = Array.from({ length: nCh }, (_, i) => new Float32Array(buf.getChannelData(i)));
+      return { sampleRate: buf.sampleRate, channels };
+    } catch {
+      return null;
+    }
+  }
+  /**
+   * Decodes, resamples to the engine's sample rate, and retunes raw clip bytes, registering the
+   * calibrated clip on this engine's sample library under `name`.
+   */
+  async importClipBytes(
+    name: string,
+    url: string,
+    bytes: ArrayBuffer,
+    opts: ImportClipOptions = {},
+  ): Promise<SampleEntry> {
+    const library = this.library ?? new SampleLibrary();
+    this.library = library;
+    return importClipBytes(name, url, bytes, {
+      targetSampleRate: this.ctx.sampleRate,
+      decodeAudio: (raw) => this.decodeWithContext(raw),
+      ...opts,
+      library,
+    });
+  }
+  /**
+   * Imports an audio clip from `url` (WAV or any format supported by the AudioContext), resamples
+   * it to the engine's sample rate and retunes it for calibrated musical use, and registers it
+   * under `name` on this engine's sample library.
+   */
+  async importClip(name: string, url: string, opts: LoadClipUrlOptions = {}): Promise<SampleEntry> {
+    const library = this.library ?? new SampleLibrary();
+    this.library = library;
+    return loadClipFromUrl(name, url, {
+      targetSampleRate: this.ctx.sampleRate,
+      decodeAudio: (raw) => this.decodeWithContext(raw),
+      ...opts,
+      library,
+    });
   }
   /** Events skipped because their sample was still loading. */
   get skippedSamples(): number {

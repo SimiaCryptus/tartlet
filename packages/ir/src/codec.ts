@@ -21,7 +21,7 @@ import type {
   SourceRef,
   ValueKind,
 } from './index';
-import { isBankPath, isSoundName, isWavPath } from './paths';
+import { isBankPath, isClipUrl, isSoundName, isWavPath } from './paths';
 
 type Obj = Readonly<Record<string, unknown>>;
 
@@ -454,19 +454,22 @@ class Decoder {
     const resources: ResourceDecl[] = this.arr(o.resources, '$.resources').map((x, i) => {
       const p = `$.resources[${String(i)}]`;
       const ro = this.obj(x, p);
-      const kind = this.pick(ro.kind, `${p}.kind`, ['samples', 'wav', 'bank'] as const);
+      const kind = this.pick(ro.kind, `${p}.kind`, ['samples', 'wav', 'bank', 'clip'] as const);
       const spec = this.str(ro.spec, `${p}.spec`);
       if (kind === 'wav' && !isWavPath(spec)) fail(`${p}.spec`, 'not a sample path');
       if (kind === 'bank' && !isBankPath(spec)) fail(`${p}.spec`, 'not a bank path');
+      if (kind === 'clip' && !isClipUrl(spec)) fail(`${p}.spec`, 'not a clip URL');
       let name: string | undefined;
-      if (kind === 'wav') {
+      if (kind === 'wav' || kind === 'clip') {
         name = this.str(ro.name, `${p}.name`);
         if (!isSoundName(name)) fail(`${p}.name`, 'not a sound name');
       }
+      const root = kind === 'clip' && ro.root !== undefined ? this.int(ro.root, `${p}.root`, 0, 127) : undefined;
       return {
         kind,
         ...(name !== undefined ? { name } : undefined),
         spec,
+        ...(root !== undefined ? { root } : undefined),
         range: this.range(ro.range, `${p}.range`),
       };
     });

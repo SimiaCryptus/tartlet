@@ -51,6 +51,44 @@ $: note("c5 e5 g5 c6").s("sine").decay(.1).sustain(0).room(.3)</textarea>
       </section>
 
       <section class="card wide">
+        <h2>URL clip import &amp; calibration</h2>
+        <p>
+          Import a WAV (or browser-decodable) clip by URL via <code>sfx.importClip(name, url)</code>. The runtime
+          resamples it to the AudioContext rate and retunes it to concert pitch (A4 = 440 Hz) for calibrated musical
+          use.
+        </p>
+        <form id="clip-form" class="clip-form">
+          <div class="clip-fields">
+            <input id="clip-name" type="text" value="chime" aria-label="Clip sound name" placeholder="Sound name" />
+            <input
+              id="clip-url"
+              type="text"
+              value="./clips/detuned-chime.wav"
+              aria-label="Clip URL"
+              placeholder="./clips/detuned-chime.wav or https://…"
+            />
+            <button id="clip-import" type="submit" class="primary">Import &amp; calibrate</button>
+          </div>
+        </form>
+        <div class="row clip-demos">
+          <button type="button" data-demo-clip="chime" data-demo-url="./clips/detuned-chime.wav">
+            Load detuned chime (22 kHz, +35¢)
+          </button>
+          <button type="button" data-demo-clip="pluck" data-demo-url="./clips/flat-pluck.wav">
+            Load flat pluck (32 kHz, −38¢)
+          </button>
+        </div>
+        <p id="clip-readout" class="clip-readout" role="status" aria-live="polite">
+          Import a clip above to see its runtime resampling &amp; retuning readout.
+        </p>
+        <div class="row">
+          <button id="clip-play-chord" type="button" disabled>Play C major chord</button>
+          <button id="clip-play-scale" type="button" disabled>Play C major scale</button>
+          <button id="clip-play-arp" type="button" disabled>Play arpeggio</button>
+        </div>
+      </section>
+
+      <section class="card wide">
         <h2>Last sound: <span id="last-name">none yet</span></h2>
         <pre><code id="last-code">Trigger something above to see its source.</code></pre>
       </section>
@@ -59,14 +97,18 @@ $: note("c5 e5 g5 c6").s("sine").decay(.1).sustain(0).room(.3)</textarea>
         <h2>How it works</h2>
         <p>
           <code>src/sfx.ts</code> checks and compiles a source once, reads the notes of its first cycle and plays them
-          through Tartlet's audio engine. Wiring a sound to an event takes one line:
+          through Tartlet's audio engine. Wiring a sound or calibrated URL clip takes a couple of lines:
         </p>
         <pre><code>import { TartletSfx } from './sfx';
 
 const sfx = new TartletSfx();
 button.addEventListener('click', () => {
   void sfx.play('setcps(3)\n$: note("e5 b5").s("triangle").decay(.12).sustain(0)');
-});</code></pre>
+});
+
+// Import a WAV clip by URL — resampled and retuned automatically by the runtime:
+const entry = await sfx.importClip('chime', './clips/detuned-chime.wav');
+void sfx.play('setcps(1.5)\n$: note("c4 e4 g4 c5").s("chime").room(.3)');</code></pre>
       </section>
     </main>
 

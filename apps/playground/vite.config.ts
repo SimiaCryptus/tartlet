@@ -71,6 +71,128 @@ function collection(): Plugin {
   };
 }
 
+// Demo audio clips for URL clip import + runtime calibration (resample & retune).
+// Generated deterministically as PCM16 WAVs so there are no binary fixtures in the repo.
+function encodeDemoWav(sampleRate: number, samples: Float32Array): Buffer {
+  const dataLen = samples.length * 2;
+  const buf = Buffer.alloc(44 + dataLen);
+  buf.write('RIFF', 0, 'ascii');
+  buf.writeUInt32LE(36 + dataLen, 4);
+  buf.write('WAVE', 8, 'ascii');
+  buf.write('fmt ', 12, 'ascii');
+  buf.writeUInt32LE(16, 16);
+  buf.writeUInt16LE(1, 20); // PCM
+  buf.writeUInt16LE(1, 22); // mono
+  buf.writeUInt32LE(sampleRate, 24);
+  buf.writeUInt32LE(sampleRate * 2, 28);
+  buf.writeUInt16LE(2, 32);
+  buf.writeUInt16LE(16, 34);
+  buf.write('data', 36, 'ascii');
+  buf.writeUInt32LE(dataLen, 40);
+  for (let i = 0; i < samples.length; i++) {
+    const x = Math.max(-1, Math.min(1, samples[i] ?? 0));
+    buf.writeInt16LE(Math.round(x < 0 ? x * 0x8000 : x * 0x7fff), 44 + i * 2);
+  }
+  return buf;
+}
+
+function makeDetunedKalimbaWav(): Buffer {
+  // 22050 Hz, quiet, 18 ms leading silence, DC offset, 334.5 Hz (E4 + 25.4 cents sharp).
+  const sr = 22050;
+  const lead = Math.round(sr * 0.018);
+  const body = Math.round(sr * 0.65);
+  const out = new Float32Array(lead + body);
+  for (let i = 0; i < body; i++) {
+    const t = i / sr;
+    const env = Math.exp(-t * 4.5) * Math.min(1, t / 0.004);
+    const tone =
+      Math.sin(2 * Math.PI * 334.5 * t) +
+      0.32 * Math.sin(2 * Math.PI * 669 * t) * Math.exp(-t * 7) +
+      0.14 * Math.sin(2 * Math.PI * 1003.5 * t) * Math.exp(-t * 11);
+    out[lead + i] = tone * env * 0.32 + 0.05;
+  }
+  return encodeDemoWav(sr, out);
+}
+
+function makeFlatBrassWav(): Buffer {
+  // 32000 Hz, warm brass harmonic tone at 257.0 Hz (C4 - 30.9 cents flat).
+  const sr = 32000;
+  const body = Math.round(sr * 0.75);
+  const out = new Float32Array(body);
+  for (let i = 0; i < body; i++) {
+    const t = i / sr;
+    const attack = Math.min(1, t / 0.035);
+    const decay = Math.exp(-t * 1.8);
+    const tone =
+      Math.sin(2 * Math.PI * 257 * t) +
+      0.55 * Math.sin(2 * Math.PI * 514 * t) +
+      0.3 * Math.sin(2 * Math.PI * 771 * t) +
+      0.15 * Math.sin(2 * Math.PI * 1028 * t);
+    out[i] = tone * attack * decay * 0.28;
+  }
+  return encodeDemoWav(sr, out);
+}
+
+function makeVinylPercWav(): Buffer {
+  // 22050 Hz, unpitched crisp percussive hit with 12 ms leading silence.
+  const sr = 22050;
+  const lead = Math.round(sr * 0.012);
+  const body = Math.round(sr * 0.22);
+  const out = new Float32Array(lead + body);
+  let s = 0x51a7c3d1;
+  for (let i = 0; i < body; i++) {
+    s ^= s << 13;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    const noise = ((s >>> 0) / 0xffffffff) * 2 - 1;
+    const t = i / sr;
+    out[lead + i] = noise * Math.exp(-t * 28) * 0.55;
+  }
+  return encodeDemoWav(sr, out);
+}
+
+const DEMO_CLIPS: Record<string, () => Buffer> = {
+  'detuned-kalimba.wav': makeDetunedKalimbaWav,
+  'flat-brass.wav': makeFlatBrassWav,
+  'vinyl-perc.wav': makeVinylPercWav,
+};
+
+function demoClips(): Plugin {
+  const cache = new Map<string, Buffer>();
+  const get = (name: string): Buffer | undefined => {
+    const make = DEMO_CLIPS[name];
+    if (!make) return undefined;
+    let wav = cache.get(name);
+    if (!wav) {
+      wav = make();
+      cache.set(name, wav);
+    }
+    return wav;
+  };
+  return {
+    name: 'tartlet-demo-clips',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? '').split('?')[0] ?? '';
+        const name = /\/clips\/([\w-]+\.wav)$/.exec(path)?.[1];
+        const wav = name ? get(name) : undefined;
+        if (!wav) {
+          next();
+          return;
+        }
+        res.setHeader('Content-Type', 'audio/wav');
+        res.end(wav);
+      });
+    },
+    generateBundle() {
+      for (const name of Object.keys(DEMO_CLIPS)) {
+        const wav = get(name);
+        if (wav) this.emitFile({ type: 'asset', fileName: `clips/${name}`, source: wav });
+      }
+    },
+  };
+}
+
 // ---- PWA: app icons are drawn here (no binary files in the repo), and sw.js gets a precache list.
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
@@ -208,7 +330,13 @@ function pwa(): Plugin {
       const hash = createHash('sha256');
       const files: string[] = ['./', 'manifest.webmanifest'];
       for (const [fileName, item] of Object.entries(bundle).sort(([a], [b]) => a.localeCompare(b))) {
-        if (fileName.endsWith('.map') || fileName === 'sw.js' || fileName.startsWith('samples/')) continue;
+        if (
+          fileName.endsWith('.map') ||
+          fileName === 'sw.js' ||
+          fileName.startsWith('samples/') ||
+          fileName.startsWith('clips/open/')
+        )
+          continue;
         files.push(fileName === 'index.html' ? './' : fileName);
         hash.update(fileName);
         hash.update(item.type === 'chunk' ? item.code : item.source);
@@ -235,11 +363,11 @@ function pwa(): Plugin {
 // <style> elements at runtime for its theme and decorations. Its worker and fonts are same-origin.
 // When Trusted Types are enforced, allow Monaco's policies (e.g. trusted-types tartlet editorViewLayer ...).
 const CSP =
-  "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; connect-src 'self' https://hosted.cognotik.com https://raw.githubusercontent.com; object-src 'none'; base-uri 'none'";
+  "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; connect-src 'self' blob: data: https:; object-src 'none'; base-uri 'none'";
 
 export default defineConfig({
   resolve: { alias },
-  plugins: [albums(), collection(), pwa()],
+  plugins: [albums(), collection(), demoClips(), pwa()],
   preview: { headers: { 'Content-Security-Policy': CSP, 'Cross-Origin-Opener-Policy': 'same-origin' } },
   // Workers are created with { type: 'module' }, so build them as ES modules (IIFE cannot code-split).
   worker: { format: 'es' },

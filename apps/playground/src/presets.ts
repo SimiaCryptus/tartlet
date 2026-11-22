@@ -561,4 +561,23 @@ $: s("hh*8").stutter().gain(.4)
 $: n("0 2 4 7").scale("A:minor").s("triangle").apply(stutter).release(.1)
 `,
   },
+  {
+    id: 'calibrated-clips',
+    name: 'Calibrated URL clips',
+    group: 'Sound and signals',
+    blurb: 'Imports detuned, mixed-rate WAV clips by URL; the runtime resamples and retunes them to concert pitch.',
+    tags: ['importClip', 'wav', 'retune'],
+    source: `setcpm(104/4)
+
+// These WAVs are recorded at 22 kHz / 32 kHz and detuned (+25c and -31c).
+// The runtime resamples and retunes them automatically for calibrated musical use.
+importClip("kalimba", "./clips/detuned-kalimba.wav")
+importClip("brass", "./clips/flat-brass.wav")
+importClip("perc", "./clips/vinyl-perc.wav")
+
+$: n("0 2 4 7 4 2").scale("C4:major pentatonic").s("kalimba").room(.35).gain(.85)
+$: note("<[c3,g3] [a2,e3] [f2,c3] [g2,d3]>").s("brass").gain(.55).release(.25).slow(2)
+$: s("bd ~ perc ~, hh*8?0.4").gain(.75)
+`,
+  },
 ];

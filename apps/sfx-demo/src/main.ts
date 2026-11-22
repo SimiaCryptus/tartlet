@@ -1,4 +1,5 @@
 import './style.css';
+import { midiToNoteName } from '@tartlet/samples';
 import { SOUNDS, padSound } from './sounds';
 import { TartletSfx, type Sound } from './sfx';
 
@@ -19,6 +20,14 @@ const typing = el('typing', HTMLInputElement);
 const custom = el('custom', HTMLTextAreaElement);
 const customPlay = el('custom-play', HTMLButtonElement);
 const customDiags = el('custom-diags', HTMLUListElement);
+const clipForm = el('clip-form', HTMLFormElement);
+const clipName = el('clip-name', HTMLInputElement);
+const clipUrl = el('clip-url', HTMLInputElement);
+const clipReadout = el('clip-readout', HTMLElement);
+const clipPlayChord = el('clip-play-chord', HTMLButtonElement);
+const clipPlayScale = el('clip-play-scale', HTMLButtonElement);
+const clipPlayArp = el('clip-play-arp', HTMLButtonElement);
+let activeClipName = '';
 
 function updateStatus(): void {
   status.textContent = sfx.ready ? 'Sound is on.' : 'Click, tap or press a key to turn sound on.';
@@ -142,6 +151,78 @@ custom.addEventListener('keydown', (e) => {
     e.preventDefault();
     playCustom();
   }
+});
+
+// ---- URL clip import & runtime calibration demo
+async function importAndCalibrate(name: string, url: string): Promise<void> {
+  const cleanName = name.trim();
+  const cleanUrl = url.trim();
+  if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(cleanName)) {
+    clipReadout.textContent = 'Name must start with a letter and use letters, digits, "_" or "-".';
+    return;
+  }
+  if (!cleanUrl) {
+    clipReadout.textContent = 'Enter a clip URL.';
+    return;
+  }
+  clipReadout.textContent = `Importing & calibrating "${cleanName}"…`;
+  try {
+    const entry = await sfx.importClip(cleanName, cleanUrl);
+    updateStatus();
+    if (!entry) {
+      clipReadout.textContent = 'Audio is unavailable here.';
+      return;
+    }
+    activeClipName = entry.name;
+    clipPlayChord.disabled = false;
+    clipPlayScale.disabled = false;
+    clipPlayArp.disabled = false;
+    const c = entry.calibration;
+    if (c && c.detectedHz !== null && c.root !== null) {
+      const sign = c.retuneCents >= 0 ? '+' : '';
+      clipReadout.textContent = `Calibrated "${entry.name}": resampled ${String(c.sourceSampleRate)} Hz → ${String(c.sampleRate)} Hz, detected ${c.detectedHz.toFixed(1)} Hz → retuned to ${midiToNoteName(c.root)} (${sign}${c.retuneCents.toFixed(1)}¢).`;
+    } else if (c) {
+      clipReadout.textContent = `Calibrated "${entry.name}": resampled ${String(c.sourceSampleRate)} Hz → ${String(c.sampleRate)} Hz (unpitched ${c.kind}).`;
+    } else {
+      clipReadout.textContent = `Loaded "${entry.name}".`;
+    }
+  } catch (e) {
+    clipReadout.textContent = e instanceof Error ? e.message : 'Failed to import clip.';
+  }
+}
+
+clipForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  void importAndCalibrate(clipName.value, clipUrl.value);
+});
+
+for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-demo-clip]')) {
+  btn.addEventListener('click', () => {
+    const name = btn.dataset.demoClip ?? 'chime';
+    const url = btn.dataset.demoUrl ?? './clips/detuned-chime.wav';
+    clipName.value = name;
+    clipUrl.value = url;
+    void importAndCalibrate(name, url);
+  });
+}
+
+clipPlayChord.addEventListener('click', () => {
+  if (!activeClipName) return;
+  play(`${activeClipName} (chord)`, `setcps(1)\n$: note("[c4,e4,g4,c5]").s("${activeClipName}").gain(.7).room(.3)`);
+});
+clipPlayScale.addEventListener('click', () => {
+  if (!activeClipName) return;
+  play(
+    `${activeClipName} (scale)`,
+    `setcps(0.75)\n$: n("0 1 2 3 4 5 6 7").scale("C4:major").s("${activeClipName}").gain(.8).room(.25)`,
+  );
+});
+clipPlayArp.addEventListener('click', () => {
+  if (!activeClipName) return;
+  play(
+    `${activeClipName} (arpeggio)`,
+    `setcps(1.2)\n$: note("c4 e4 g4 b4 c5 g4 e4 c4").s("${activeClipName}").gain(.8).room(.35)`,
+  );
 });
 
 updateStatus();

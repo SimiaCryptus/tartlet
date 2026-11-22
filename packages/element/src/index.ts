@@ -2,7 +2,18 @@
 // The mixer and source view land in T3.
 import type { Diagnostic, Program, ResourceDecl } from '@tartlet/ir';
 import type { ControlMap } from '@tartlet/core';
-import { SampleLibrary, loadSamples, sampleResources, type FetchBytes, type HostDiagnostic } from '@tartlet/samples';
+import {
+  SampleLibrary,
+  loadClipFromUrl,
+  loadSamples,
+  sampleResources,
+  type DecodeAudio,
+  type FetchBytes,
+  type HostDiagnostic,
+  type LoadClipUrlOptions,
+  type SampleEntry,
+  type WavData,
+} from '@tartlet/samples';
 import { Scheduler, cycleToTime } from '@tartlet/schedule';
 import { AudioEngine } from '@tartlet/webaudio';
 import { InlineEvaluator, WorkerEvaluator, type CheckRequest, type Checked, type Evaluator } from '@tartlet/worker';
@@ -156,7 +167,13 @@ export class TartletPlayerElement extends HTMLElement {
    * or null. Set it before `source`. Without it, `sample-base` is used.
    */
   resolveSample: ((path: string) => Promise<ArrayBuffer | null>) | undefined = undefined;
+  /**
+   * Host hook for URL clip imports (`importClip(name, url)`): bytes for a clip URL, or null.
+   * Without it, `fetch(new URL(url, document.baseURI))` is used.
+   */
+  resolveClip: ((url: string) => Promise<ArrayBuffer | null>) | undefined = undefined;
   #library = new SampleLibrary();
+  readonly #importedClips = new Map<string, SampleEntry>();
   #samplesKey = '';
   #hostDiagnostics: readonly Diagnostic[] = [];
   #loading = 0;
@@ -232,6 +249,29 @@ export class TartletPlayerElement extends HTMLElement {
   /** True while the transport is running. */
   get playing(): boolean {
     return this.#scheduler?.running ?? false;
+  }
+  /** The active decoded sample and calibrated clip library. */
+  get library(): SampleLibrary {
+    return this.#library;
+  }
+  /**
+   * Imports an audio clip from `url`, resamples and retunes it for calibrated musical use, and
+   * keeps it registered on this player across source updates.
+   */
+  async importClip(name: string, url: string, opts: LoadClipUrlOptions = {}): Promise<SampleEntry> {
+    const fetchClip = this.#clipFetcher();
+    const decodeAudio = this.#clipDecoder();
+    const entry = await loadClipFromUrl(name, url, {
+      targetSampleRate: this.#engine?.ctx.sampleRate ?? 48000,
+      fetchBytes: fetchClip,
+      ...(decodeAudio ? { decodeAudio } : undefined),
+      ...opts,
+      library: this.#library,
+    });
+    this.#importedClips.set(name, entry);
+    this.#engine?.setLibrary(this.#library);
+    this.dispatchEvent(new CustomEvent('clipschange', { detail: { library: this.#library } }));
+    return entry;
   }
   /** Current live parameter overrides. */
   get params(): ReadonlyMap<string, unknown> {
@@ -444,13 +484,58 @@ export class TartletPlayerElement extends HTMLElement {
       }
     };
   }
+  /** A fetcher for `importClip(name, url)` resources: host hook or `fetch` resolved against the document. */
+  #clipFetcher(): FetchBytes {
+    const hook = this.resolveClip;
+    if (hook) return hook;
+    return async (spec) => {
+      let url: URL;
+      try {
+        url = new URL(spec, document.baseURI);
+      } catch {
+        return null;
+      }
+      if (
+        url.protocol !== 'https:' &&
+        url.protocol !== 'http:' &&
+        url.protocol !== 'blob:' &&
+        url.protocol !== 'data:'
+      ) {
+        return null;
+      }
+      try {
+        const res = await fetch(url);
+        return res.ok ? await res.arrayBuffer() : null;
+      } catch {
+        return null;
+      }
+    };
+  }
+  #clipDecoder(): DecodeAudio | undefined {
+    const ctx = this.#engine?.ctx;
+    if (!ctx || typeof ctx.decodeAudioData !== 'function') return undefined;
+    return async (bytes): Promise<WavData | null> => {
+      try {
+        const buf = await ctx.decodeAudioData(bytes.slice(0));
+        const nCh = Math.min(2, Math.max(1, buf.numberOfChannels));
+        const channels = Array.from({ length: nCh }, (_, i) => new Float32Array(buf.getChannelData(i)));
+        return { sampleRate: buf.sampleRate, channels };
+      } catch {
+        return null;
+      }
+    };
+  }
   async #loadSamples(resources: readonly ResourceDecl[]): Promise<void> {
     const list = sampleResources(resources);
     const base = this.getAttribute('sample-base');
-    const key = JSON.stringify([base, list.map((r) => [r.kind, r.name ?? '', r.spec, r.range.start.line])]);
+    const key = JSON.stringify([
+      base,
+      list.map((r) => [r.kind, r.name ?? '', r.spec, r.root ?? '', r.range.start.line]),
+    ]);
     if (key === this.#samplesKey) return;
     this.#samplesKey = key;
     const library = new SampleLibrary();
+    for (const entry of this.#importedClips.values()) library.set(entry);
     this.#library = library;
     this.#engine?.setLibrary(library);
     const toDiag = (h: HostDiagnostic): Diagnostic => ({
@@ -461,25 +546,38 @@ export class TartletPlayerElement extends HTMLElement {
       effect: 'none',
     });
     const fetchBytes = this.#fetcher(base);
-    if (list.length === 0 || !fetchBytes) {
-      this.#setHostDiagnostics(
-        list.map((r) =>
-          toDiag({
-            id: 'W-RES-MISSING',
-            severity: 'warning',
-            message: 'This page does not load samples, so this sample is silent.',
-            resource: r,
-          }),
-        ),
-      );
+    const clipItems = list.filter((r) => r.kind === 'clip');
+    const fileItems = list.filter((r) => r.kind !== 'clip');
+    const missingDiags: Diagnostic[] =
+      !fetchBytes && fileItems.length > 0
+        ? fileItems.map((r) =>
+            toDiag({
+              id: 'W-RES-MISSING',
+              severity: 'warning',
+              message: 'This page does not load samples, so this sample is silent.',
+              resource: r,
+            }),
+          )
+        : [];
+    const loadList = fetchBytes ? list : clipItems;
+    if (loadList.length === 0) {
+      this.#setHostDiagnostics(missingDiags);
+      this.dispatchEvent(new CustomEvent('clipschange', { detail: { library: this.#library } }));
       return;
     }
-    this.#loading = list.length;
+    this.#loading = loadList.length;
     if (!this.playing) this.#render();
-    const { diagnostics } = await loadSamples(list, fetchBytes, { library });
+    const decodeAudio = this.#clipDecoder();
+    const { diagnostics } = await loadSamples(loadList, fetchBytes ?? (() => Promise.resolve(null)), {
+      library,
+      targetSampleRate: this.#engine?.ctx.sampleRate ?? 48000,
+      fetchUrl: this.#clipFetcher(),
+      ...(decodeAudio ? { decodeAudio } : undefined),
+    });
     if (this.#library !== library) return;
     this.#loading = 0;
-    this.#setHostDiagnostics(diagnostics.map(toDiag));
+    this.#setHostDiagnostics([...missingDiags, ...diagnostics.map(toDiag)]);
+    this.dispatchEvent(new CustomEvent('clipschange', { detail: { library: this.#library } }));
   }
   #setHostDiagnostics(ds: readonly Diagnostic[]): void {
     if (ds.length === 0 && this.#hostDiagnostics.length === 0) {

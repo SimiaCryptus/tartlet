@@ -44,6 +44,17 @@ const CURATED: Partial<Record<string, Curated>> = {
     'other',
   ],
   setcps: ['setcps(cps)', 'Sets the tempo in cycles per second.', 'other'],
+  importClip: [
+    'importClip("name", "https://…/clip.wav", root?)',
+    'Imports a WAV (or browser-decodable) clip from a URL. The runtime resamples and retunes it to concert pitch for calibrated musical use.',
+    'other',
+  ],
+  sample: [
+    'sample("name", "./path.wav")',
+    'Binds a relative WAV file from the sample collection to a sound name.',
+    'other',
+  ],
+  samples: ['samples("./bank/")', 'Declares a sample bank manifest.', 'other'],
   const: [
     'const name = pattern',
     'Binds a pattern or a function to a name. Declare it before use; names must not reuse built-ins. Functions: const f = (x, n = 2) => x.ply(n).',

@@ -8,6 +8,7 @@ import type { CodeEditorHandle } from './code-editor';
 import { initShare } from './share';
 import { initRingtone } from './ringtone';
 import { initLibrary } from './library';
+import { initClips } from './clips';
 import { initQueue, type QueueEntry } from './queue';
 import { parseAlbum, slugify, toAlbum, type SketchData, type SketchMeta } from './album-schema';
 import { PRESETS } from './presets';
@@ -742,6 +743,20 @@ function downloadAlbum(album: CatalogAlbum): void {
   );
   flash(rated > 0 ? `Saved "${album.name}" with ${String(rated)} rated` : `Saved "${album.name}" (no ratings yet)`);
 }
+
+// ---- URL clip import & calibration panel
+initClips({
+  player,
+  flash,
+  onInsert: (directive) => {
+    const src = editor.value;
+    if (!src.includes(directive)) {
+      editor.value = `${directive}\n${src}`;
+      apply();
+    }
+    flash('Inserted importClip directive');
+  },
+});
 
 // ---- startup: discover albums, then load the sketch from the URL or the first album sketch
 

@@ -50,5 +50,51 @@ describe('sample directives', () => {
     expect(ids('$: s("kick")', { catalog: missing })).toEqual(['W-RES-MISSING']);
     expect(ids('sample("kick", "./kick.wav")\n$: s("kick")', { catalog: missing })).toEqual([]);
     expect(ids('samples("./keys/")\n$: s("rhodes")', { catalog: missing })).toEqual(['I-RES-DECLARED']);
+    expect(ids('importClip("bell", "https://example.com/bell.wav")\n$: s("bell")', { catalog: missing })).toEqual([]);
+  });
+});
+
+describe('importClip directive', () => {
+  it('accepts http(s), blob, data:audio and relative URLs with optional root note', () => {
+    const src = [
+      'importClip("bell", "https://example.com/clips/bell.wav")',
+      'importClip("brass", "./clips/brass.wav", "c4")',
+      'importClip("vox", "blob:https://example.com/abc-123", 69)',
+      'importClip("tiny", "data:audio/wav;base64,UklGRg==")',
+      '$: note("c4 e4 g4").s("bell")',
+    ].join('\n');
+    const r = check(src, opts);
+    expect(r.diagnostics).toEqual([]);
+    expect(r.program.resources.map((x) => [x.kind, x.name ?? '', x.spec, x.root])).toEqual([
+      ['clip', 'bell', 'https://example.com/clips/bell.wav', undefined],
+      ['clip', 'brass', './clips/brass.wav', 60],
+      ['clip', 'vox', 'blob:https://example.com/abc-123', 69],
+      ['clip', 'tiny', 'data:audio/wav;base64,UklGRg==', undefined],
+    ]);
+  });
+
+  it('rejects unsafe clip URLs with E-RES-PATH', () => {
+    for (const bad of [
+      'file:///etc/passwd',
+      'javascript:alert(1)',
+      'ftp://example.com/a.wav',
+      '../secret.wav',
+      '//evil.example/a.wav',
+      'https://example.com/has space.wav',
+    ]) {
+      expect(ids(`importClip("x", "${bad}")\n$: s("bd")`)).toContain('E-RES-PATH');
+    }
+  });
+
+  it('reports duplicate names, bad roots and kit overrides', () => {
+    expect(
+      ids('importClip("bell", "https://a.com/1.wav")\nimportClip("bell", "https://a.com/2.wav")\n$: s("bd")'),
+    ).toEqual(['E-NAME-DUP']);
+    expect(ids('sample("bell", "./a.wav")\nimportClip("bell", "https://a.com/2.wav")\n$: s("bd")')).toEqual([
+      'E-NAME-DUP',
+    ]);
+    expect(ids('importClip("bd", "https://a.com/bd.wav")\n$: s("bd")')).toEqual(['I-RES-OVERRIDE']);
+    expect(ids('importClip("bell", "https://a.com/1.wav", "notanote")\n$: s("bd")')).toEqual(['E-ARG-TYPE']);
+    expect(ids('importClip("bell", "https://a.com/1.wav", 999)\n$: s("bd")')).toEqual(['E-ARG-TYPE']);
   });
 });

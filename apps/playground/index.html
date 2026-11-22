@@ -214,6 +214,77 @@
       <!-- ---- right dock -->
       <div class="dock" data-dock="right">
         <section
+          id="panel-clips"
+          class="panel library clips"
+          data-panel="clips"
+          data-title="URL Clips"
+          data-short="Clips"
+          data-icon="♪"
+        >
+          <div class="panel-body">
+            <p class="library-intro">
+              Import WAV (or browser-decodable) clips from a URL. The runtime automatically resamples and retunes them
+              to concert pitch (A4 = 440 Hz) for calibrated musical use.
+            </p>
+            <form id="clips-form" class="clips-form">
+              <div class="library-row">
+                <label class="field">
+                  <span>Sound name</span>
+                  <input
+                    id="clip-name"
+                    type="text"
+                    placeholder="kalimba"
+                    maxlength="64"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </label>
+                <label class="field">
+                  <span>Target root</span>
+                  <select id="clip-root">
+                    <option value="">Auto (nearest note)</option>
+                    <option value="60">C4 (60)</option>
+                    <option value="69">A4 (69)</option>
+                    <option value="48">C3 (48)</option>
+                    <option value="67">G4 (67)</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field field-wide">
+                <span>Clip URL</span>
+                <input
+                  id="clip-url"
+                  type="text"
+                  inputmode="url"
+                  placeholder="./clips/detuned-kalimba.wav or https://…"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </label>
+              <div class="library-row">
+                <button id="clip-import-btn" type="submit" class="primary">Import &amp; calibrate</button>
+              </div>
+            </form>
+            <div class="clips-demos">
+              <span class="clips-demos-label">
+                Try a built-in or open-source WAV (<a
+                  href="./clips/open/CREDITS.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >credits &amp; licenses</a
+                >):
+              </span>
+              <div id="clip-demos" class="clips-demo-btns"></div>
+            </div>
+            <p id="clip-status" class="library-status" role="status" aria-live="polite"></p>
+            <ul id="clip-list" class="library-list" aria-label="Calibrated clips"></ul>
+            <p id="clip-empty" class="library-empty">
+              No clips loaded yet. Import a URL above or load the “Calibrated URL clips” preset.
+            </p>
+          </div>
+        </section>
+
+        <section
           id="panel-queue"
           class="panel library queue"
           data-panel="queue"
@@ -506,6 +577,8 @@
                 <dl>
                   <dt><code>setcpm(120/4)</code></dt>
                   <dd>tempo: one cycle per 4/4 bar</dd>
+                  <dt><code>importClip("k", "…/k.wav")</code></dt>
+                  <dd>import a URL clip (auto-resampled &amp; retuned)</dd>
                   <dt><code>$: …</code> <code>bass: …</code></dt>
                   <dd>one track per line; named tracks are unique</dd>
                   <dt><code>const kick = s("bd*4")</code></dt>
